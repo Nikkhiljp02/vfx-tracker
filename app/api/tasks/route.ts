@@ -103,7 +103,6 @@ export async function POST(request: NextRequest) {
         isInternal: isInternal || false,
         status: status || 'YTS',
         leadName: leadName || null,
-        dependencies: dependencies ? JSON.stringify(dependencies) : null,
         bidMds: bidMds || null,
         internalEta: internalEta ? new Date(internalEta) : null,
         clientEta: clientEta ? new Date(clientEta) : null,

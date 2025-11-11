@@ -148,7 +148,6 @@ export async function PUT(
 
     const updateData: any = {
       ...(leadName !== undefined && { leadName }),
-      ...(dependencies !== undefined && { dependencies: dependencies ? JSON.stringify(dependencies) : null }),
       ...(bidMds !== undefined && { bidMds }),
       ...(internalEta !== undefined && { internalEta: internalEta ? new Date(internalEta) : null }),
       ...(clientEta !== undefined && { clientEta: clientEta ? new Date(clientEta) : null }),
