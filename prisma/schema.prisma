@@ -1,0 +1,280 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// AUTHENTICATION & USER MANAGEMENT MODELS
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  username      String    @unique
+  password      String    // Hashed with bcrypt
+  firstName     String
+  lastName      String
+  email         String?   @unique
+  role          String    @default("VIEWER") // ADMIN, COORDINATOR, MANAGER, PRODUCER, DEPARTMENT, VIEWER
+  isActive      Boolean   @default(true)
+  createdBy     String?   // ID of admin who created this user
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  preferences   UserPreferences?
+  permissions   UserPermission[]
+  showAccess    ShowAccess[]
+  sessions      Session[]
+
+  @@map("users")
+}
+
+model Permission {
+  id            String    @id @default(cuid())
+  name          String    @unique // e.g., "shows.create", "shots.edit", "deliveries.send"
+  description   String?
+  category      String    // "shows", "shots", "tasks", "deliveries", "users", "admin"
+  action        String    // "create", "read", "update", "delete", "manage"
+  
+  // Relations
+  customUsers   UserPermission[]
+
+  @@map("permissions")
+}
+
+model UserPermission {
+  id            String     @id @default(cuid())
+  userId        String
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permissionId  String
+  permission    Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  granted       Boolean    @default(true) // true = grant permission, false = revoke permission
+  createdAt     DateTime   @default(now())
+  
+  @@unique([userId, permissionId])
+  @@map("user_permissions")
+}
+
+model ShowAccess {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  showId        String
+  show          Show      @relation(fields: [showId], references: [id], onDelete: Cascade)
+  canEdit       Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  
+  @@unique([userId, showId])
+  @@map("show_access")
+}
+
+model UserPreferences {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Saved view states (stored as JSON)
+  tableColumns  String?   // Which columns to show in tracker
+  filterState   String?   // Saved filter preferences
+  sortState     String?   // Saved sort preferences
+  theme         String?   @default("light")
+  
+  updatedAt     DateTime  @updatedAt
+
+  @@map("user_preferences")
+}
+
+model Session {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionToken  String    @unique
+  expires       DateTime
+  createdAt     DateTime  @default(now())
+
+  @@map("sessions")
+}
+
+// ============================================
+// SHOWS & SHOTS MODELS
+// ============================================
+
+// Shows Table
+model Show {
+  id            String   @id @default(cuid())
+  showName      String
+  clientName    String?
+  status        String   @default("Active") // Active, On Hold, Completed, Archived
+  departments   String   // JSON array: ["Comp", "Paint", "Roto", "MMRA"]
+  createdDate   DateTime @default(now())
+  updatedDate   DateTime @updatedAt
+  notes         String?
+  shots         Shot[]
+  showAccess    ShowAccess[]
+
+  @@map("shows")
+}
+
+// Shots Table
+model Shot {
+  id              String   @id @default(cuid())
+  showId          String
+  shotName        String
+  episode         String?  // Episode identifier (e.g., EP01, EP02)
+  sequence        String?  // Sequence identifier (e.g., SQ010, SQ020)
+  turnover        String?  // Turnover identifier (e.g., TO01, TO02)
+  frames          Int?     // Number of frames in the shot
+  shotTag         String   @default("Fresh") // Fresh, Additional
+  parentShotId    String?
+  scopeOfWork     String?
+  remark          String?  // General remark for the shot
+  createdDate     DateTime @default(now())
+  updatedDate     DateTime @updatedAt
+  
+  show            Show     @relation(fields: [showId], references: [id], onDelete: Cascade)
+  parentShot      Shot?    @relation("ShotToParent", fields: [parentShotId], references: [id])
+  childShots      Shot[]   @relation("ShotToParent")
+  tasks           Task[]
+  notes           ShotNote[]
+
+  @@map("shots")
+}
+
+// Shot Tasks Table (Department-wise breakdown)
+model Task {
+  id                String   @id @default(cuid())
+  shotId            String
+  department        String   // Comp, Paint, Roto, MMRA
+  isInternal        Boolean  @default(false) // false = main task, true = Int Paint/Int Roto/Int MM
+  
+  // Status & Assignment
+  status            String   @default("YTS") // YTS, WIP, Int App, AWF, C APP, C KB, OMIT, HOLD
+  leadName          String?
+  
+  // Bidding
+  bidMds            Float?   // e.g., 2.5 MDs
+  
+  // ETA
+  internalEta       DateTime?
+  clientEta         DateTime?
+  
+  // Delivery
+  deliveredVersion  String?  // e.g., "v003"
+  deliveredDate     DateTime?
+  
+  // Tracking
+  createdDate       DateTime @default(now())
+  updatedDate       DateTime @updatedAt
+  
+  shot              Shot     @relation(fields: [shotId], references: [id], onDelete: Cascade)
+
+  @@map("tasks")
+}
+
+// Status Options Table (Dynamic status management)
+model StatusOption {
+  id          String   @id @default(cuid())
+  statusName  String   @unique
+  statusOrder Int
+  isActive    Boolean  @default(true)
+  colorCode   String   @default("#6B7280") // Tailwind gray-500
+  createdDate DateTime @default(now())
+
+  @@map("status_options")
+}
+
+// Departments Table
+model Department {
+  id          String   @id @default(cuid())
+  deptName    String   @unique
+  isActive    Boolean  @default(true)
+  createdDate DateTime @default(now())
+
+  @@map("departments")
+}
+
+// Activity Log Table (Track all changes with ability to undo)
+model ActivityLog {
+  id            String   @id @default(cuid())
+  entityType    String   // "Shot", "Task", "Show", "StatusOption", "Department"
+  entityId      String   // ID of the affected entity
+  actionType    String   // "CREATE", "UPDATE", "DELETE"
+  fieldName     String?  // Field that was changed (for UPDATE)
+  oldValue      String?  // Previous value (JSON string)
+  newValue      String?  // New value (JSON string)
+  fullEntityData String? // Complete entity JSON (for DELETE operations backup)
+  userName      String?  // User who made the change (for future user system)
+  timestamp     DateTime @default(now())
+  isReversed    Boolean  @default(false) // Track if this change was undone
+
+  @@map("activity_logs")
+  @@index([entityType, entityId])
+  @@index([timestamp])
+}
+
+// Shot Notes/Comments Table (Communication & Collaboration)
+model ShotNote {
+  id              String   @id @default(cuid())
+  shotId          String
+  content         String   // The note/comment text
+  mentions        String?  // JSON array of mentions: [{"type": "user", "name": "John"}, {"type": "dept", "name": "PAINT"}]
+  attachments     String?  // JSON array of attachment info: [{"name": "ref.jpg", "path": "/uploads/...", "size": 1024}]
+  userName        String   @default("User") // User who created the note (for future user system)
+  createdDate     DateTime @default(now())
+  updatedDate     DateTime @updatedAt
+  isEdited        Boolean  @default(false)
+  
+  shot            Shot     @relation(fields: [shotId], references: [id], onDelete: Cascade)
+
+  @@map("shot_notes")
+  @@index([shotId])
+  @@index([createdDate])
+}
+
+// Delivery Schedule Table (Automated email scheduling)
+model DeliverySchedule {
+  id              String   @id @default(cuid())
+  scheduleType    String   // "ONE_TIME" or "DAILY"
+  dateOption      String   // "today", "upcoming", "specific", "custom"
+  specificDate    String?  // For "specific" dateOption
+  customFrom      String?  // For "custom" dateOption (date range start)
+  customTo        String?  // For "custom" dateOption (date range end)
+  scheduledTime   String   // Time in HH:MM format (24-hour) in IST
+  isActive        Boolean  @default(true)
+  sendDirectly    Boolean  @default(true) // true = send, false = draft
+  lastExecuted    DateTime? // Track last execution time
+  lastStatus      String?  // "success", "failed", "error"
+  lastError       String?  // Error message if failed
+  executionCount  Int      @default(0) // Number of times executed
+  createdDate     DateTime @default(now())
+  updatedDate     DateTime @updatedAt
+  
+  executionLogs   ScheduleExecutionLog[]
+
+  @@map("delivery_schedules")
+  @@index([isActive, scheduledTime])
+}
+
+model ScheduleExecutionLog {
+  id              String   @id @default(cuid())
+  scheduleId      String
+  schedule        DeliverySchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  executedAt      DateTime @default(now())
+  status          String   // "success", "failed", "error", "cancelled"
+  dateOption      String   // What date option was used
+  dateRange       String?  // Actual date/range that was sent
+  deliveryCount   Int?     // Number of deliveries in the list
+  errorMessage    String?  // Error details if failed
+  sendDirectly    Boolean  // Whether it was sent or drafted
+  
+  @@map("schedule_execution_logs")
+  @@index([scheduleId, executedAt])
+}
+

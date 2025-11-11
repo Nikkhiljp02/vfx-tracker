@@ -1,0 +1,223 @@
+'use client';
+
+import { Task, StatusOption } from '@/lib/types';
+import { useState, useMemo } from 'react';
+import { useVFXStore } from '@/lib/store';
+import { formatDisplayDate, isValidStatusTransition, incrementVersion } from '@/lib/utils';
+import { Pencil, Save, X, Lock } from 'lucide-react';
+
+interface TaskCellProps {
+  task: Task;
+}
+
+export default function TaskCell({ task }: TaskCellProps) {
+  const { statusOptions, setShows, shows } = useVFXStore();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedTask, setEditedTask] = useState(task);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Find the show this task belongs to and check if user can edit
+  const canEdit = useMemo(() => {
+    const shot = task.shot;
+    if (!shot) return false;
+    
+    const show = shows.find(s => s.id === shot.showId);
+    return show?.canEdit ?? false;
+  }, [shows, task.shot]);
+
+  const statusOption = statusOptions.find(s => s.statusName === task.status);
+  const statusColor = statusOption?.colorCode || '#6B7280';
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/tasks/${task.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: editedTask.status,
+          leadName: editedTask.leadName,
+          bidMds: editedTask.bidMds,
+          internalEta: editedTask.internalEta,
+          clientEta: editedTask.clientEta,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert(error.error || 'Failed to update task');
+        return;
+      }
+
+      // Fetch updated shows to refresh the table instantly
+      const showsRes = await fetch('/api/shows');
+      const showsData = await showsRes.json();
+      setShows(showsData);
+      
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error updating task:', error);
+      alert('Failed to update task');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setEditedTask(task);
+    setIsEditing(false);
+  };
+
+  if (isEditing) {
+    return (
+      <div className="p-2 bg-white border-2 border-blue-500 rounded space-y-2">
+        {/* Status */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700">Status</label>
+          <select
+            value={editedTask.status}
+            onChange={(e) => setEditedTask({ ...editedTask, status: e.target.value })}
+            className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+          >
+            {statusOptions.map((status) => (
+              <option key={status.id} value={status.statusName}>
+                {status.statusName}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Lead */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700">Lead</label>
+          <input
+            type="text"
+            value={editedTask.leadName || ''}
+            onChange={(e) => setEditedTask({ ...editedTask, leadName: e.target.value })}
+            placeholder="Lead name"
+            className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
+
+        {/* Bid */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700">Bid (MDs)</label>
+          <input
+            type="number"
+            step="0.25"
+            value={editedTask.bidMds || ''}
+            onChange={(e) => setEditedTask({ ...editedTask, bidMds: parseFloat(e.target.value) })}
+            placeholder="0.00"
+            className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
+
+        {/* Internal ETA */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700">Int ETA</label>
+          <input
+            type="date"
+            value={editedTask.internalEta ? new Date(editedTask.internalEta).toISOString().split('T')[0] : ''}
+            onChange={(e) => setEditedTask({ ...editedTask, internalEta: e.target.value ? new Date(e.target.value) : null })}
+            className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
+
+        {/* Client ETA */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700">Client ETA</label>
+          <input
+            type="date"
+            value={editedTask.clientEta ? new Date(editedTask.clientEta).toISOString().split('T')[0] : ''}
+            onChange={(e) => setEditedTask({ ...editedTask, clientEta: e.target.value ? new Date(e.target.value) : null })}
+            className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-1 pt-1">
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="flex-1 flex items-center justify-center gap-1 px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+          >
+            <Save size={12} />
+            {isSaving ? 'Saving...' : 'Save'}
+          </button>
+          <button
+            onClick={handleCancel}
+            disabled={isSaving}
+            className="flex-1 flex items-center justify-center gap-1 px-2 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700 disabled:opacity-50"
+          >
+            <X size={12} />
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      className={`p-2 rounded transition-colors group relative ${canEdit ? 'hover:bg-gray-100 cursor-pointer' : 'bg-gray-50'}`}
+      onClick={() => canEdit && setIsEditing(true)}
+      title={canEdit ? 'Click to edit' : 'View only - No edit permission'}
+    >
+      {/* Status Badge */}
+      <div 
+        className="text-xs font-medium px-2 py-1 rounded text-white text-center mb-1"
+        style={{ backgroundColor: statusColor }}
+      >
+        {task.status}
+      </div>
+
+      {/* Task Details */}
+      <div className="text-xs space-y-1">
+        {task.leadName && (
+          <div className="text-gray-700">
+            <span className="font-medium">Lead:</span> {task.leadName}
+          </div>
+        )}
+        
+        {task.bidMds !== null && (
+          <div className="text-gray-700">
+            <span className="font-medium">Bid:</span> {task.bidMds} MDs
+          </div>
+        )}
+
+        {task.internalEta && (
+          <div className="text-gray-600">
+            <span className="font-medium">Int ETA:</span> {formatDisplayDate(task.internalEta)}
+          </div>
+        )}
+
+        {task.clientEta && (
+          <div className="text-gray-600">
+            <span className="font-medium">Client ETA:</span> {formatDisplayDate(task.clientEta)}
+          </div>
+        )}
+
+        {task.deliveredVersion && (
+          <div className="text-green-700 font-medium">
+            {task.deliveredVersion} - {formatDisplayDate(task.deliveredDate)}
+          </div>
+        )}
+
+        {task.isInternal && (
+          <div className="text-xs text-blue-600 font-medium">
+            (Internal)
+          </div>
+        )}
+      </div>
+
+      {/* Edit Icon on Hover or Lock Icon if no permission */}
+      <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {canEdit ? (
+          <Pencil size={14} className="text-blue-600" />
+        ) : (
+          <Lock size={14} className="text-gray-400 opacity-100" />
+        )}
+      </div>
+    </div>
+  );
+}
