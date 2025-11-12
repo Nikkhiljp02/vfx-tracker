@@ -160,6 +160,30 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
     }
   }, [contextMenu.visible]);
   
+  // Real-time polling - fetch shows every 3 seconds
+  useEffect(() => {
+    const fetchShowsData = async () => {
+      try {
+        const response = await fetch('/api/shows');
+        if (response.ok) {
+          const data = await response.json();
+          setShows(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch shows:', error);
+      }
+    };
+
+    // Initial fetch
+    fetchShowsData();
+
+    // Poll every 3 seconds
+    const intervalId = setInterval(fetchShowsData, 3000);
+
+    // Cleanup on unmount
+    return () => clearInterval(intervalId);
+  }, [setShows]);
+  
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
