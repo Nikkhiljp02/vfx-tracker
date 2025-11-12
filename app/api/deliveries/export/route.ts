@@ -5,10 +5,7 @@ import ExcelJS from "exceljs";
 import { writeFile, unlink } from "fs/promises";
 import { join } from "path";
 import { tmpdir } from "os";
-import { exec } from "child_process";
-import { promisify } from "util";
-
-const execAsync = promisify(exec);
+import nodemailer from "nodemailer";
 
 export async function POST(req: NextRequest) {
   try {
@@ -144,8 +141,8 @@ export async function POST(req: NextRequest) {
     // Generate HTML table for email
     const htmlTable = generateHTMLTable(deliveryData);
 
-    // Send email automatically via Outlook SMTP
-    await sendEmailViaOutlook(
+    // Send email via SMTP
+    await sendEmailViaSMTP(
       deliveryData,
       htmlTable,
       excelPath,
@@ -357,8 +354,8 @@ function generateHTMLTable(data: any[]): string {
   `;
 }
 
-// Send email via Outlook COM (using already logged-in Outlook instance)
-async function sendEmailViaOutlook(
+// Send email via SMTP (nodemailer)
+async function sendEmailViaSMTP(
   data: any[],
   htmlTable: string,
   excelPath: string,
@@ -368,7 +365,7 @@ async function sendEmailViaOutlook(
   sendDirectly: boolean = true,
   userEmail?: string // Logged-in user's email
 ): Promise<void> {
-  const path = require("path");
+  const fs = require("fs");
 
   // Determine subject line
   let subject = "VFX Delivery List";
@@ -377,8 +374,6 @@ async function sendEmailViaOutlook(
   } else if (fromDate && toDate) {
     subject += ` - ${new Date(fromDate).toLocaleDateString()} to ${new Date(toDate).toLocaleDateString()}`;
   }
-
-  const excelFileName = path.basename(excelPath);
 
   // Email body with properly formatted HTML table
   const emailBody = `
@@ -394,41 +389,46 @@ async function sendEmailViaOutlook(
   </p>
   
   ${htmlTable}
+  
+  <p style="font-size: 10pt; margin: 20px 0 10px 0;">Best regards,<br/>VFX Tracker</p>
 </body>
 </html>
   `;
 
-  // Create PowerShell script to send email via Outlook COM
-  const psScript = `
-Add-Type -AssemblyName "Microsoft.Office.Interop.Outlook"
-$outlook = New-Object -ComObject Outlook.Application
-$mail = $outlook.CreateItem(0)
-$mail.To = "${userEmail || 'nikhil.patil@digikore.com'}"
-$mail.Subject = "${subject.replace(/"/g, '""')}"
-$mail.BodyFormat = 2
-$mail.HTMLBody = @'
-${emailBody}
-'@
-$mail.Attachments.Add("${excelPath.replace(/\\/g, '\\\\')}")
-${sendDirectly ? '$mail.Send()' : '$mail.Display()'}
-[System.Runtime.Interopservices.Marshal]::ReleaseComObject($outlook) | Out-Null
-  `.trim();
+  // Configure SMTP transporter
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: false, // true for 465, false for other ports
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASSWORD,
+    },
+  });
 
-  // Save PowerShell script to temp file
-  const psScriptPath = join(tmpdir(), `send_email_${Date.now()}.ps1`);
-  await writeFile(psScriptPath, psScript, "utf-8");
+  // Read Excel file as attachment
+  const excelBuffer = fs.readFileSync(excelPath);
+  const excelFileName = `VFX_Delivery_List_${date || `${fromDate}_to_${toDate}`}.xlsx`;
 
+  // Send email
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to: userEmail || 'nikhil.patil@digikore.com',
+    subject: subject,
+    html: emailBody,
+    attachments: [
+      {
+        filename: excelFileName,
+        content: excelBuffer,
+      },
+    ],
+  });
+
+  // Clean up the temporary Excel file
   try {
-    // Execute PowerShell script
-    await execAsync(`powershell -ExecutionPolicy Bypass -File "${psScriptPath}"`);
-    
-    // Clean up PowerShell script
-    await unlink(psScriptPath);
+    await unlink(excelPath);
   } catch (error) {
-    // Clean up PowerShell script even if execution failed
-    try {
-      await unlink(psScriptPath);
-    } catch {}
-    throw error;
+    console.error('Failed to clean up Excel file:', error);
   }
 }
+
