@@ -12,10 +12,24 @@ import { LayoutGrid, Layers, BarChart3, Truck } from 'lucide-react';
 
 export default function Home() {
   const { fetchAllData, loadPreferences, loading, error } = useVFXStore();
-  const [detailedView, setDetailedView] = useState(true);
+  // Default to non-detailed view (false) for first-time users
+  const [detailedView, setDetailedView] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vfx-tracker-detailed-view');
+      return saved ? JSON.parse(saved) : false;
+    }
+    return false;
+  });
   const [activeView, setActiveView] = useState<'tracker' | 'department' | 'delivery' | 'dashboard'>('dashboard');
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [showUnhideModal, setShowUnhideModal] = useState(false);
+
+  // Save detailed view preference
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('vfx-tracker-detailed-view', JSON.stringify(detailedView));
+    }
+  }, [detailedView]);
 
   useEffect(() => {
     // Load user preferences first, then fetch data

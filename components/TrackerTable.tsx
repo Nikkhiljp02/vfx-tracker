@@ -54,7 +54,14 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showManageShows, setShowManageShows] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [sowExpanded, setSowExpanded] = useState(true);
+  const [sowExpanded, setSowExpanded] = useState(() => {
+    // Load from localStorage or default to collapsed (false)
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vfx-tracker-sow-expanded');
+      return saved ? JSON.parse(saved) : false;
+    }
+    return false;
+  });
   
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -99,7 +106,14 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
   const [shotsWithNotes, setShotsWithNotes] = useState<Set<string>>(new Set());
   
   // Table density state: 'compact' | 'comfortable' | 'spacious'
-  const [tableDensity, setTableDensity] = useState<'compact' | 'comfortable' | 'spacious'>('comfortable');
+  // Default to 'compact' for first-time users
+  const [tableDensity, setTableDensity] = useState<'compact' | 'comfortable' | 'spacious'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vfx-tracker-table-density');
+      return (saved as 'compact' | 'comfortable' | 'spacious') || 'compact';
+    }
+    return 'compact';
+  });
   
   // Column reordering state
   const [draggingColumn, setDraggingColumn] = useState<string | null>(null);
@@ -129,6 +143,16 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
       }
     }
   }, []);
+  
+  // Save SOW expanded state to localStorage
+  useEffect(() => {
+    localStorage.setItem('vfx-tracker-sow-expanded', JSON.stringify(sowExpanded));
+  }, [sowExpanded]);
+  
+  // Save table density to localStorage
+  useEffect(() => {
+    localStorage.setItem('vfx-tracker-table-density', tableDensity);
+  }, [tableDensity]);
   
   // Fetch status options
   useEffect(() => {
