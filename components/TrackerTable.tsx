@@ -722,7 +722,8 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
     
     try {
       await Promise.all(updates);
-      // Don't refresh immediately - let polling pick it up after counter decrements
+      // Wait for server to fully process before resuming polling
+      await new Promise(resolve => setTimeout(resolve, 2000));
     } catch (error) {
       console.error('Failed to update statuses:', error);
       alert('Failed to update some statuses');
@@ -767,7 +768,8 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
         throw new Error('Failed to update remark');
       }
 
-      // Don't refresh immediately - let polling pick it up after counter decrements
+      // Wait for server to fully process before resuming polling
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
     } catch (error) {
       console.error('Failed to update remark:', error);
