@@ -13,16 +13,17 @@ export async function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-// Protect all routes except /login and /api/auth
+// Protect all routes except /login, /api/auth, and /api/setup
 export const config = {
   matcher: [
     /*
      * Match all request paths except:
      * - /login (login page)
      * - /api/auth (NextAuth API routes)
+     * - /api/setup (one-time setup endpoint)
      * - /_next (Next.js internals)
      * - /favicon.ico, /robots.txt (static files)
      */
-    "/((?!login|api/auth|_next|favicon.ico|robots.txt).*)",
+    "/((?!login|api/auth|api/setup|_next|favicon.ico|robots.txt).*)",
   ],
 };
