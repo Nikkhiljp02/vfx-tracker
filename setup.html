@@ -56,14 +56,65 @@
 <body>
     <div class="container">
         <h1>🚀 VFX Tracker Setup</h1>
-        <p>Click the button below to create the admin user and initialize the database.</p>
+        <p>Step 1: Run database migrations to create tables</p>
+        <p>Step 2: Create the admin user</p>
         
-        <button id="setupBtn" onclick="runSetup()">Create Admin User</button>
+        <button id="migrateBtn" onclick="runMigrations()">1. Run Migrations</button>
+        <button id="setupBtn" onclick="runSetup()" disabled style="margin-left: 10px;">2. Create Admin User</button>
         
         <div id="result"></div>
     </div>
 
     <script>
+        async function runMigrations() {
+            const btn = document.getElementById('migrateBtn');
+            const setupBtn = document.getElementById('setupBtn');
+            const resultDiv = document.getElementById('result');
+            
+            btn.disabled = true;
+            btn.textContent = 'Running migrations...';
+            resultDiv.innerHTML = '';
+            
+            try {
+                const response = await fetch('https://vfx-tracker.vercel.app/api/migrate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <h3>✅ Migrations Complete!</h3>
+                        <p>${data.message}</p>
+                        <p>Now click "Create Admin User" →</p>
+                    `;
+                    btn.textContent = 'Migrations Complete ✓';
+                    setupBtn.disabled = false;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        <h3>❌ Migration Error</h3>
+                        <p>${data.error}</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                    btn.disabled = false;
+                    btn.textContent = 'Try Again';
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <h3>❌ Network Error</h3>
+                    <p>${error.message}</p>
+                `;
+                btn.disabled = false;
+                btn.textContent = 'Try Again';
+            }
+        }
+
         async function runSetup() {
             const btn = document.getElementById('setupBtn');
             const resultDiv = document.getElementById('result');

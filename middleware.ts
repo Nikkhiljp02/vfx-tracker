@@ -21,10 +21,11 @@ export const config = {
      * - /login (login page)
      * - /api/auth (NextAuth API routes)
      * - /api/setup (one-time setup endpoint)
+     * - /api/migrate (database migration endpoint)
      * - /api/db-test (database test endpoint)
      * - /_next (Next.js internals)
      * - /favicon.ico, /robots.txt (static files)
      */
-    "/((?!login|api/auth|api/setup|api/db-test|_next|favicon.ico|robots.txt).*)",
+    "/((?!login|api/auth|api/setup|api/migrate|api/db-test|_next|favicon.ico|robots.txt).*)",
   ],
 };
