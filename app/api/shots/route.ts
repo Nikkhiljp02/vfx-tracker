@@ -47,7 +47,15 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         show: true,
-        tasks: true,
+        tasks: {
+          include: {
+            shot: {
+              include: {
+                show: true,
+              },
+            },
+          },
+        },
         parentShot: true,
       },
       orderBy: {
