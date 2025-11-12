@@ -23,9 +23,10 @@ export const config = {
      * - /api/setup (one-time setup endpoint)
      * - /api/migrate (database migration endpoint)
      * - /api/db-test (database test endpoint)
+     * - /api/check-env (environment check endpoint)
      * - /_next (Next.js internals)
      * - /favicon.ico, /robots.txt (static files)
      */
-    "/((?!login|api/auth|api/setup|api/migrate|api/db-test|_next|favicon.ico|robots.txt).*)",
+    "/((?!login|api/auth|api/setup|api/migrate|api/db-test|api/check-env|_next|favicon.ico|robots.txt).*)",
   ],
 };
