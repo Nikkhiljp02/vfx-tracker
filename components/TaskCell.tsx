@@ -71,11 +71,13 @@ export default function TaskCell({ task }: TaskCellProps) {
         return;
       }
 
-      // Background refresh to ensure consistency
-      fetch('/api/shows')
-        .then(res => res.json())
-        .then(data => setShows(data))
-        .catch(err => console.error('Background refresh failed:', err));
+      // Wait for server to fully process, then refresh
+      await new Promise(resolve => setTimeout(resolve, 300));
+      const showsRes = await fetch('/api/shows');
+      if (showsRes.ok) {
+        const data = await showsRes.json();
+        setShows(data);
+      }
       
     } catch (error) {
       console.error('Error updating task:', error);

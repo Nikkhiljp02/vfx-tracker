@@ -116,6 +116,9 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
   // Remark editing state
   const [editingRemarkId, setEditingRemarkId] = useState<string | null>(null);
   const [editingRemarkValue, setEditingRemarkValue] = useState<string>('');
+  
+  // Track if updates are in progress (to pause polling)
+  const [updatesInProgress, setUpdatesInProgress] = useState(0);
 
   // Load saved column widths from localStorage
   useEffect(() => {
@@ -160,9 +163,14 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
     }
   }, [contextMenu.visible]);
   
-  // Real-time polling - fetch shows every 2 seconds
+  // Real-time polling - fetch shows every 2 seconds (paused during updates)
   useEffect(() => {
     const fetchShowsData = async () => {
+      // Skip polling if updates are in progress
+      if (updatesInProgress > 0) {
+        return;
+      }
+      
       try {
         const response = await fetch('/api/shows');
         if (response.ok) {
@@ -182,7 +190,7 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
 
     // Cleanup on unmount
     return () => clearInterval(intervalId);
-  }, [setShows]);
+  }, [setShows, updatesInProgress]);
   
   // Keyboard shortcuts
   useEffect(() => {
@@ -674,6 +682,9 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
     
     if (selectedCells.size === 0) return;
     
+    // Increment update counter to pause polling
+    setUpdatesInProgress(prev => prev + 1);
+    
     // Optimistic update - update UI immediately
     const updatedShows = shows.map(show => ({
       ...show,
@@ -713,10 +724,11 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
       await Promise.all(updates);
       
       // Background refresh to ensure consistency
-      fetch('/api/shows')
-        .then(res => res.json())
-        .then(data => setShows(data))
-        .catch(err => console.error('Background refresh failed:', err));
+      const response = await fetch('/api/shows');
+      if (response.ok) {
+        const data = await response.json();
+        setShows(data);
+      }
     } catch (error) {
       console.error('Failed to update statuses:', error);
       alert('Failed to update some statuses');
@@ -724,11 +736,17 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
       const showsRes = await fetch('/api/shows');
       const showsData = await showsRes.json();
       setShows(showsData);
+    } finally {
+      // Decrement update counter to resume polling
+      setUpdatesInProgress(prev => prev - 1);
     }
   };
 
   // Handle remark editing
   const handleRemarkEdit = async (shotId: string, newRemark: string) => {
+    // Increment update counter to pause polling
+    setUpdatesInProgress(prev => prev + 1);
+    
     // Optimistic update - update UI immediately
     const updatedShows = shows.map(show => ({
       ...show,
@@ -755,11 +773,13 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
         throw new Error('Failed to update remark');
       }
 
-      // Background refresh to ensure consistency
-      fetch('/api/shows')
-        .then(res => res.json())
-        .then(data => setShows(data))
-        .catch(err => console.error('Background refresh failed:', err));
+      // Wait for server, then refresh
+      await new Promise(resolve => setTimeout(resolve, 300));
+      const showsRes = await fetch('/api/shows');
+      if (showsRes.ok) {
+        const data = await showsRes.json();
+        setShows(data);
+      }
       
     } catch (error) {
       console.error('Failed to update remark:', error);
@@ -768,6 +788,9 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
       const showsRes = await fetch('/api/shows');
       const showsData = await showsRes.json();
       setShows(showsData);
+    } finally {
+      // Decrement update counter to resume polling
+      setUpdatesInProgress(prev => prev - 1);
     }
   };
 
