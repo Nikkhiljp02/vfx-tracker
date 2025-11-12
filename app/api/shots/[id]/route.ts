@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 
 // GET single shot
 export async function GET(
@@ -129,6 +130,13 @@ export async function PUT(
   } catch (error) {
     console.error('Error updating shot:', error);
     return NextResponse.json({ error: 'Failed to update shot' }, { status: 500 });
+  } finally {
+    // Broadcast update to all connected clients
+    supabase.channel('vfx-tracker-updates').send({
+      type: 'broadcast',
+      event: 'data-update',
+      payload: { type: 'shot', action: 'update' },
+    }).catch((err) => console.error('Broadcast error:', err));
   }
 }
 
@@ -232,5 +240,12 @@ export async function DELETE(
   } catch (error) {
     console.error('Error deleting shot:', error);
     return NextResponse.json({ error: 'Failed to delete shot' }, { status: 500 });
+  } finally {
+    // Broadcast deletion to all connected clients
+    supabase.channel('vfx-tracker-updates').send({
+      type: 'broadcast',
+      event: 'data-update',
+      payload: { type: 'shot', action: 'delete' },
+    }).catch((err) => console.error('Broadcast error:', err));
   }
 }

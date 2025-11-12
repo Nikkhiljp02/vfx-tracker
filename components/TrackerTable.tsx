@@ -11,6 +11,7 @@ import DeleteConfirmationModal from './DeleteConfirmationModal';
 import { showSuccess, showError, showUndo } from '@/lib/toast';
 import { Trash2, Settings, X, ChevronRight, ChevronDown, Save, RotateCcw, Eye, EyeOff, Plus, Search, ArrowUpDown, ArrowUp, ArrowDown, Download, Copy, ChevronUp } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+import { supabase } from '@/lib/supabase';
 
 interface TrackerTableProps {
   detailedView: boolean;
@@ -116,9 +117,6 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
   // Remark editing state
   const [editingRemarkId, setEditingRemarkId] = useState<string | null>(null);
   const [editingRemarkValue, setEditingRemarkValue] = useState<string>('');
-  
-  // Track if updates are in progress (to pause polling)
-  const [updatesInProgress, setUpdatesInProgress] = useState(0);
 
   // Load saved column widths from localStorage
   useEffect(() => {
@@ -163,14 +161,9 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
     }
   }, [contextMenu.visible]);
   
-  // Real-time polling - fetch shows every 10 seconds (paused during updates)
+  // Supabase Realtime - Use Broadcast (works without Early Access approval)
   useEffect(() => {
     const fetchShowsData = async () => {
-      // Skip polling if updates are in progress
-      if (updatesInProgress > 0) {
-        return;
-      }
-      
       try {
         const response = await fetch('/api/shows');
         if (response.ok) {
@@ -185,12 +178,22 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
     // Initial fetch
     fetchShowsData();
 
-    // Poll every 10 seconds to avoid connection pool exhaustion
-    const intervalId = setInterval(fetchShowsData, 10000);
+    // Subscribe to broadcast events for data changes
+    const channel = supabase
+      .channel('vfx-tracker-updates')
+      .on('broadcast', { event: 'data-update' }, (payload) => {
+        console.log('Data change broadcast received:', payload);
+        fetchShowsData(); // Refresh data when any change is broadcast
+      })
+      .subscribe((status) => {
+        console.log('Realtime subscription status:', status);
+      });
 
-    // Cleanup on unmount
-    return () => clearInterval(intervalId);
-  }, [setShows, updatesInProgress]);
+    // Cleanup subscription on unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [setShows]);
   
   // Keyboard shortcuts
   useEffect(() => {
@@ -682,9 +685,6 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
     
     if (selectedCells.size === 0) return;
     
-    // Increment update counter to pause polling
-    setUpdatesInProgress(prev => prev + 1);
-    
     // Optimistic update - update UI immediately
     const updatedShows = shows.map(show => ({
       ...show,
@@ -722,8 +722,7 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
     
     try {
       await Promise.all(updates);
-      // Wait 6 seconds for server to fully process before resuming polling
-      await new Promise(resolve => setTimeout(resolve, 6000));
+      // Realtime will broadcast changes to all clients automatically
     } catch (error) {
       console.error('Failed to update statuses:', error);
       alert('Failed to update some statuses');
@@ -731,17 +730,11 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
       const showsRes = await fetch('/api/shows');
       const showsData = await showsRes.json();
       setShows(showsData);
-    } finally {
-      // Decrement update counter to resume polling
-      setUpdatesInProgress(prev => prev - 1);
     }
   };
 
   // Handle remark editing
   const handleRemarkEdit = async (shotId: string, newRemark: string) => {
-    // Increment update counter to pause polling
-    setUpdatesInProgress(prev => prev + 1);
-    
     // Optimistic update - update UI immediately
     const updatedShows = shows.map(show => ({
       ...show,
@@ -768,8 +761,7 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
         throw new Error('Failed to update remark');
       }
 
-      // Wait 6 seconds for server to fully process before resuming polling
-      await new Promise(resolve => setTimeout(resolve, 6000));
+      // Realtime will broadcast changes to all clients automatically
       
     } catch (error) {
       console.error('Failed to update remark:', error);
@@ -778,9 +770,6 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
       const showsRes = await fetch('/api/shows');
       const showsData = await showsRes.json();
       setShows(showsData);
-    } finally {
-      // Decrement update counter to resume polling
-      setUpdatesInProgress(prev => prev - 1);
     }
   };
 
