@@ -32,6 +32,22 @@ export default function TaskCell({ task }: TaskCellProps) {
 
   const handleSave = async () => {
     setIsSaving(true);
+    
+    // Optimistic update - update UI immediately
+    const updatedShows = shows.map(show => ({
+      ...show,
+      shots: show.shots?.map(shot => ({
+        ...shot,
+        tasks: shot.tasks?.map(t => 
+          t.id === task.id 
+            ? { ...t, ...editedTask }
+            : t
+        )
+      }))
+    }));
+    setShows(updatedShows);
+    setIsEditing(false);
+    
     try {
       const response = await fetch(`/api/tasks/${task.id}`, {
         method: 'PUT',
@@ -48,18 +64,26 @@ export default function TaskCell({ task }: TaskCellProps) {
       if (!response.ok) {
         const error = await response.json();
         alert(error.error || 'Failed to update task');
+        // Revert optimistic update on error
+        const showsRes = await fetch('/api/shows');
+        const showsData = await showsRes.json();
+        setShows(showsData);
         return;
       }
 
-      // Fetch updated shows to refresh the table instantly
-      const showsRes = await fetch('/api/shows');
-      const showsData = await showsRes.json();
-      setShows(showsData);
+      // Background refresh to ensure consistency
+      fetch('/api/shows')
+        .then(res => res.json())
+        .then(data => setShows(data))
+        .catch(err => console.error('Background refresh failed:', err));
       
-      setIsEditing(false);
     } catch (error) {
       console.error('Error updating task:', error);
       alert('Failed to update task');
+      // Revert optimistic update on error
+      const showsRes = await fetch('/api/shows');
+      const showsData = await showsRes.json();
+      setShows(showsData);
     } finally {
       setIsSaving(false);
     }

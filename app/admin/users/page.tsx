@@ -131,22 +131,35 @@ export default function UsersManagementPage() {
       const url = editingUser ? `/api/users/${editingUser.id}` : "/api/users";
       const method = editingUser ? "PATCH" : "POST";
 
-      const res = await fetch(url, {
+      // Close modal immediately for better UX
+      setIsAddUserModalOpen(false);
+
+      // Start fetch in background
+      const responsePromise = fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
 
-      if (res.ok) {
-        setIsAddUserModalOpen(false);
-        fetchData();
-      } else {
+      // Refresh data in background (don't wait)
+      fetchData();
+
+      // Check response after UI has updated
+      const res = await responsePromise;
+      
+      if (!res.ok) {
         const error = await res.json();
         alert(error.error || "Failed to save user");
+        // Refresh again to show correct state
+        fetchData();
+      } else {
+        // Success - refresh to ensure consistency
+        fetchData();
       }
     } catch (error) {
       console.error("Error saving user:", error);
       alert("Failed to save user");
+      fetchData();
     }
   };
 
@@ -154,19 +167,24 @@ export default function UsersManagementPage() {
     if (!confirm("Are you sure you want to delete this user?")) return;
 
     try {
+      // Optimistically remove from UI
+      setUsers((prev) => prev.filter((u) => u.id !== userId));
+      
       const res = await fetch(`/api/users/${userId}`, {
         method: "DELETE",
       });
 
-      if (res.ok) {
-        fetchData();
-      } else {
+      if (!res.ok) {
         const error = await res.json();
         alert(error.error || "Failed to delete user");
+        // Revert by fetching fresh data
+        fetchData();
       }
     } catch (error) {
       console.error("Error deleting user:", error);
       alert("Failed to delete user");
+      // Revert by fetching fresh data
+      fetchData();
     }
   };
 

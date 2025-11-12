@@ -160,7 +160,7 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
     }
   }, [contextMenu.visible]);
   
-  // Real-time polling - fetch shows every 3 seconds
+  // Real-time polling - fetch shows every 2 seconds
   useEffect(() => {
     const fetchShowsData = async () => {
       try {
@@ -177,8 +177,8 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
     // Initial fetch
     fetchShowsData();
 
-    // Poll every 3 seconds
-    const intervalId = setInterval(fetchShowsData, 3000);
+    // Poll every 2 seconds
+    const intervalId = setInterval(fetchShowsData, 2000);
 
     // Cleanup on unmount
     return () => clearInterval(intervalId);
