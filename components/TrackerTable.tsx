@@ -674,9 +674,28 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
     
     if (selectedCells.size === 0) return;
     
-    const updates: Promise<any>[] = [];
+    // Optimistic update - update UI immediately
+    const updatedShows = shows.map(show => ({
+      ...show,
+      shots: show.shots?.map(shot => ({
+        ...shot,
+        tasks: shot.tasks?.map(task => {
+          const cellId = `${task.id}|${task.department}`;
+          if (selectedCells.has(cellId)) {
+            return { ...task, status: newStatus };
+          }
+          return task;
+        })
+      }))
+    }));
+    setShows(updatedShows);
     
-    // Parse selected cell IDs and update tasks
+    // Clear selection immediately
+    setSelectedCells(new Set());
+    setLastSelectedCell(null);
+    
+    // Update server in background
+    const updates: Promise<any>[] = [];
     selectedCells.forEach(cellId => {
       const [taskId] = cellId.split('|');
       if (taskId) {
@@ -693,22 +712,38 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
     try {
       await Promise.all(updates);
       
-      // Fetch updated shows to refresh the table instantly
-      const showsRes = await fetch('/api/shows');
-      const showsData = await showsRes.json();
-      setShows(showsData);
-      
-      // Clear selection
-      setSelectedCells(new Set());
-      setLastSelectedCell(null);
+      // Background refresh to ensure consistency
+      fetch('/api/shows')
+        .then(res => res.json())
+        .then(data => setShows(data))
+        .catch(err => console.error('Background refresh failed:', err));
     } catch (error) {
       console.error('Failed to update statuses:', error);
       alert('Failed to update some statuses');
+      // Revert on error
+      const showsRes = await fetch('/api/shows');
+      const showsData = await showsRes.json();
+      setShows(showsData);
     }
   };
 
   // Handle remark editing
   const handleRemarkEdit = async (shotId: string, newRemark: string) => {
+    // Optimistic update - update UI immediately
+    const updatedShows = shows.map(show => ({
+      ...show,
+      shots: show.shots?.map(shot => 
+        shot.id === shotId 
+          ? { ...shot, remark: newRemark || null }
+          : shot
+      )
+    }));
+    setShows(updatedShows);
+    
+    // Close editor immediately
+    setEditingRemarkId(null);
+    setEditingRemarkValue('');
+    
     try {
       const response = await fetch(`/api/shots/${shotId}`, {
         method: 'PUT',
@@ -720,14 +755,21 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
         throw new Error('Failed to update remark');
       }
 
-      // Refresh shows data
+      // Background refresh to ensure consistency
+      fetch('/api/shows')
+        .then(res => res.json())
+        .then(data => setShows(data))
+        .catch(err => console.error('Background refresh failed:', err));
+      
+    } catch (error) {
+      console.error('Failed to update remark:', error);
+      alert('Failed to update remark');
+      // Revert on error
       const showsRes = await fetch('/api/shows');
       const showsData = await showsRes.json();
       setShows(showsData);
-      
-      setEditingRemarkId(null);
-      setEditingRemarkValue('');
-    } catch (error) {
+    }
+  };
       console.error('Failed to update remark:', error);
       alert('Failed to update remark');
     }
@@ -1050,9 +1092,21 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
     setDeleting(true);
     setShowDeleteConfirm(false);
 
+    const shotIds = Array.from(selectedRows);
+    
+    // Optimistic update - remove from UI immediately
+    const updatedShows = shows.map(show => ({
+      ...show,
+      shots: show.shots?.filter(shot => !shotIds.includes(shot.id))
+    }));
+    setShows(updatedShows);
+    
+    // Clear selection immediately
+    setSelectedRows(new Set());
+    setLastSelectedIndex(null);
+    setDeleting(false);
+
     try {
-      const shotIds = Array.from(selectedRows);
-      
       const response = await fetch('/api/shots/bulk-delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1065,14 +1119,11 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
 
       const data = await response.json();
 
-      // Clear selection
-      setSelectedRows(new Set());
-      setLastSelectedIndex(null);
-
-      // Refresh data instantly
-      const showsRes = await fetch('/api/shows');
-      const showsData = await showsRes.json();
-      setShows(showsData);
+      // Background refresh to ensure consistency
+      fetch('/api/shows')
+        .then(res => res.json())
+        .then(showsData => setShows(showsData))
+        .catch(err => console.error('Background refresh failed:', err));
 
       // Show success toast with undo option
       showUndo(
@@ -1085,7 +1136,11 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
     } catch (error) {
       console.error('Error during deletion:', error);
       showError('Failed to delete shots. Please try again.');
-    } finally {
+      // Revert on error
+      const showsRes = await fetch('/api/shows');
+      const showsData = await showsRes.json();
+      setShows(showsData);
+    }
       setDeleting(false);
       setShowDeleteConfirm(false);
     }
