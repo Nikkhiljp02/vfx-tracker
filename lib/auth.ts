@@ -1,13 +1,11 @@
 import NextAuth from "next-auth";
-import type { NextAuthConfig } from "next-auth";
-import CredentialsProvider from "next-auth/providers/credentials";
+import Credentials from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
-export const authOptions = {
+export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
-    CredentialsProvider({
-      name: "Credentials",
+    Credentials({
       credentials: {
         username: { label: "Username", type: "text" },
         password: { label: "Password", type: "password" },
@@ -15,49 +13,45 @@ export const authOptions = {
       async authorize(credentials) {
         try {
           if (!credentials?.username || !credentials?.password) {
-            throw new Error("Please enter username and password");
+            return null;
           }
 
           const username = credentials.username as string;
           const password = credentials.password as string;
 
-          // Find user in database - simplified without relations for now
+          // Find user in database
           const user = await prisma.user.findUnique({
             where: { username },
           });
 
           if (!user) {
-            throw new Error("Invalid username or password");
+            return null;
           }
 
           if (!user.isActive) {
-            throw new Error("Your account has been deactivated. Please contact your administrator.");
+            return null;
           }
 
           // Verify password
-          const passwordMatch = await bcrypt.compare(
-            password,
-            user.password
-          );
+          const passwordMatch = await bcrypt.compare(password, user.password);
 
           if (!passwordMatch) {
-            throw new Error("Invalid username or password");
+            return null;
           }
 
-          // Return user object (password excluded)
+          // Return user object
           return {
             id: user.id,
             name: `${user.firstName} ${user.lastName}`,
-            email: user.email || "",
+            email: user.email || `${user.username}@vfxtracker.com`,
             username: user.username,
             role: user.role,
             firstName: user.firstName,
             lastName: user.lastName,
-            permissions: [],
           };
         } catch (error) {
           console.error("Auth error:", error);
-          throw error;
+          return null;
         }
       },
     }),
@@ -70,7 +64,6 @@ export const authOptions = {
         token.role = (user as any).role;
         token.firstName = (user as any).firstName;
         token.lastName = (user as any).lastName;
-        token.permissions = (user as any).permissions;
       }
       return token;
     },
@@ -81,7 +74,6 @@ export const authOptions = {
         (session.user as any).role = token.role;
         (session.user as any).firstName = token.firstName;
         (session.user as any).lastName = token.lastName;
-        (session.user as any).permissions = token.permissions;
       }
       return session;
     },
@@ -90,11 +82,7 @@ export const authOptions = {
     signIn: "/login",
   },
   session: {
-    strategy: "jwt" as const,
-    maxAge: 24 * 60 * 60, // 24 hours
+    strategy: "jwt",
   },
-  secret: process.env.NEXTAUTH_SECRET,
-  trustHost: true, // Required for production deployment
-} satisfies NextAuthConfig;
-
-export const { handlers, auth, signIn, signOut } = NextAuth(authOptions);
+  trustHost: true,
+});
