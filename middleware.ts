@@ -33,6 +33,6 @@ export const config = {
      * - /_next (Next.js internals)
      * - /favicon.ico, /robots.txt (static files)
      */
-    "/((?!login|test-session|api/auth|api/setup|api/migrate|api/db-test|api/check-env|api/test-login|_next|favicon.ico|robots.txt).*)",
+    "/((?!login|test-session|api/auth|api/setup|api/migrate|api/db-test|api/check-env|api/test-login|api/seed-permissions|_next|favicon.ico|robots.txt).*)",
   ],
 };
