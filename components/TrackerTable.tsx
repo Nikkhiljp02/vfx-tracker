@@ -770,10 +770,6 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
       setShows(showsData);
     }
   };
-      console.error('Failed to update remark:', error);
-      alert('Failed to update remark');
-    }
-  };
 
   // Handle column visibility toggle
   const toggleColumnVisibility = (columnKey: string) => {
@@ -1140,9 +1136,6 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
       const showsRes = await fetch('/api/shows');
       const showsData = await showsRes.json();
       setShows(showsData);
-    }
-      setDeleting(false);
-      setShowDeleteConfirm(false);
     }
   };
 
