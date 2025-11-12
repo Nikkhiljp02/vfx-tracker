@@ -18,9 +18,16 @@ export default function TaskCell({ task }: TaskCellProps) {
 
   // Find the show this task belongs to and check if user can edit
   const canEdit = useMemo(() => {
+    console.log('TaskCell: Full task object', {
+      taskId: task.id,
+      hasShot: !!task.shot,
+      shotId: task.shotId,
+      taskKeys: Object.keys(task)
+    });
+    
     const shot = task.shot;
     if (!shot) {
-      console.log('TaskCell: No shot found for task', task.id);
+      console.log('TaskCell: No shot found - task.shot is undefined');
       return false;
     }
     
