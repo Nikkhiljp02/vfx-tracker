@@ -13,62 +13,52 @@ export const authOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.username || !credentials?.password) {
-          throw new Error("Please enter username and password");
+        try {
+          if (!credentials?.username || !credentials?.password) {
+            throw new Error("Please enter username and password");
+          }
+
+          const username = credentials.username as string;
+          const password = credentials.password as string;
+
+          // Find user in database - simplified without relations for now
+          const user = await prisma.user.findUnique({
+            where: { username },
+          });
+
+          if (!user) {
+            throw new Error("Invalid username or password");
+          }
+
+          if (!user.isActive) {
+            throw new Error("Your account has been deactivated. Please contact your administrator.");
+          }
+
+          // Verify password
+          const passwordMatch = await bcrypt.compare(
+            password,
+            user.password
+          );
+
+          if (!passwordMatch) {
+            throw new Error("Invalid username or password");
+          }
+
+          // Return user object (password excluded)
+          return {
+            id: user.id,
+            name: `${user.firstName} ${user.lastName}`,
+            email: user.email || "",
+            username: user.username,
+            role: user.role,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            permissions: [],
+          };
+        } catch (error) {
+          console.error("Auth error:", error);
+          throw error;
         }
-
-        const username = credentials.username as string;
-        const password = credentials.password as string;
-
-        // Find user in database
-        const user = await prisma.user.findUnique({
-          where: { username },
-          include: {
-            permissions: {
-              include: {
-                permission: true,
-              },
-            },
-            showAccess: {
-              include: {
-                show: true,
-              },
-            },
-          },
-        });
-
-        if (!user) {
-          throw new Error("Invalid username or password");
-        }
-
-        if (!user.isActive) {
-          throw new Error("Your account has been deactivated. Please contact your administrator.");
-        }
-
-        // Verify password
-        const passwordMatch = await bcrypt.compare(
-          password,
-          user.password
-        );
-
-        if (!passwordMatch) {
-          throw new Error("Invalid username or password");
-        }
-
-        // Return user object (password excluded)
-        const userPermissions = (user as any).permissions || [];
-        return {
-          id: user.id,
-          name: `${user.firstName} ${user.lastName}`,
-          email: user.email || "",
-          username: user.username,
-          role: user.role,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          permissions: userPermissions
-            .filter((up: any) => up.granted)
-            .map((up: any) => up.permission.name),
-        };
       },
     }),
   ],
