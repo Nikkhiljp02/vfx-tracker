@@ -24,7 +24,15 @@ export async function GET() {
         include: {
           shots: {
             include: {
-              tasks: true,
+              tasks: {
+                include: {
+                  shot: {
+                    include: {
+                      show: true,
+                    },
+                  },
+                },
+              },
             },
           },
         },
@@ -49,7 +57,15 @@ export async function GET() {
         include: {
           shots: {
             include: {
-              tasks: true,
+              tasks: {
+                include: {
+                  shot: {
+                    include: {
+                      show: true,
+                    },
+                  },
+                },
+              },
             },
           },
         },
