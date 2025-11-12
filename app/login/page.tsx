@@ -21,17 +21,26 @@ export default function LoginPage() {
         username,
         password,
         redirect: false,
+        callbackUrl: "/",
       });
 
+      console.log("SignIn result:", result);
+
       if (result?.error) {
+        console.error("SignIn error:", result.error);
         setError(result.error);
+        setIsLoading(false);
       } else if (result?.ok) {
-        router.push("/");
-        router.refresh();
+        console.log("SignIn successful, redirecting...");
+        // Force a hard redirect
+        window.location.href = "/";
+      } else {
+        console.warn("Unexpected result:", result);
+        setIsLoading(false);
       }
     } catch (err) {
+      console.error("SignIn exception:", err);
       setError("An unexpected error occurred");
-    } finally {
       setIsLoading(false);
     }
   };
