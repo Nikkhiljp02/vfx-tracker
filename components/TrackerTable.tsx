@@ -722,13 +722,7 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
     
     try {
       await Promise.all(updates);
-      
-      // Background refresh to ensure consistency
-      const response = await fetch('/api/shows');
-      if (response.ok) {
-        const data = await response.json();
-        setShows(data);
-      }
+      // Don't refresh immediately - let polling pick it up after counter decrements
     } catch (error) {
       console.error('Failed to update statuses:', error);
       alert('Failed to update some statuses');
@@ -773,13 +767,7 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
         throw new Error('Failed to update remark');
       }
 
-      // Wait for server, then refresh
-      await new Promise(resolve => setTimeout(resolve, 300));
-      const showsRes = await fetch('/api/shows');
-      if (showsRes.ok) {
-        const data = await showsRes.json();
-        setShows(data);
-      }
+      // Don't refresh immediately - let polling pick it up after counter decrements
       
     } catch (error) {
       console.error('Failed to update remark:', error);

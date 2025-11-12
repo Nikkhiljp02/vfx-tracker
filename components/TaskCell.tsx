@@ -71,13 +71,7 @@ export default function TaskCell({ task }: TaskCellProps) {
         return;
       }
 
-      // Wait for server to fully process, then refresh
-      await new Promise(resolve => setTimeout(resolve, 300));
-      const showsRes = await fetch('/api/shows');
-      if (showsRes.ok) {
-        const data = await showsRes.json();
-        setShows(data);
-      }
+      // Don't refresh immediately - let polling pick it up naturally
       
     } catch (error) {
       console.error('Error updating task:', error);
