@@ -13,8 +13,13 @@ export async function GET() {
 
     const user = session.user as any;
 
-    // Admin and Coordinator can see all shows with edit access
-    if (user.role === 'ADMIN' || user.role === 'COORDINATOR') {
+    // Admin, Coordinator, and Production Coordinator can see all shows with edit access
+    const isAdminOrCoordinator = user.role === 'ADMIN' || 
+                                  user.role === 'COORDINATOR' || 
+                                  user.role === 'PRODUCTION COORDINATOR' ||
+                                  user.role?.toUpperCase().includes('COORDINATOR');
+
+    if (isAdminOrCoordinator) {
       const shows = await prisma.show.findMany({
         include: {
           shots: {
