@@ -6,21 +6,21 @@ const execAsync = promisify(exec);
 
 export async function POST() {
   try {
-    console.log('Running database migrations...');
+    console.log('Pushing database schema...');
     
-    // Run migrations
-    const { stdout, stderr } = await execAsync('npx prisma migrate deploy');
+    // Use db push instead of migrate (doesn't require migration history)
+    const { stdout, stderr } = await execAsync('npx prisma db push --accept-data-loss');
     
-    console.log('Migration output:', stdout);
-    if (stderr) console.error('Migration errors:', stderr);
+    console.log('Schema push output:', stdout);
+    if (stderr) console.error('Schema push errors:', stderr);
     
     return NextResponse.json({
       success: true,
-      message: 'Database migrations completed successfully',
+      message: 'Database schema pushed successfully',
       output: stdout,
     });
   } catch (error) {
-    console.error('Migration failed:', error);
+    console.error('Schema push failed:', error);
     return NextResponse.json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
