@@ -1,21 +1,21 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { auth } from "@/lib/auth";
 
 export async function middleware(request: NextRequest) {
   console.log("Middleware checking:", request.nextUrl.pathname);
   
-  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+  const session = await auth();
   
-  console.log("Token found:", !!token, "for path:", request.nextUrl.pathname);
+  console.log("Session found:", !!session, "for path:", request.nextUrl.pathname);
 
   // If user is not authenticated and trying to access protected route
-  if (!token) {
-    console.log("No token, redirecting to login");
+  if (!session) {
+    console.log("No session, redirecting to login");
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  console.log("Token valid, allowing access");
+  console.log("Session valid, allowing access");
   return NextResponse.next();
 }
 
