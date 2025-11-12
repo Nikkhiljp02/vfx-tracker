@@ -12,35 +12,46 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
       async authorize(credentials) {
         try {
+          console.log("Authorize called with:", { username: credentials?.username });
+          
           if (!credentials?.username || !credentials?.password) {
+            console.log("Missing credentials");
             return null;
           }
 
           const username = credentials.username as string;
           const password = credentials.password as string;
 
+          console.log("Looking for user:", username);
+          
           // Find user in database
           const user = await prisma.user.findUnique({
             where: { username },
           });
 
+          console.log("User found:", user ? "yes" : "no");
+
           if (!user) {
+            console.log("User not found");
             return null;
           }
 
           if (!user.isActive) {
+            console.log("User not active");
             return null;
           }
 
           // Verify password
           const passwordMatch = await bcrypt.compare(password, user.password);
+          console.log("Password match:", passwordMatch);
 
           if (!passwordMatch) {
+            console.log("Password mismatch");
             return null;
           }
 
           // Return user object
-          return {
+          const returnUser = {
             id: user.id,
             name: `${user.firstName} ${user.lastName}`,
             email: user.email || `${user.username}@vfxtracker.com`,
@@ -49,6 +60,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             firstName: user.firstName,
             lastName: user.lastName,
           };
+          
+          console.log("Returning user:", returnUser);
+          return returnUser;
         } catch (error) {
           console.error("Auth error:", error);
           return null;
