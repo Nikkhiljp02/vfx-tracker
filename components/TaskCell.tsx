@@ -19,11 +19,22 @@ export default function TaskCell({ task }: TaskCellProps) {
   // Find the show this task belongs to and check if user can edit
   const canEdit = useMemo(() => {
     const shot = task.shot;
-    if (!shot) return false;
+    if (!shot) {
+      console.log('TaskCell: No shot found for task', task.id);
+      return false;
+    }
     
     const show = shows.find(s => s.id === shot.showId);
+    console.log('TaskCell: Checking edit permission', {
+      taskId: task.id,
+      shotId: shot.id,
+      showId: shot.showId,
+      showFound: !!show,
+      canEdit: show?.canEdit
+    });
+    
     return show?.canEdit ?? false;
-  }, [shows, task.shot]);
+  }, [shows, task.shot, task.id]);
 
   const statusOption = statusOptions.find(s => s.statusName === task.status);
   const statusColor = statusOption?.colorCode || '#6B7280';
