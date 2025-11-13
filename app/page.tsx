@@ -9,7 +9,8 @@ import DashboardView from '@/components/DashboardView';
 import Header from '@/components/Header';
 import FilterPanel from '@/components/FilterPanel';
 import MobileNav from '@/components/MobileNav';
-import { LayoutGrid, Layers, BarChart3, Truck } from 'lucide-react';
+import MobileFilterDrawer from '@/components/MobileFilterDrawer';
+import { LayoutGrid, Layers, BarChart3, Truck, Filter } from 'lucide-react';
 
 export default function Home() {
   const { fetchAllData, loadPreferences, loading, error } = useVFXStore();
@@ -24,6 +25,7 @@ export default function Home() {
   const [activeView, setActiveView] = useState<'tracker' | 'department' | 'delivery' | 'dashboard'>('dashboard');
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [showUnhideModal, setShowUnhideModal] = useState(false);
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
   // Save detailed view preference
   useEffect(() => {
@@ -60,6 +62,17 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50 pb-16 md:pb-0">
       <Header />
+      
+      {/* Mobile Filter Button - Floating */}
+      {(activeView === 'tracker' || activeView === 'department') && (
+        <button
+          onClick={() => setMobileFilterOpen(true)}
+          className="md:hidden fixed bottom-20 right-4 z-40 bg-blue-600 text-white p-4 rounded-full shadow-lg active:scale-95 transition-transform"
+        >
+          <Filter size={24} />
+        </button>
+      )}
+      
       <div className="w-full px-2 md:px-4 py-4 md:py-6">
         {/* View Tabs - Desktop only */}
         <div className="mb-4 hidden md:flex gap-2">
@@ -148,6 +161,12 @@ export default function Home() {
       
       {/* Mobile Bottom Navigation */}
       <MobileNav activeView={activeView} onViewChange={setActiveView} />
+      
+      {/* Mobile Filter Drawer */}
+      <MobileFilterDrawer 
+        isOpen={mobileFilterOpen} 
+        onClose={() => setMobileFilterOpen(false)} 
+      />
     </div>
   );
 }
