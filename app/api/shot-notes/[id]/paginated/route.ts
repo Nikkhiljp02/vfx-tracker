@@ -6,7 +6,7 @@ import { getPaginationParams, calculatePagination, getPrismaSkipTake } from '@/l
 // GET shot notes with lazy loading pagination
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -15,7 +15,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const shotId = params.id;
+    const { id: shotId } = await params;
     const { searchParams } = new URL(request.url);
     const pagination = getPaginationParams(searchParams);
     const { skip, take } = getPrismaSkipTake(pagination.page, pagination.limit);
