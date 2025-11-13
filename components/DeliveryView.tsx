@@ -8,6 +8,7 @@ import * as XLSX from 'xlsx';
 import SendDeliveryListModal from './SendDeliveryListModal';
 import { useSession } from 'next-auth/react';
 import { showError } from '@/lib/toast';
+import { matchesShotName } from '@/lib/searchUtils';
 
 type DeliveryType = 'internalEta' | 'clientEta';
 type DateFilter = 'all' | 'today' | 'thisWeek' | 'overdue' | 'custom';
@@ -205,7 +206,7 @@ export default function DeliveryView() {
     return deliveryItems.filter(item => {
       return (
         item.showName.toLowerCase().includes(query) ||
-        item.shotName.toLowerCase().includes(query) ||
+        matchesShotName(item.shotName, query) ||
         item.shotTag.toLowerCase().includes(query) ||
         item.department.toLowerCase().includes(query) ||
         (item.leadName && item.leadName.toLowerCase().includes(query)) ||

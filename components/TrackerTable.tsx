@@ -13,6 +13,7 @@ import { showSuccess, showError, showUndo } from '@/lib/toast';
 import { Trash2, Settings, X, ChevronRight, ChevronDown, Save, RotateCcw, Eye, EyeOff, Plus, Search, ArrowUpDown, ArrowUp, ArrowDown, Download, Copy, ChevronUp } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { supabase } from '@/lib/supabase';
+import { matchesShotName } from '@/lib/searchUtils';
 
 interface TrackerTableProps {
   detailedView: boolean;
@@ -882,7 +883,7 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
     if ((filters?.shotNames?.length ?? 0) > 0) {
       rows = rows.filter(row => 
         filters.shotNames.some(name => 
-          row.shotName.toLowerCase().includes(name.toLowerCase())
+          matchesShotName(row.shotName, name)
         )
       );
     }
@@ -966,8 +967,8 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
         // Search in show name
         if (row.showName.toLowerCase().includes(query)) return true;
         
-        // Search in shot name
-        if (row.shotName.toLowerCase().includes(query)) return true;
+        // Search in shot name (with smart matching)
+        if (matchesShotName(row.shotName, query)) return true;
         
         // Search in episode
         if (row.episode && row.episode.toLowerCase().includes(query)) return true;

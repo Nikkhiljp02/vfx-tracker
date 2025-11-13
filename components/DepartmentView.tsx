@@ -10,6 +10,7 @@ import DeleteConfirmationModal from './DeleteConfirmationModal';
 import { showSuccess, showError, showUndo } from '@/lib/toast';
 import { Search, X, ChevronRight } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+import { matchesShotName } from '@/lib/searchUtils';
 
 interface DepartmentViewProps {
   detailedView: boolean;
@@ -95,14 +96,12 @@ export default function DepartmentView({ detailedView }: DepartmentViewProps) {
     }
 
     if ((filters?.shotNames?.length ?? 0) > 0) {
-      filteredTasks = filteredTasks.filter(t =>
-        filters.shotNames.some(name =>
-          t.shotName.toLowerCase().includes(name.toLowerCase())
+      filteredTasks = filteredTasks.filter(t => 
+        filters.shotNames.some(name => 
+          matchesShotName(t.shotName, name)
         )
       );
-    }
-
-    if ((filters?.statuses?.length ?? 0) > 0) {
+    }    if ((filters?.statuses?.length ?? 0) > 0) {
       filteredTasks = filteredTasks.filter(t => filters.statuses.includes(t.task.status));
     }
 
@@ -121,7 +120,7 @@ export default function DepartmentView({ detailedView }: DepartmentViewProps) {
       const query = searchQuery.toLowerCase();
       filteredTasks = filteredTasks.filter(t =>
         t.showName.toLowerCase().includes(query) ||
-        t.shotName.toLowerCase().includes(query) ||
+        matchesShotName(t.shotName, query) ||
         t.shotTag.toLowerCase().includes(query) ||
         t.task.status.toLowerCase().includes(query) ||
         t.task.leadName?.toLowerCase().includes(query)
