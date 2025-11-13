@@ -48,7 +48,7 @@ export default function ShotChatPanel({ shotId, shotName, onClose, onNotesChange
 
   const parseMentions = (content: string): Mention[] => {
     const mentions: Mention[] = [];
-    const regex = /@(\w+)/g;
+    const regex = /@([\w.]+)/g;
     let match;
 
     while ((match = regex.exec(content)) !== null) {
