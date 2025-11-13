@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { useSwipeable } from 'react-swipeable';
+import { useState, useRef, useEffect } from 'react';
 import { Shot, Task } from '@/lib/types';
-import { ChevronDown, ChevronRight, MessageSquare, Calendar, User, Layers, Clock, CheckCircle2, Circle, AlertCircle, ChevronLeft } from 'lucide-react';
+import { ChevronDown, ChevronRight, MessageSquare, Calendar, User, Layers, Clock, CheckCircle2, Circle, AlertCircle, X } from 'lucide-react';
 import { formatDisplayDate } from '@/lib/utils';
+import { showSuccess, showError } from '@/lib/toast';
 
 interface MobileCardViewProps {
   shots: Shot[];
@@ -17,11 +17,7 @@ interface MobileCardViewProps {
 interface TaskCardProps {
   task: Task;
   hasEditPermission: boolean;
-  swipedTaskId: string | null;
-  statusMenuTaskId: string | null;
-  onSwipeLeft: (taskId: string) => void;
-  onSwipeRight: () => void;
-  onStatusClick: (taskId: string) => void;
+  onStatusClick: (task: Task) => void;
   getStatusIcon: (status: string) => React.ReactElement;
   getStatusColor: (status: string) => string;
 }
@@ -29,54 +25,19 @@ interface TaskCardProps {
 function TaskCard({ 
   task, 
   hasEditPermission, 
-  swipedTaskId, 
-  statusMenuTaskId, 
-  onSwipeLeft, 
-  onSwipeRight,
   onStatusClick,
   getStatusIcon,
   getStatusColor 
 }: TaskCardProps) {
-  const swipeHandlers = useSwipeable({
-    onSwipedLeft: () => {
-      if (hasEditPermission) {
-        onSwipeLeft(task.id);
-      }
-    },
-    onSwipedRight: () => {
-      onSwipeRight();
-    },
-    trackMouse: false,
-    delta: 50,
-  });
-
   return (
-    <div 
-      {...swipeHandlers}
-      className={`space-y-2 mt-2 transition-transform duration-200 relative ${
-        swipedTaskId === task.id ? '-translate-x-16' : ''
-      }`}
-    >
-      {/* Swipe Action Indicator */}
-      {hasEditPermission && swipedTaskId === task.id && (
-        <div className="absolute right-0 top-0 bottom-0 w-16 flex items-center justify-center bg-blue-500 rounded-r-lg">
-          <ChevronLeft className="w-5 h-5 text-white" />
-        </div>
-      )}
-
+    <div className="space-y-2 mt-2">
       {/* Status */}
-      <div 
-        className="flex items-center justify-between"
-        onClick={() => {
-          if (hasEditPermission && statusMenuTaskId === task.id) {
-            onStatusClick(task.id);
-          }
-        }}
-      >
+      <div className="flex items-center justify-between">
         <span className="text-xs text-gray-500">Status</span>
         <button 
+          onClick={() => hasEditPermission && onStatusClick(task)}
           className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border ${getStatusColor(task.status)} ${
-            hasEditPermission ? 'active:scale-95 transition-transform' : ''
+            hasEditPermission ? 'active:scale-95 transition-transform cursor-pointer' : 'cursor-default'
           }`}
           disabled={!hasEditPermission}
         >
@@ -146,14 +107,57 @@ export default function MobileCardView({
   hasEditPermission 
 }: MobileCardViewProps) {
   const [expandedShots, setExpandedShots] = useState<Set<string>>(new Set());
-  const [swipedTaskId, setSwipedTaskId] = useState<string | null>(null);
-  const [statusMenuTaskId, setStatusMenuTaskId] = useState<string | null>(null);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [statusOptions, setStatusOptions] = useState<any[]>([]);
+  const [updating, setUpdating] = useState(false);
 
   // Pull-to-refresh state
   const [pulling, setPulling] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const pullStartY = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Fetch status options
+  useEffect(() => {
+    const fetchStatusOptions = async () => {
+      try {
+        const response = await fetch('/api/status-options');
+        if (response.ok) {
+          const data = await response.json();
+          setStatusOptions(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch status options:', error);
+      }
+    };
+    fetchStatusOptions();
+  }, []);
+
+  const handleStatusUpdate = async (newStatus: string) => {
+    if (!selectedTask) return;
+    
+    setUpdating(true);
+    try {
+      const response = await fetch(`/api/tasks/${selectedTask.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!response.ok) throw new Error('Failed to update status');
+
+      showSuccess(`Status updated to ${newStatus}`);
+      setSelectedTask(null);
+      
+      // Refresh the page to show updated status
+      setTimeout(() => window.location.reload(), 500);
+    } catch (error) {
+      console.error('Error updating status:', error);
+      showError('Failed to update status');
+    } finally {
+      setUpdating(false);
+    }
+  };
 
   const toggleShotExpanded = (shotId: string) => {
     setExpandedShots(prev => {
@@ -397,19 +401,7 @@ export default function MobileCardView({
                             key={task.id}
                             task={task}
                             hasEditPermission={hasEditPermission}
-                            swipedTaskId={swipedTaskId}
-                            statusMenuTaskId={statusMenuTaskId}
-                            onSwipeLeft={(taskId) => {
-                              setSwipedTaskId(taskId);
-                              setStatusMenuTaskId(taskId);
-                            }}
-                            onSwipeRight={() => {
-                              setSwipedTaskId(null);
-                              setStatusMenuTaskId(null);
-                            }}
-                            onStatusClick={(taskId) => {
-                              // Future: implement status change modal
-                            }}
+                            onStatusClick={(task) => setSelectedTask(task)}
                             getStatusIcon={getStatusIcon}
                             getStatusColor={getStatusColor}
                           />
@@ -432,6 +424,78 @@ export default function MobileCardView({
         <div className="text-center py-12">
           <p className="text-gray-500">No shots to display</p>
         </div>
+      )}
+
+      {/* Status Update Modal */}
+      {selectedTask && (
+        <>
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-50"
+            onClick={() => setSelectedTask(null)}
+          />
+          
+          {/* Modal */}
+          <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-50 max-h-[70vh] overflow-hidden animate-slide-up">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Update Status</h3>
+                <p className="text-sm text-gray-500">{selectedTask.department}</p>
+              </div>
+              <button
+                onClick={() => setSelectedTask(null)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Current Status */}
+            <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+              <p className="text-xs text-gray-500 mb-1">Current Status</p>
+              <span className={`inline-flex items-center gap-1 px-3 py-1.5 rounded text-sm font-medium border ${getStatusColor(selectedTask.status)}`}>
+                {getStatusIcon(selectedTask.status)}
+                {selectedTask.status}
+              </span>
+            </div>
+
+            {/* Status Options */}
+            <div className="p-4 space-y-2 overflow-y-auto max-h-[50vh]">
+              {statusOptions
+                .filter(option => option.isActive)
+                .sort((a, b) => a.statusOrder - b.statusOrder)
+                .map((option) => (
+                  <button
+                    key={option.id}
+                    onClick={() => handleStatusUpdate(option.statusName)}
+                    disabled={updating || option.statusName === selectedTask.status}
+                    className={`w-full flex items-center gap-3 p-3 rounded-lg border-2 transition-all ${
+                      option.statusName === selectedTask.status
+                        ? 'border-blue-600 bg-blue-50'
+                        : 'border-gray-200 hover:border-blue-400 hover:bg-gray-50 active:scale-98'
+                    } ${updating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {getStatusIcon(option.statusName)}
+                    <span className="font-medium text-gray-900">{option.statusName}</span>
+                    {option.statusName === selectedTask.status && (
+                      <CheckCircle2 className="w-5 h-5 text-blue-600 ml-auto" />
+                    )}
+                  </button>
+                ))}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-gray-200 p-4 bg-white">
+              <button
+                onClick={() => setSelectedTask(null)}
+                className="w-full py-3 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 active:scale-98 transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
