@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 
-// GET /api/users - List all users (Admin only)
+// GET /api/users - List all users (authenticated users can fetch for mentions)
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
@@ -12,12 +12,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if user is admin
     const user = session.user as any;
+    
+    // For non-admin users, only return basic info for mentions (no permissions/show access)
     if (user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
+      const users = await prisma.user.findMany({
+        where: {
+          isActive: true,
+        },
+        select: {
+          id: true,
+          username: true,
+          firstName: true,
+          lastName: true,
+        },
+        orderBy: {
+          firstName: "asc",
+        },
+      });
+      return NextResponse.json(users);
     }
 
+    // Admin gets full user details
     const users = await prisma.user.findMany({
       select: {
         id: true,

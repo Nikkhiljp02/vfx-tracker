@@ -102,6 +102,7 @@ export async function POST(request: NextRequest) {
       oldValue,
       newValue,
       userName,
+      userId,
     } = body;
 
     if (!entityType || !entityId || !actionType) {
@@ -121,6 +122,7 @@ export async function POST(request: NextRequest) {
         oldValue: oldValue ? JSON.stringify(oldValue) : null,
         newValue: newValue ? JSON.stringify(newValue) : null,
         userName: userName || 'System',
+        userId: userId || null,
       },
     });
 

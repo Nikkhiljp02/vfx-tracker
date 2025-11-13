@@ -40,7 +40,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { shotId, content, mentions, attachments, userName } = body;
+    const { shotId, content, mentions, attachments, userName, userId } = body;
 
     if (!shotId || !content) {
       return NextResponse.json(
@@ -56,6 +56,7 @@ export async function POST(request: Request) {
         mentions: mentions ? JSON.stringify(mentions) : null,
         attachments: attachments ? JSON.stringify(attachments) : null,
         userName: userName || 'User',
+        userId: userId || null,
       },
     });
 

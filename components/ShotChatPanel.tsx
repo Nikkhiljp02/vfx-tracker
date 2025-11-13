@@ -4,6 +4,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Send, Paperclip, Loader2, Trash2, Edit2 } from 'lucide-react';
 import { ShotNote, Mention } from '@/lib/types';
 import { formatDistanceToNow } from 'date-fns';
+import { useSession } from 'next-auth/react';
+import MentionInput from './MentionInput';
 
 interface ShotChatPanelProps {
   shotId: string;
@@ -13,13 +15,13 @@ interface ShotChatPanelProps {
 }
 
 export default function ShotChatPanel({ shotId, shotName, onClose, onNotesChange }: ShotChatPanelProps) {
+  const { data: session } = useSession();
   const [notes, setNotes] = useState<ShotNote[]>([]);
   const [newNote, setNewNote] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -59,12 +61,57 @@ export default function ShotChatPanel({ shotId, shotName, onClose, onNotesChange
     return mentions;
   };
 
+  const createNotificationsForMentions = async (mentions: Mention[], noteId: string) => {
+    const currentUser = session?.user as any;
+    if (!currentUser) return;
+
+    try {
+      // Fetch all users to match mentions
+      const usersRes = await fetch('/api/users');
+      if (!usersRes.ok) return;
+      
+      const allUsers = await usersRes.json();
+      
+      // Create notifications for mentioned users
+      for (const mention of mentions) {
+        if (mention.type === 'user') {
+          // Find user by username
+          const mentionedUser = allUsers.find(
+            (u: any) => u.username.toLowerCase() === mention.name.toLowerCase()
+          );
+          
+          if (mentionedUser && mentionedUser.id !== currentUser.id) {
+            // Don't notify yourself
+            await fetch('/api/notifications', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId: mentionedUser.id,
+                type: 'mention',
+                title: `Mentioned in ${shotName}`,
+                message: `${currentUser.firstName || currentUser.username} mentioned you in a note`,
+                relatedType: 'shot',
+                relatedId: shotId,
+                relatedName: shotName,
+                sourceUserId: currentUser.id,
+                sourceUserName: `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.username,
+              }),
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to create notifications:', error);
+    }
+  };
+
   const handleSendNote = async () => {
     if (!newNote.trim()) return;
 
     try {
       setSending(true);
       const mentions = parseMentions(newNote);
+      const currentUser = session?.user as any;
 
       const res = await fetch('/api/shot-notes', {
         method: 'POST',
@@ -73,7 +120,8 @@ export default function ShotChatPanel({ shotId, shotName, onClose, onNotesChange
           shotId,
           content: newNote,
           mentions: mentions.length > 0 ? mentions : null,
-          userName: 'User', // TODO: Replace with actual user when auth is added
+          userName: currentUser ? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.username : 'User',
+          userId: currentUser?.id || null,
         }),
       });
 
@@ -81,9 +129,12 @@ export default function ShotChatPanel({ shotId, shotName, onClose, onNotesChange
         const createdNote = await res.json();
         setNotes([createdNote, ...notes]);
         setNewNote('');
-        if (textareaRef.current) {
-          textareaRef.current.style.height = 'auto';
+        
+        // Create notifications for mentioned users
+        if (mentions.length > 0) {
+          await createNotificationsForMentions(mentions, createdNote.id);
         }
+        
         // Notify parent component
         if (onNotesChange) onNotesChange();
       }
@@ -184,20 +235,6 @@ export default function ShotChatPanel({ shotId, shotName, onClose, onNotesChange
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendNote();
-    }
-  };
-
-  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setNewNote(e.target.value);
-    // Auto-resize textarea
-    e.target.style.height = 'auto';
-    e.target.style.height = e.target.scrollHeight + 'px';
-  };
-
   const renderContent = (content: string, mentions: Mention[] | null) => {
     if (!mentions || mentions.length === 0) {
       return <span>{content}</span>;
@@ -284,11 +321,12 @@ export default function ShotChatPanel({ shotId, shotName, onClose, onNotesChange
 
                     {editingId === note.id ? (
                       <div className="mt-1">
-                        <textarea
+                        <MentionInput
                           value={editContent}
-                          onChange={(e) => setEditContent(e.target.value)}
-                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          rows={3}
+                          onChange={setEditContent}
+                          onSend={() => handleSaveEdit(note.id)}
+                          placeholder="Edit note... Type @ to mention users"
+                          className="w-full"
                         />
                         <div className="flex gap-2 mt-1">
                           <button
@@ -359,16 +397,13 @@ export default function ShotChatPanel({ shotId, shotName, onClose, onNotesChange
       {/* Input Area */}
       <div className="p-4 border-t border-gray-200 bg-gray-50">
         <div className="flex gap-2">
-          <textarea
-            ref={textareaRef}
+          <MentionInput
             value={newNote}
-            onChange={handleTextareaChange}
-            onKeyDown={handleKeyDown}
-            placeholder="Add a note... (@PAINT, @COMP, etc.)"
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
-            rows={1}
-            style={{ maxHeight: '120px' }}
+            onChange={setNewNote}
+            onSend={handleSendNote}
+            placeholder="Add a note... Type @ to mention users"
             disabled={sending}
+            className="flex-1"
           />
           <button
             onClick={handleSendNote}

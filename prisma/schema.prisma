@@ -211,13 +211,15 @@ model ActivityLog {
   oldValue      String?  // Previous value (JSON string)
   newValue      String?  // New value (JSON string)
   fullEntityData String? // Complete entity JSON (for DELETE operations backup)
-  userName      String?  // User who made the change (for future user system)
+  userName      String?  // User who made the change
+  userId        String?  // User ID who made the change
   timestamp     DateTime @default(now())
   isReversed    Boolean  @default(false) // Track if this change was undone
 
   @@map("activity_logs")
   @@index([entityType, entityId])
   @@index([timestamp])
+  @@index([userId])
 }
 
 // Shot Notes/Comments Table (Communication & Collaboration)
@@ -227,7 +229,8 @@ model ShotNote {
   content         String   // The note/comment text
   mentions        String?  // JSON array of mentions: [{"type": "user", "name": "John"}, {"type": "dept", "name": "PAINT"}]
   attachments     String?  // JSON array of attachment info: [{"name": "ref.jpg", "path": "/uploads/...", "size": 1024}]
-  userName        String   @default("User") // User who created the note (for future user system)
+  userName        String   @default("User") // User name who created the note
+  userId          String?  // User ID who created the note
   createdDate     DateTime @default(now())
   updatedDate     DateTime @updatedAt
   isEdited        Boolean  @default(false)
@@ -236,6 +239,27 @@ model ShotNote {
 
   @@map("shot_notes")
   @@index([shotId])
+  @@index([createdDate])
+  @@index([userId])
+}
+
+// Notification Table (User mentions and activity notifications)
+model Notification {
+  id              String   @id @default(cuid())
+  userId          String   // User who receives the notification
+  type            String   // "mention", "activity", "delivery", "system"
+  title           String   // Short notification title
+  message         String   // Notification message
+  relatedType     String?  // "shot", "task", "show", "delivery"
+  relatedId       String?  // ID of related entity
+  relatedName     String?  // Name of related entity (e.g., shot name)
+  sourceUserId    String?  // User who triggered the notification
+  sourceUserName  String?  // Name of user who triggered the notification
+  isRead          Boolean  @default(false)
+  createdDate     DateTime @default(now())
+
+  @@map("notifications")
+  @@index([userId, isRead])
   @@index([createdDate])
 }
 

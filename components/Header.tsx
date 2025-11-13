@@ -12,6 +12,7 @@ import NewShotModal from './NewShotModal';
 import StatusManagementModal from './StatusManagementModal';
 import ImportPreviewModal from './ImportPreviewModal';
 import ActivityLogModal from './ActivityLogModal';
+import NotificationBell from './NotificationBell';
 
 export default function Header() {
   const { data: session } = useSession();
@@ -556,6 +557,9 @@ export default function Header() {
             </div>
             
             <div className="flex gap-2 md:gap-3 items-center">
+              {/* Notification Bell */}
+              <NotificationBell />
+              
               {/* User Menu */}
               {user && (
                 <div className="relative">
