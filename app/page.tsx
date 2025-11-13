@@ -8,6 +8,7 @@ import DeliveryView from '@/components/DeliveryView';
 import DashboardView from '@/components/DashboardView';
 import Header from '@/components/Header';
 import FilterPanel from '@/components/FilterPanel';
+import MobileNav from '@/components/MobileNav';
 import { LayoutGrid, Layers, BarChart3, Truck } from 'lucide-react';
 
 export default function Home() {
@@ -57,11 +58,11 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-16 md:pb-0">
       <Header />
-      <div className="w-full px-4 py-6">
-        {/* View Tabs */}
-        <div className="mb-4 flex gap-2">
+      <div className="w-full px-2 md:px-4 py-4 md:py-6">
+        {/* View Tabs - Desktop only */}
+        <div className="mb-4 hidden md:flex gap-2">
           <button
             onClick={() => setActiveView('dashboard')}
             className={`
@@ -144,6 +145,9 @@ export default function Home() {
           </>
         )}
       </div>
+      
+      {/* Mobile Bottom Navigation */}
+      <MobileNav activeView={activeView} onViewChange={setActiveView} />
     </div>
   );
 }

@@ -547,27 +547,27 @@ export default function Header() {
 
   return (
     <>
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="w-full px-4 py-4">
+      <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-40">
+        <div className="w-full px-2 md:px-4 py-3 md:py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">VFX TRACKER</h1>
-              <p className="text-sm text-gray-500">Production Coordination System</p>
+              <h1 className="text-lg md:text-2xl font-bold text-gray-900">VFX TRACKER</h1>
+              <p className="text-xs md:text-sm text-gray-500 hidden sm:block">Production Coordination System</p>
             </div>
             
-            <div className="flex gap-3 items-center">
+            <div className="flex gap-2 md:gap-3 items-center">
               {/* User Menu */}
               {user && (
                 <div className="relative">
                   <button
                     onClick={() => setShowUserMenu(!showUserMenu)}
-                    className="flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                    className="flex items-center gap-1 md:gap-2 px-2 md:px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                   >
-                    <User size={18} />
-                    <span className="text-sm font-medium">
+                    <User size={16} className="md:w-[18px] md:h-[18px]" />
+                    <span className="text-xs md:text-sm font-medium hidden sm:inline">
                       {user.firstName} {user.lastName}
                     </span>
-                    <span className="text-xs text-gray-500">({user.role})</span>
+                    <span className="text-xs text-gray-500 hidden md:inline">({user.role})</span>
                   </button>
 
                   {showUserMenu && (
@@ -613,14 +613,14 @@ export default function Header() {
               {/* Toggle Button */}
               <button
                 onClick={() => setButtonsVisible(!buttonsVisible)}
-                className="flex items-center gap-2 px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                className="flex items-center gap-1 md:gap-2 px-2 md:px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
                 title={buttonsVisible ? "Hide buttons" : "Show buttons"}
               >
-                {buttonsVisible ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+                {buttonsVisible ? <ChevronRight size={18} className="md:w-5 md:h-5" /> : <ChevronLeft size={18} className="md:w-5 md:h-5" />}
               </button>
               
-              {/* Animated buttons container */}
-              <div className={`flex gap-3 overflow-hidden transition-all duration-300 ${
+              {/* Animated buttons container - Hidden on mobile */}
+              <div className={`hidden md:flex gap-3 overflow-hidden transition-all duration-300 ${
                 buttonsVisible ? 'max-w-[2000px] opacity-100' : 'max-w-0 opacity-0'
               }`}>
                 {/* Template and Export - Always visible */}
