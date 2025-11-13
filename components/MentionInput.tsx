@@ -146,7 +146,7 @@ export default function MentionInput({
   }, [value]);
 
   return (
-    <div className="relative">
+    <div className={`relative w-full ${className}`}>
       <textarea
         ref={textareaRef}
         value={value}
@@ -154,7 +154,7 @@ export default function MentionInput({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
-        className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent resize-none ${className}`}
+        className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent resize-none"
         rows={1}
         style={{ minHeight: '32px', maxHeight: '120px' }}
       />
