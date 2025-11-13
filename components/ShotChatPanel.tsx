@@ -395,20 +395,20 @@ export default function ShotChatPanel({ shotId, shotName, onClose, onNotesChange
       </div>
 
       {/* Input Area */}
-      <div className="p-2 border-t border-gray-200 bg-gray-50">
-        <div className="flex gap-1.5 items-end">
+      <div className="p-3 border-t border-gray-200 bg-gray-50">
+        <div className="flex gap-2 items-end w-full">
           <MentionInput
             value={newNote}
             onChange={setNewNote}
             onSend={handleSendNote}
             placeholder="Type @ to mention..."
             disabled={sending}
-            className="flex-1"
+            className="flex-1 min-w-0"
           />
           <button
             onClick={handleSendNote}
             disabled={!newNote.trim() || sending}
-            className="px-2.5 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex-shrink-0"
+            className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex-shrink-0"
           >
             {sending ? (
               <Loader2 className="animate-spin" size={16} />
