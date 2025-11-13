@@ -8,6 +8,7 @@ import TaskCell from './TaskCell';
 import ShotChatPanel from './ShotChatPanel';
 import BulkActionsBar from './BulkActionsBar';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
+import MobileCardView from './MobileCardView';
 import { showSuccess, showError, showUndo } from '@/lib/toast';
 import { Trash2, Settings, X, ChevronRight, ChevronDown, Save, RotateCcw, Eye, EyeOff, Plus, Search, ArrowUpDown, ArrowUp, ArrowDown, Download, Copy, ChevronUp } from 'lucide-react';
 import { useSession } from 'next-auth/react';
@@ -1062,6 +1063,14 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
     return rows;
   }, [shows, filters, searchQuery, sortField, sortDirection]);
 
+  // Get filtered shots for mobile card view
+  const filteredShots = useMemo(() => {
+    const shotIds = new Set(trackerRows.map(row => row.shotId));
+    return shows.flatMap(show => 
+      (show.shots || []).filter(shot => shotIds.has(shot.id))
+    );
+  }, [shows, trackerRows]);
+
   // Helper function to format show name with client if needed
   const getDisplayShowName = (row: any) => {
     const show = shows.find(s => s.id === row.showId);
@@ -1593,8 +1602,23 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
         </div>
       </div>
 
+      {/* Mobile Card View - Hidden on desktop */}
+      <div className="md:hidden">
+        <MobileCardView 
+          shots={filteredShots}
+          onShotClick={(shotId, shotName) => {
+            setChatShotId(shotId);
+            setChatShotName(shotName);
+            setChatPanelOpen(true);
+          }}
+          shotsWithNotes={shotsWithNotes}
+          hasEditPermission={hasEditPermission}
+        />
+      </div>
+
+      {/* Desktop Table View - Hidden on mobile */}
       <div 
-        className="bg-white rounded-lg shadow-sm overflow-hidden"
+        className="bg-white rounded-lg shadow-sm overflow-hidden hidden md:block"
         onClick={() => {
           // Deselect cells when clicking anywhere on the table container
           if (selectedCells.size > 0) {
@@ -2174,7 +2198,7 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
       </div>
     </div>
     
-    {/* Context Menu for Multi-Select Status Update */}
+    {/* Shot Chat Panel */}    {/* Context Menu for Multi-Select Status Update */}
     {contextMenu.visible && !detailedView && hasEditPermission && (
       <div
         className="fixed bg-white rounded-lg shadow-2xl border border-gray-200 py-1 z-[100] min-w-[200px]"
