@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Show, Shot, Task, StatusOption, Department, TrackerFilters } from './types';
+import { fetchWithCache, cacheKeys, cacheConfigs, invalidateEntityCache } from './cache';
 
 interface UserPreferences {
   tableColumns: string[];
@@ -30,6 +31,12 @@ interface VFXStore {
   loading: boolean;
   error: string | null;
   
+  // Pagination state
+  currentPage: number;
+  pageSize: number;
+  totalPages: number;
+  totalItems: number;
+  
   // Actions
   setShows: (shows: Show[]) => void;
   setShots: (shots: Shot[]) => void;
@@ -44,6 +51,10 @@ interface VFXStore {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   
+  // Pagination actions
+  setPage: (page: number) => void;
+  setPageSize: (size: number) => void;
+  
   // Selection actions
   toggleSelectionMode: () => void;
   toggleShotSelection: (shotId: string) => void;
@@ -52,11 +63,14 @@ interface VFXStore {
   
   // Fetch data
   fetchAllData: () => Promise<void>;
-  fetchShows: () => Promise<void>;
-  fetchShots: () => Promise<void>;
-  fetchTasks: () => Promise<void>;
-  fetchStatusOptions: () => Promise<void>;
-  fetchDepartments: () => Promise<void>;
+  fetchShows: (forceRefresh?: boolean) => Promise<void>;
+  fetchShots: (forceRefresh?: boolean, page?: number, limit?: number) => Promise<void>;
+  fetchTasks: (forceRefresh?: boolean) => Promise<void>;
+  fetchStatusOptions: (forceRefresh?: boolean) => Promise<void>;
+  fetchDepartments: (forceRefresh?: boolean) => Promise<void>;
+  
+  // Cache invalidation
+  invalidateCache: (entityType: 'show' | 'shot' | 'task', entityId?: string) => void;
 }
 
 const initialFilters: TrackerFilters = {
@@ -88,6 +102,10 @@ export const useVFXStore = create<VFXStore>((set, get) => ({
   selectedShotIds: new Set<string>(),
   loading: false,
   error: null,
+  currentPage: 1,
+  pageSize: 50,
+  totalPages: 0,
+  totalItems: 0,
 
   // Setters
   setShows: (shows) => set({ shows }),
@@ -100,6 +118,10 @@ export const useVFXStore = create<VFXStore>((set, get) => ({
   setPreferences: (preferences) => set({ preferences }),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
+  
+  // Pagination setters
+  setPage: (page) => set({ currentPage: page }),
+  setPageSize: (size) => set({ pageSize: size }),
 
   // Selection actions
   toggleSelectionMode: () => set((state) => ({ 
@@ -120,8 +142,13 @@ export const useVFXStore = create<VFXStore>((set, get) => ({
   selectAllShots: (shotIds) => set({ selectedShotIds: new Set(shotIds) }),
   
   clearSelection: () => set({ selectedShotIds: new Set<string>() }),
+  
+  // Cache invalidation
+  invalidateCache: (entityType, entityId) => {
+    invalidateEntityCache(entityType, entityId);
+  },
 
-  // Fetch functions
+  // Fetch functions with caching
   fetchAllData: async () => {
     set({ loading: true, error: null });
     try {
@@ -140,11 +167,17 @@ export const useVFXStore = create<VFXStore>((set, get) => ({
     }
   },
 
-  fetchShows: async () => {
+  fetchShows: async (forceRefresh = false) => {
     try {
-      const response = await fetch('/api/shows');
-      if (!response.ok) throw new Error('Failed to fetch shows');
-      const shows = await response.json();
+      const shows = await fetchWithCache(
+        cacheKeys.shows(),
+        async () => {
+          const response = await fetch('/api/shows');
+          if (!response.ok) throw new Error('Failed to fetch shows');
+          return response.json();
+        },
+        { ...cacheConfigs.standard, forceRefresh }
+      );
       set({ shows });
     } catch (error) {
       console.error('Error fetching shows:', error);
@@ -152,23 +185,54 @@ export const useVFXStore = create<VFXStore>((set, get) => ({
     }
   },
 
-  fetchShots: async () => {
+  fetchShots: async (forceRefresh = false, page?: number, limit?: number) => {
     try {
-      const response = await fetch('/api/shots');
-      if (!response.ok) throw new Error('Failed to fetch shots');
-      const shots = await response.json();
-      set({ shots });
+      const currentPage = page || get().currentPage;
+      const currentLimit = limit || get().pageSize;
+      
+      const result = await fetchWithCache(
+        cacheKeys.shots(undefined, currentPage, currentLimit),
+        async () => {
+          const url = new URL('/api/shots', window.location.origin);
+          url.searchParams.set('page', currentPage.toString());
+          url.searchParams.set('limit', currentLimit.toString());
+          
+          const response = await fetch(url);
+          if (!response.ok) throw new Error('Failed to fetch shots');
+          return response.json();
+        },
+        { ...cacheConfigs.realtime, forceRefresh }
+      );
+      
+      // Handle paginated response
+      if (result.pagination) {
+        set({ 
+          shots: result.data,
+          currentPage: result.pagination.currentPage,
+          totalPages: result.pagination.totalPages,
+          totalItems: result.pagination.totalItems,
+        });
+      } else {
+        // Fallback for non-paginated response
+        set({ shots: result });
+      }
     } catch (error) {
       console.error('Error fetching shots:', error);
       throw error;
     }
   },
 
-  fetchTasks: async () => {
+  fetchTasks: async (forceRefresh = false) => {
     try {
-      const response = await fetch('/api/tasks');
-      if (!response.ok) throw new Error('Failed to fetch tasks');
-      const tasks = await response.json();
+      const tasks = await fetchWithCache(
+        cacheKeys.tasks(),
+        async () => {
+          const response = await fetch('/api/tasks');
+          if (!response.ok) throw new Error('Failed to fetch tasks');
+          return response.json();
+        },
+        { ...cacheConfigs.realtime, forceRefresh }
+      );
       set({ tasks });
     } catch (error) {
       console.error('Error fetching tasks:', error);
@@ -176,11 +240,17 @@ export const useVFXStore = create<VFXStore>((set, get) => ({
     }
   },
 
-  fetchStatusOptions: async () => {
+  fetchStatusOptions: async (forceRefresh = false) => {
     try {
-      const response = await fetch('/api/status-options');
-      if (!response.ok) throw new Error('Failed to fetch status options');
-      const statusOptions = await response.json();
+      const statusOptions = await fetchWithCache(
+        cacheKeys.statusOptions(),
+        async () => {
+          const response = await fetch('/api/status-options');
+          if (!response.ok) throw new Error('Failed to fetch status options');
+          return response.json();
+        },
+        { ...cacheConfigs.longLived, forceRefresh }
+      );
       set({ statusOptions });
     } catch (error) {
       console.error('Error fetching status options:', error);
@@ -188,11 +258,17 @@ export const useVFXStore = create<VFXStore>((set, get) => ({
     }
   },
 
-  fetchDepartments: async () => {
+  fetchDepartments: async (forceRefresh = false) => {
     try {
-      const response = await fetch('/api/departments');
-      if (!response.ok) throw new Error('Failed to fetch departments');
-      const departments = await response.json();
+      const departments = await fetchWithCache(
+        cacheKeys.departments(),
+        async () => {
+          const response = await fetch('/api/departments');
+          if (!response.ok) throw new Error('Failed to fetch departments');
+          return response.json();
+        },
+        { ...cacheConfigs.longLived, forceRefresh }
+      );
       set({ departments });
     } catch (error) {
       console.error('Error fetching departments:', error);

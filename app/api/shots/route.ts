@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
+import { getPaginationParams, calculatePagination, getPrismaSkipTake, getCursorPaginationParams } from '@/lib/pagination';
 
-// GET all shots (filtered by user show access)
+// GET all shots (filtered by user show access) with pagination support
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
@@ -15,6 +16,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const showId = searchParams.get('showId');
     const shotTag = searchParams.get('shotTag');
+    const useCursor = searchParams.get('cursor') !== null;
 
     const where: any = {};
     if (shotTag) where.shotTag = shotTag;
@@ -43,8 +45,54 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Cursor-based pagination (for infinite scroll)
+    if (useCursor) {
+      const { cursor, limit } = getCursorPaginationParams(searchParams);
+      
+      const shots = await prisma.shot.findMany({
+        where,
+        take: limit + 1, // Get one extra to check if there's more
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+        include: {
+          show: true,
+          tasks: {
+            include: {
+              shot: {
+                include: {
+                  show: true,
+                },
+              },
+            },
+          },
+          parentShot: true,
+        },
+        orderBy: {
+          createdDate: 'desc',
+        },
+      });
+
+      const hasMore = shots.length > limit;
+      const data = hasMore ? shots.slice(0, -1) : shots;
+      const nextCursor = hasMore ? shots[shots.length - 2].id : null;
+
+      return NextResponse.json({
+        data,
+        nextCursor,
+        hasMore,
+      });
+    }
+
+    // Offset-based pagination (for page numbers)
+    const pagination = getPaginationParams(searchParams);
+    const { skip, take } = getPrismaSkipTake(pagination.page, pagination.limit);
+
+    // Get total count for pagination metadata
+    const totalCount = await prisma.shot.count({ where });
+
     const shots = await prisma.shot.findMany({
       where,
+      skip,
+      take,
       include: {
         show: true,
         tasks: {
@@ -58,12 +106,17 @@ export async function GET(request: NextRequest) {
         },
         parentShot: true,
       },
-      orderBy: {
-        createdDate: 'desc',
-      },
+      orderBy: pagination.orderBy === 'createdDate' 
+        ? { createdDate: pagination.orderDirection }
+        : { updatedDate: pagination.orderDirection },
     });
 
-    return NextResponse.json(shots);
+    const paginationMeta = calculatePagination(totalCount, pagination.page, pagination.limit);
+
+    return NextResponse.json({
+      data: shots,
+      pagination: paginationMeta,
+    });
   } catch (error) {
     console.error('Error fetching shots:', error);
     return NextResponse.json({ error: 'Failed to fetch shots' }, { status: 500 });
