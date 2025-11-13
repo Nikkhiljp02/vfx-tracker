@@ -30,7 +30,7 @@ export default function ShotChatPanel({ shotId, shotName, onClose, onNotesChange
 
   useEffect(() => {
     // Auto-scroll to bottom when new notes arrive
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    chatEndRef.current?.scrollIntoView({ behavior: 'auto' });
   }, [notes]);
 
   const fetchNotes = async () => {
@@ -395,31 +395,28 @@ export default function ShotChatPanel({ shotId, shotName, onClose, onNotesChange
       </div>
 
       {/* Input Area */}
-      <div className="p-4 border-t border-gray-200 bg-gray-50">
-        <div className="flex gap-2">
+      <div className="p-2 border-t border-gray-200 bg-gray-50">
+        <div className="flex gap-1.5 items-end">
           <MentionInput
             value={newNote}
             onChange={setNewNote}
             onSend={handleSendNote}
-            placeholder="Add a note... Type @ to mention users"
+            placeholder="Type @ to mention..."
             disabled={sending}
             className="flex-1"
           />
           <button
             onClick={handleSendNote}
             disabled={!newNote.trim() || sending}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            className="px-2.5 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex-shrink-0"
           >
             {sending ? (
-              <Loader2 className="animate-spin" size={18} />
+              <Loader2 className="animate-spin" size={16} />
             ) : (
-              <Send size={18} />
+              <Send size={16} />
             )}
           </button>
         </div>
-        <p className="text-xs text-gray-500 mt-2">
-          Press Enter to send, Shift+Enter for new line
-        </p>
       </div>
     </div>
   );

@@ -86,7 +86,7 @@ export async function PATCH(request: NextRequest) {
 
     const userId = (session.user as any).id;
     const body = await request.json();
-    const { notificationIds, markAllAsRead } = body;
+    const { notificationId, notificationIds, markAllAsRead } = body;
 
     if (markAllAsRead) {
       // Mark all unread notifications as read
@@ -100,13 +100,25 @@ export async function PATCH(request: NextRequest) {
           isRead: true,
         },
       });
+    } else if (notificationId) {
+      // Mark single notification as read
+      // @ts-ignore - Notification model will be available after migration
+      await prisma.notification.updateMany({
+        where: {
+          id: notificationId,
+          userId,
+        },
+        data: {
+          isRead: true,
+        },
+      });
     } else if (notificationIds && Array.isArray(notificationIds)) {
       // Mark specific notifications as read
       // @ts-ignore - Notification model will be available after migration
       await prisma.notification.updateMany({
         where: {
           id: { in: notificationIds },
-          userId, // Ensure user can only mark their own notifications
+          userId,
         },
         data: {
           isRead: true,

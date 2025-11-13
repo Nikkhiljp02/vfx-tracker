@@ -154,40 +154,35 @@ export default function MentionInput({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
-        className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none ${className}`}
+        className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent resize-none ${className}`}
         rows={1}
-        style={{ minHeight: '40px', maxHeight: '200px' }}
+        style={{ minHeight: '32px', maxHeight: '120px' }}
       />
       
       {/* Mention Suggestions Dropdown */}
       {showSuggestions && filteredSuggestions.length > 0 && (
         <div
           ref={suggestionsRef}
-          className="absolute bottom-full left-0 right-0 mb-2 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto z-50"
+          className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-gray-300 rounded shadow-lg max-h-48 overflow-y-auto z-50"
         >
           {filteredSuggestions.map((user, index) => (
             <button
               key={user.id}
               onClick={() => insertMention(user)}
-              className={`w-full text-left px-4 py-2 hover:bg-blue-50 transition-colors ${
+              className={`w-full text-left px-3 py-1.5 hover:bg-blue-50 ${
                 index === selectedIndex ? 'bg-blue-100' : ''
               }`}
             >
-              <div className="font-medium text-gray-900">
+              <div className="text-sm font-medium text-gray-900">
                 @{user.username}
               </div>
-              <div className="text-sm text-gray-500">
+              <div className="text-xs text-gray-500">
                 {user.firstName} {user.lastName}
               </div>
             </button>
           ))}
         </div>
       )}
-      
-      {/* Helper text */}
-      <div className="mt-1 text-xs text-gray-500">
-        Type <span className="font-medium">@</span> to mention users or departments
-      </div>
     </div>
   );
 }
