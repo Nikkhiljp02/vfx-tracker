@@ -14,6 +14,130 @@ interface MobileCardViewProps {
   hasEditPermission: boolean;
 }
 
+interface TaskCardProps {
+  task: Task;
+  hasEditPermission: boolean;
+  swipedTaskId: string | null;
+  statusMenuTaskId: string | null;
+  onSwipeLeft: (taskId: string) => void;
+  onSwipeRight: () => void;
+  onStatusClick: (taskId: string) => void;
+  getStatusIcon: (status: string) => React.ReactElement;
+  getStatusColor: (status: string) => string;
+}
+
+function TaskCard({ 
+  task, 
+  hasEditPermission, 
+  swipedTaskId, 
+  statusMenuTaskId, 
+  onSwipeLeft, 
+  onSwipeRight,
+  onStatusClick,
+  getStatusIcon,
+  getStatusColor 
+}: TaskCardProps) {
+  const swipeHandlers = useSwipeable({
+    onSwipedLeft: () => {
+      if (hasEditPermission) {
+        onSwipeLeft(task.id);
+      }
+    },
+    onSwipedRight: () => {
+      onSwipeRight();
+    },
+    trackMouse: false,
+    delta: 50,
+  });
+
+  return (
+    <div 
+      {...swipeHandlers}
+      className={`space-y-2 mt-2 transition-transform duration-200 relative ${
+        swipedTaskId === task.id ? '-translate-x-16' : ''
+      }`}
+    >
+      {/* Swipe Action Indicator */}
+      {hasEditPermission && swipedTaskId === task.id && (
+        <div className="absolute right-0 top-0 bottom-0 w-16 flex items-center justify-center bg-blue-500 rounded-r-lg">
+          <ChevronLeft className="w-5 h-5 text-white" />
+        </div>
+      )}
+
+      {/* Status */}
+      <div 
+        className="flex items-center justify-between"
+        onClick={() => {
+          if (hasEditPermission && statusMenuTaskId === task.id) {
+            onStatusClick(task.id);
+          }
+        }}
+      >
+        <span className="text-xs text-gray-500">Status</span>
+        <button 
+          className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border ${getStatusColor(task.status)} ${
+            hasEditPermission ? 'active:scale-95 transition-transform' : ''
+          }`}
+          disabled={!hasEditPermission}
+        >
+          {getStatusIcon(task.status)}
+          {task.status}
+        </button>
+      </div>
+
+      {/* Lead */}
+      {task.leadName && (
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-gray-500">Lead</span>
+          <span className="text-sm text-gray-900 flex items-center gap-1">
+            <User className="w-3 h-3" />
+            {task.leadName}
+          </span>
+        </div>
+      )}
+
+      {/* ETAs */}
+      {(task.internalEta || task.clientEta) && (
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-gray-500">ETA</span>
+          <div className="text-sm text-gray-900 flex items-center gap-1">
+            <Calendar className="w-3 h-3" />
+            {task.internalEta ? formatDisplayDate(new Date(task.internalEta)) : 
+             task.clientEta ? formatDisplayDate(new Date(task.clientEta)) : '-'}
+          </div>
+        </div>
+      )}
+
+      {/* Delivered */}
+      {task.deliveredDate && (
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-gray-500">Delivered</span>
+          <div className="text-sm text-gray-900 flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3 text-green-600" />
+            {formatDisplayDate(new Date(task.deliveredDate))}
+            {task.deliveredVersion && (
+              <span className="text-xs text-gray-500 ml-1">
+                (v{task.deliveredVersion})
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Bid MDs */}
+      {task.bidMds && (
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-gray-500">Bid</span>
+          <span className="text-sm text-gray-900 flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            {task.bidMds} MDs
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MobileCardView({ 
   shots, 
   onShotClick, 
@@ -268,110 +392,28 @@ export default function MobileCardView({
                           )}
                         </div>
                         
-                        {deptTasks.map((task) => {
-                          const swipeHandlers = useSwipeable({
-                            onSwipedLeft: () => {
-                              if (hasEditPermission) {
-                                setSwipedTaskId(task.id);
-                                setStatusMenuTaskId(task.id);
-                              }
-                            },
-                            onSwipedRight: () => {
+                        {deptTasks.map((task) => (
+                          <TaskCard
+                            key={task.id}
+                            task={task}
+                            hasEditPermission={hasEditPermission}
+                            swipedTaskId={swipedTaskId}
+                            statusMenuTaskId={statusMenuTaskId}
+                            onSwipeLeft={(taskId) => {
+                              setSwipedTaskId(taskId);
+                              setStatusMenuTaskId(taskId);
+                            }}
+                            onSwipeRight={() => {
                               setSwipedTaskId(null);
                               setStatusMenuTaskId(null);
-                            },
-                            trackMouse: false,
-                            delta: 50,
-                          });
-
-                          return (
-                          <div 
-                            key={task.id} 
-                            {...swipeHandlers}
-                            className={`space-y-2 mt-2 transition-transform duration-200 relative ${
-                              swipedTaskId === task.id ? '-translate-x-16' : ''
-                            }`}
-                          >
-                            {/* Swipe Action Indicator */}
-                            {hasEditPermission && swipedTaskId === task.id && (
-                              <div className="absolute right-0 top-0 bottom-0 w-16 flex items-center justify-center bg-blue-500 rounded-r-lg">
-                                <ChevronLeft className="w-5 h-5 text-white" />
-                              </div>
-                            )}
-
-                            {/* Status */}
-                            <div 
-                              className="flex items-center justify-between"
-                              onClick={() => {
-                                if (hasEditPermission && statusMenuTaskId === task.id) {
-                                  // Toggle status menu or implement status change modal
-                                }
-                              }}
-                            >
-                              <span className="text-xs text-gray-500">Status</span>
-                              <button 
-                                className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border ${getStatusColor(task.status)} ${
-                                  hasEditPermission ? 'active:scale-95 transition-transform' : ''
-                                }`}
-                                disabled={!hasEditPermission}
-                              >
-                                {getStatusIcon(task.status)}
-                                {task.status}
-                              </button>
-                            </div>
-
-                            {/* Lead */}
-                            {task.leadName && (
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs text-gray-500">Lead</span>
-                                <span className="text-sm text-gray-900 flex items-center gap-1">
-                                  <User className="w-3 h-3" />
-                                  {task.leadName}
-                                </span>
-                              </div>
-                            )}
-
-                            {/* ETAs */}
-                            {(task.internalEta || task.clientEta) && (
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs text-gray-500">ETA</span>
-                                <div className="text-sm text-gray-900 flex items-center gap-1">
-                                  <Calendar className="w-3 h-3" />
-                                  {task.internalEta ? formatDisplayDate(new Date(task.internalEta)) : 
-                                   task.clientEta ? formatDisplayDate(new Date(task.clientEta)) : '-'}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Delivered */}
-                            {task.deliveredDate && (
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs text-gray-500">Delivered</span>
-                                <div className="text-sm text-gray-900 flex items-center gap-1">
-                                  <CheckCircle2 className="w-3 h-3 text-green-600" />
-                                  {formatDisplayDate(new Date(task.deliveredDate))}
-                                  {task.deliveredVersion && (
-                                    <span className="text-xs text-gray-500 ml-1">
-                                      (v{task.deliveredVersion})
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Bid MDs */}
-                            {task.bidMds && (
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs text-gray-500">Bid</span>
-                                <span className="text-sm text-gray-900 flex items-center gap-1">
-                                  <Clock className="w-3 h-3" />
-                                  {task.bidMds} MDs
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                          );
-                        })}
+                            }}
+                            onStatusClick={(taskId) => {
+                              // Future: implement status change modal
+                            }}
+                            getStatusIcon={getStatusIcon}
+                            getStatusColor={getStatusColor}
+                          />
+                        ))}
                       </div>
                     ))}
                   </div>
