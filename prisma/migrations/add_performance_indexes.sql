@@ -2,14 +2,14 @@
 -- Execute this on Supabase database for 5x faster queries
 
 -- Resource Allocation Indexes (Most critical for Resource Forecast)
-CREATE INDEX IF NOT EXISTS "idx_allocations_resource_date" ON "ResourceAllocation"("resourceId", "allocationDate");
-CREATE INDEX IF NOT EXISTS "idx_allocations_date_range" ON "ResourceAllocation"("allocationDate");
-CREATE INDEX IF NOT EXISTS "idx_allocations_resource_active" ON "ResourceAllocation"("resourceId") WHERE "isLeave" = false AND "isIdle" = false;
+CREATE INDEX IF NOT EXISTS "idx_allocations_resource_date" ON "resource_allocations"("resourceId", "allocationDate");
+CREATE INDEX IF NOT EXISTS "idx_allocations_date_range" ON "resource_allocations"("allocationDate");
+CREATE INDEX IF NOT EXISTS "idx_allocations_resource_active" ON "resource_allocations"("resourceId") WHERE "isLeave" = false AND "isIdle" = false;
 
 -- Resource Member Indexes
-CREATE INDEX IF NOT EXISTS "idx_members_active_dept" ON "ResourceMember"("isActive", "department");
-CREATE INDEX IF NOT EXISTS "idx_members_shift" ON "ResourceMember"("shift") WHERE "isActive" = true;
-CREATE INDEX IF NOT EXISTS "idx_members_emp_id" ON "ResourceMember"("empId");
+CREATE INDEX IF NOT EXISTS "idx_members_active_dept" ON "resource_members"("isActive", "department");
+CREATE INDEX IF NOT EXISTS "idx_members_shift" ON "resource_members"("shift") WHERE "isActive" = true;
+CREATE INDEX IF NOT EXISTS "idx_members_emp_id" ON "resource_members"("empId");
 
 -- Shot and Task Indexes
 CREATE INDEX IF NOT EXISTS "idx_shots_show_status" ON "Shot"("showId", "status");
@@ -34,12 +34,12 @@ CREATE INDEX IF NOT EXISTS "idx_delivery_date" ON "DeliverySchedule"("deliveryDa
 CREATE INDEX IF NOT EXISTS "idx_shows_active" ON "Show"("name") WHERE "id" IS NOT NULL;
 
 -- Composite indexes for common queries
-CREATE INDEX IF NOT EXISTS "idx_allocations_complex" ON "ResourceAllocation"("resourceId", "allocationDate", "manDays") 
+CREATE INDEX IF NOT EXISTS "idx_allocations_complex" ON "resource_allocations"("resourceId", "allocationDate", "manDays") 
   WHERE "isLeave" = false AND "isIdle" = false;
 
 -- Analyze tables for query planner optimization
-ANALYZE "ResourceAllocation";
-ANALYZE "ResourceMember";
+ANALYZE "resource_allocations";
+ANALYZE "resource_members";
 ANALYZE "Shot";
 ANALYZE "Task";
 ANALYZE "ActivityLog";
