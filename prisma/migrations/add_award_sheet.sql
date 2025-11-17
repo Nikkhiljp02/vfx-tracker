@@ -13,8 +13,5 @@ CREATE TABLE IF NOT EXISTS "AwardSheet" (
 CREATE INDEX IF NOT EXISTS "idx_award_show_shot" ON "AwardSheet"("showName", "shotName");
 CREATE INDEX IF NOT EXISTS "idx_award_show" ON "AwardSheet"("showName");
 
--- Add showName to ResourceAllocation if not exists (for better tracking)
-ALTER TABLE "ResourceAllocation" ADD COLUMN IF NOT EXISTS "showName" TEXT DEFAULT 'Default';
-
--- Update existing allocations to use proper showName from shotName if needed
--- This is a one-time migration helper
+-- Note: showName column already exists in resource_allocations table
+-- No need to add it separately
