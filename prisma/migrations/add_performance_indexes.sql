@@ -12,26 +12,26 @@ CREATE INDEX IF NOT EXISTS "idx_members_shift" ON "resource_members"("shift") WH
 CREATE INDEX IF NOT EXISTS "idx_members_emp_id" ON "resource_members"("empId");
 
 -- Shot and Task Indexes
-CREATE INDEX IF NOT EXISTS "idx_shots_show_status" ON "Shot"("showId", "status");
-CREATE INDEX IF NOT EXISTS "idx_shots_sequence" ON "Shot"("showId", "sequenceName");
-CREATE INDEX IF NOT EXISTS "idx_tasks_shot_status" ON "Task"("shotId", "status");
-CREATE INDEX IF NOT EXISTS "idx_tasks_assigned" ON "Task"("assignedTo");
+CREATE INDEX IF NOT EXISTS "idx_shots_show_status" ON "shots"("showId", "status");
+CREATE INDEX IF NOT EXISTS "idx_shots_sequence" ON "shots"("showId", "sequenceName");
+CREATE INDEX IF NOT EXISTS "idx_tasks_shot_status" ON "tasks"("shotId", "status");
+CREATE INDEX IF NOT EXISTS "idx_tasks_assigned" ON "tasks"("assignedTo");
 
 -- Activity Log Indexes (for fast filtering)
-CREATE INDEX IF NOT EXISTS "idx_activity_timestamp" ON "ActivityLog"("timestamp" DESC);
-CREATE INDEX IF NOT EXISTS "idx_activity_user" ON "ActivityLog"("userId", "timestamp" DESC);
-CREATE INDEX IF NOT EXISTS "idx_activity_entity" ON "ActivityLog"("entityType", "entityId");
+CREATE INDEX IF NOT EXISTS "idx_activity_timestamp" ON "activity_logs"("timestamp" DESC);
+CREATE INDEX IF NOT EXISTS "idx_activity_user" ON "activity_logs"("userId", "timestamp" DESC);
+CREATE INDEX IF NOT EXISTS "idx_activity_entity" ON "activity_logs"("entityType", "entityId");
 
 -- Notification Indexes
-CREATE INDEX IF NOT EXISTS "idx_notifications_user_read" ON "Notification"("userId", "isRead", "createdAt" DESC);
-CREATE INDEX IF NOT EXISTS "idx_notifications_unread" ON "Notification"("userId") WHERE "isRead" = false;
+CREATE INDEX IF NOT EXISTS "idx_notifications_user_read" ON "notifications"("userId", "isRead", "createdAt" DESC);
+CREATE INDEX IF NOT EXISTS "idx_notifications_unread" ON "notifications"("userId") WHERE "isRead" = false;
 
 -- Delivery Schedule Indexes
-CREATE INDEX IF NOT EXISTS "idx_delivery_shot_date" ON "DeliverySchedule"("shotId", "deliveryDate");
-CREATE INDEX IF NOT EXISTS "idx_delivery_date" ON "DeliverySchedule"("deliveryDate");
+CREATE INDEX IF NOT EXISTS "idx_delivery_shot_date" ON "delivery_schedules"("shotId", "deliveryDate");
+CREATE INDEX IF NOT EXISTS "idx_delivery_date" ON "delivery_schedules"("deliveryDate");
 
 -- Show and Department Indexes
-CREATE INDEX IF NOT EXISTS "idx_shows_active" ON "Show"("name") WHERE "id" IS NOT NULL;
+CREATE INDEX IF NOT EXISTS "idx_shows_active" ON "shows"("name") WHERE "id" IS NOT NULL;
 
 -- Composite indexes for common queries
 CREATE INDEX IF NOT EXISTS "idx_allocations_complex" ON "resource_allocations"("resourceId", "allocationDate", "manDays") 
@@ -40,7 +40,7 @@ CREATE INDEX IF NOT EXISTS "idx_allocations_complex" ON "resource_allocations"("
 -- Analyze tables for query planner optimization
 ANALYZE "resource_allocations";
 ANALYZE "resource_members";
-ANALYZE "Shot";
-ANALYZE "Task";
-ANALYZE "ActivityLog";
-ANALYZE "Notification";
+ANALYZE "shots";
+ANALYZE "tasks";
+ANALYZE "activity_logs";
+ANALYZE "notifications";
