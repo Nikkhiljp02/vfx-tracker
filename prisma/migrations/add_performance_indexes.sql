@@ -23,7 +23,7 @@ CREATE INDEX IF NOT EXISTS "idx_activity_user" ON "activity_logs"("userId", "tim
 CREATE INDEX IF NOT EXISTS "idx_activity_entity" ON "activity_logs"("entityType", "entityId");
 
 -- Notification Indexes
-CREATE INDEX IF NOT EXISTS "idx_notifications_user_read" ON "notifications"("userId", "isRead", "createdAt" DESC);
+CREATE INDEX IF NOT EXISTS "idx_notifications_user_read" ON "notifications"("userId", "isRead", "createdDate" DESC);
 CREATE INDEX IF NOT EXISTS "idx_notifications_unread" ON "notifications"("userId") WHERE "isRead" = false;
 
 -- Delivery Schedule Indexes
