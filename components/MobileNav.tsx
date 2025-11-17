@@ -1,23 +1,29 @@
 'use client';
 
-import { LayoutGrid, Layers, Truck, BarChart3 } from 'lucide-react';
+import { LayoutGrid, Layers, Truck, BarChart3, Users } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 
 interface MobileNavProps {
-  activeView: 'tracker' | 'department' | 'delivery' | 'dashboard';
-  onViewChange: (view: 'tracker' | 'department' | 'delivery' | 'dashboard') => void;
+  activeView: 'tracker' | 'department' | 'delivery' | 'dashboard' | 'resource-forecast' | 'award-sheet';
+  onViewChange: (view: 'tracker' | 'department' | 'delivery' | 'dashboard' | 'resource-forecast' | 'award-sheet') => void;
 }
 
 export default function MobileNav({ activeView, onViewChange }: MobileNavProps) {
+  const { data: session } = useSession();
+  const user = session?.user as any;
+  const showResourceForecast = user?.role === 'ADMIN' || user?.role === 'RESOURCE';
+
   const navItems = [
     { id: 'dashboard' as const, icon: BarChart3, label: 'Dashboard' },
     { id: 'tracker' as const, icon: LayoutGrid, label: 'Tracker' },
     { id: 'department' as const, icon: Layers, label: 'Depts' },
     { id: 'delivery' as const, icon: Truck, label: 'Delivery' },
+    ...(showResourceForecast ? [{ id: 'resource-forecast' as const, icon: Users, label: 'Resource' }] : []),
   ];
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 safe-area-bottom">
-      <div className="grid grid-cols-4 h-16">
+      <div className={`grid h-16 ${showResourceForecast ? 'grid-cols-5' : 'grid-cols-4'}`}>
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeView === item.id;

@@ -2,17 +2,25 @@
 
 import { useEffect, useState } from 'react';
 import { useVFXStore } from '@/lib/store';
+import { useSession } from 'next-auth/react';
 import TrackerTable from '@/components/TrackerTable';
 import DepartmentView from '@/components/DepartmentView';
 import DeliveryView from '@/components/DeliveryView';
 import DashboardView from '@/components/DashboardView';
+import ResourceForecastView from '@/components/ResourceForecastView';
+import ResourceDashboard from '@/components/ResourceDashboard';
+import AllocationListView from '@/components/AllocationListView';
+import ResourceCapacityView from '@/components/ResourceCapacityView';
+import AwardSheetView from '@/components/AwardSheetView';
 import Header from '@/components/Header';
 import FilterPanel from '@/components/FilterPanel';
 import MobileNav from '@/components/MobileNav';
 import MobileFilterDrawer from '@/components/MobileFilterDrawer';
-import { LayoutGrid, Layers, BarChart3, Truck, Filter } from 'lucide-react';
+import { ResourceProvider } from '@/lib/resourceContext';
+import { LayoutGrid, Layers, BarChart3, Truck, Filter, Users } from 'lucide-react';
 
 export default function Home() {
+  const { data: session } = useSession();
   const { fetchAllData, loadPreferences, loading, error } = useVFXStore();
   // Default to non-detailed view (false) for first-time users
   const [detailedView, setDetailedView] = useState(() => {
@@ -22,7 +30,8 @@ export default function Home() {
     }
     return false;
   });
-  const [activeView, setActiveView] = useState<'tracker' | 'department' | 'delivery' | 'dashboard'>('dashboard');
+  const [activeView, setActiveView] = useState<'tracker' | 'department' | 'delivery' | 'dashboard' | 'resource-forecast' | 'award-sheet'>('dashboard');
+  const [resourceTab, setResourceTab] = useState<'summary' | 'forecast' | 'allocations' | 'capacity'>('summary');
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [showUnhideModal, setShowUnhideModal] = useState(false);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
@@ -128,12 +137,106 @@ export default function Home() {
             <Truck size={18} />
             Delivery
           </button>
+          {(session?.user as any)?.role === 'ADMIN' || (session?.user as any)?.role === 'RESOURCE' ? (
+            <>
+              <button
+                onClick={() => setActiveView('resource-forecast')}
+                className={`
+                  flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors
+                  ${activeView === 'resource-forecast'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                  }
+                `}
+              >
+                <Users size={18} />
+                Resources
+              </button>
+              <button
+                onClick={() => setActiveView('award-sheet')}
+                className={`
+                  flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors
+                  ${activeView === 'award-sheet'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                  }
+                `}
+              >
+                <LayoutGrid size={18} />
+                Award
+              </button>
+            </>
+          ) : null}
         </div>
 
         {activeView === 'dashboard' ? (
           <DashboardView />
         ) : activeView === 'delivery' ? (
           <DeliveryView />
+        ) : activeView === 'award-sheet' ? (
+          <AwardSheetView />
+        ) : activeView === 'resource-forecast' ? (
+          <ResourceProvider>
+            <div className="h-full flex flex-col bg-gray-900">
+              {/* Resource Tabs */}
+              <div className="flex-none bg-gray-800 border-b border-gray-700">
+                <div className="flex">
+                  <button
+                    onClick={() => setResourceTab('summary')}
+                    className={`px-6 py-3 text-sm font-medium transition-colors ${
+                      resourceTab === 'summary'
+                        ? 'bg-gray-900 text-white border-b-2 border-blue-500'
+                        : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                    }`}
+                  >
+                    📊 Resource Summary
+                  </button>
+                  <button
+                    onClick={() => setResourceTab('forecast')}
+                    className={`px-6 py-3 text-sm font-medium transition-colors ${
+                      resourceTab === 'forecast'
+                        ? 'bg-gray-900 text-white border-b-2 border-blue-500'
+                        : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                    }`}
+                  >
+                    Resource Forecast
+                  </button>
+                  <button
+                    onClick={() => setResourceTab('allocations')}
+                    className={`px-6 py-3 text-sm font-medium transition-colors ${
+                      resourceTab === 'allocations'
+                        ? 'bg-gray-900 text-white border-b-2 border-blue-500'
+                        : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                    }`}
+                  >
+                    Allocations
+                  </button>
+                  <button
+                    onClick={() => setResourceTab('capacity')}
+                    className={`px-6 py-3 text-sm font-medium transition-colors ${
+                      resourceTab === 'capacity'
+                        ? 'bg-gray-900 text-white border-b-2 border-blue-500'
+                        : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                    }`}
+                  >
+                    Resource Capacity
+                  </button>
+                </div>
+              </div>
+              {/* Resource Tab Content */}
+              <div className="flex-1 overflow-hidden">
+                {resourceTab === 'summary' ? (
+                  <ResourceDashboard />
+                ) : resourceTab === 'forecast' ? (
+                  <ResourceForecastView />
+                ) : resourceTab === 'allocations' ? (
+                  <AllocationListView />
+                ) : (
+                  <ResourceCapacityView />
+                )}
+              </div>
+            </div>
+          </ResourceProvider>
         ) : (
           <>
             <FilterPanel 

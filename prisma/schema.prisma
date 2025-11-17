@@ -6,9 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider  = "sqlite"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  // Note: Switch to "postgresql" when deploying to Vercel/Supabase
 }
 
 // ============================================
@@ -22,7 +22,7 @@ model User {
   firstName     String
   lastName      String
   email         String?   @unique
-  role          String    @default("VIEWER") // ADMIN, COORDINATOR, MANAGER, PRODUCER, DEPARTMENT, VIEWER
+  role          String    @default("VIEWER") // ADMIN, COORDINATOR, MANAGER, PRODUCER, DEPARTMENT, VIEWER, RESOURCE
   isActive      Boolean   @default(true)
   createdBy     String?   // ID of admin who created this user
   createdAt     DateTime  @default(now())
@@ -34,6 +34,8 @@ model User {
   showAccess    ShowAccess[]
   sessions      Session[]
 
+  @@index([role, isActive])
+  @@index([isActive])
   @@map("users")
 }
 
@@ -120,6 +122,9 @@ model Show {
   shots         Shot[]
   showAccess    ShowAccess[]
 
+  @@index([status])
+  @@index([showName])
+  @@index([createdDate(sort: Desc)])
   @@map("shows")
 }
 
@@ -145,6 +150,14 @@ model Shot {
   tasks           Task[]
   notes           ShotNote[]
 
+  @@index([showId])
+  @@index([shotName])
+  @@index([shotTag])
+  @@index([episode])
+  @@index([sequence])
+  @@index([turnover])
+  @@index([createdDate(sort: Desc)])
+  @@index([showId, shotName])
   @@map("shots")
 }
 
@@ -176,6 +189,15 @@ model Task {
   
   shot              Shot     @relation(fields: [shotId], references: [id], onDelete: Cascade)
 
+  @@index([shotId])
+  @@index([department])
+  @@index([status])
+  @@index([leadName])
+  @@index([isInternal])
+  @@index([internalEta])
+  @@index([clientEta])
+  @@index([shotId, department])
+  @@index([status, department])
   @@map("tasks")
 }
 
@@ -188,6 +210,7 @@ model StatusOption {
   colorCode   String   @default("#6B7280") // Tailwind gray-500
   createdDate DateTime @default(now())
 
+  @@index([isActive, statusOrder])
   @@map("status_options")
 }
 
@@ -198,6 +221,7 @@ model Department {
   isActive    Boolean  @default(true)
   createdDate DateTime @default(now())
 
+  @@index([isActive])
   @@map("departments")
 }
 
@@ -285,6 +309,7 @@ model DeliverySchedule {
 
   @@map("delivery_schedules")
   @@index([isActive, scheduledTime])
+  @@index([scheduleType])
 }
 
 model ScheduleExecutionLog {
@@ -303,3 +328,98 @@ model ScheduleExecutionLog {
   @@index([scheduleId, executedAt])
 }
 
+// ============================================
+// RESOURCE FORECAST MODELS
+// ============================================
+
+// Resource Members (Artists, Leads, Supervisors - for forecasting only, no login)
+model ResourceMember {
+  id              String   @id @default(cuid())
+  empId           String   @unique // Employee ID
+  empName         String   // Employee Name
+  designation     String   // Artist, Lead, Supervisor, etc.
+  reportingTo     String?  // Name of reporting manager
+  department      String   // Paint, Roto, Comp, MMRA, etc.
+  shift           String   @default("Day") // Day, Night, Flexible
+  isActive        Boolean  @default(true)
+  createdDate     DateTime @default(now())
+  updatedDate     DateTime @updatedAt
+  
+  // Relations
+  allocations     ResourceAllocation[]
+  
+  @@index([department])
+  @@index([isActive])
+  @@index([empId])
+  @@map("resource_members")
+}
+
+// Resource Allocations (Shot assignments with man-days)
+model ResourceAllocation {
+  id              String   @id @default(cuid())
+  resourceId      String
+  resource        ResourceMember @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  
+  // Allocation details
+  showName        String   // Which show
+  shotName        String   // Which shot
+  allocationDate  DateTime // Date of allocation (single day)
+  manDays         Float    // Man-days allocated (0.25, 0.5, 0.75, 1.0)
+  isLeave         Boolean  @default(false) // True if marked as leave
+  isIdle          Boolean  @default(false) // True if marked as idle time
+  isWeekendWorking Boolean @default(false) // True if this is a weekend working day
+  
+  // Metadata
+  notes           String?  // Optional notes
+  createdBy       String?  // User who created allocation
+  createdDate     DateTime @default(now())
+  updatedDate     DateTime @updatedAt
+  
+  @@index([resourceId])
+  @@index([allocationDate])
+  @@index([showName])
+  @@index([shotName])
+  @@index([resourceId, allocationDate])
+  @@map("resource_allocations")
+}
+
+// Award Sheet - Manages show and shot assignments
+model AwardSheet {
+  id            String   @id @default(cuid())
+  showName      String   // Show name
+  shotName      String   // Shot name
+  customFields  String   @default("{}") // Dynamic columns as JSON string (for SQLite compatibility)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@unique([showName, shotName])
+  @@index([showName])
+  @@index([shotName])
+  @@map("award_sheets")
+}
+
+// Saved Filter Views for Resource Forecast
+model SavedView {
+  id            String   @id @default(cuid())
+  name          String   // View name (e.g., "My Team", "Overallocated Artists")
+  viewType      String   @default("resource") // "resource", "allocation", "dashboard"
+  
+  // Filter configuration (JSON)
+  filters       String   // { department, shift, show, dateRange, search, etc. }
+  
+  // Visibility
+  isPublic      Boolean  @default(false) // Can other users see this view?
+  isQuickFilter Boolean  @default(false) // Show in quick filter bar?
+  
+  // Owner
+  createdBy     String   // User ID who created this view
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([createdBy])
+  @@index([viewType, isPublic])
+  @@index([viewType, isQuickFilter])
+  @@map("saved_views")
+}

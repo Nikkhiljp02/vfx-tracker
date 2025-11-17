@@ -1,4 +1,10 @@
 import "dotenv/config";
+
+// Force load .env.local for local development
+import { config } from 'dotenv';
+import { resolve } from 'path';
+config({ path: resolve(process.cwd(), '.env.local') });
+
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
@@ -35,6 +41,10 @@ async function main() {
     { deptName: 'Paint' },
     { deptName: 'Roto' },
     { deptName: 'MMRA' },
+    { deptName: 'Animation' },
+    { deptName: 'FX' },
+    { deptName: 'Lighting' },
+    { deptName: 'Matchmove' },
   ];
 
   for (const dept of departments) {
@@ -71,6 +81,11 @@ async function main() {
     { name: 'deliveries.read', description: 'View deliveries', category: 'deliveries', action: 'read' },
     { name: 'deliveries.send', description: 'Send delivery lists', category: 'deliveries', action: 'create' },
     { name: 'deliveries.schedule', description: 'Schedule deliveries', category: 'deliveries', action: 'manage' },
+    
+    // Resource Forecast permissions
+    { name: 'resource.view', description: 'View resource forecast', category: 'resource', action: 'read' },
+    { name: 'resource.edit', description: 'Edit resource allocations', category: 'resource', action: 'update' },
+    { name: 'resource.manage', description: 'Full resource management', category: 'resource', action: 'manage' },
     
     // Users permissions (admin only)
     { name: 'users.create', description: 'Create new users', category: 'users', action: 'create' },

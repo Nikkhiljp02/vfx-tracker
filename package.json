@@ -12,15 +12,18 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@edge-runtime/cookies": "^6.0.0",
     "@prisma/client": "^6.19.0",
     "@supabase/supabase-js": "^2.81.1",
     "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-virtual": "^3.13.12",
     "@types/nodemailer": "^7.0.3",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
     "exceljs": "^4.4.0",
+    "lru-cache": "^11.2.2",
     "lucide-react": "^0.552.0",
     "next": "16.0.1",
     "next-auth": "^5.0.0-beta.30",
@@ -30,6 +33,7 @@
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-hot-toast": "^2.6.0",
+    "swr": "^2.3.6",
     "tailwind-merge": "^3.3.1",
     "xlsx": "^0.18.5",
     "zustand": "^5.0.8"

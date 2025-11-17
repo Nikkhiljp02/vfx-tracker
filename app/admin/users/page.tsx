@@ -228,6 +228,7 @@ export default function UsersManagementPage() {
     MANAGER: "bg-purple-100 text-purple-800",
     PRODUCER: "bg-green-100 text-green-800",
     DEPARTMENT: "bg-yellow-100 text-yellow-800",
+    RESOURCE: "bg-cyan-100 text-cyan-800",
     VIEWER: "bg-gray-100 text-gray-800",
   };
 
@@ -411,6 +412,7 @@ export default function UsersManagementPage() {
                     <option value="PRODUCER">Producer</option>
                     <option value="MANAGER">Manager</option>
                     <option value="COORDINATOR">Coordinator</option>
+                    <option value="RESOURCE">Resource</option>
                     <option value="ADMIN">Admin</option>
                   </select>
                 </div>

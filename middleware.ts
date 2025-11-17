@@ -30,9 +30,10 @@ export const config = {
      * - /api/migrate (database migration endpoint)
      * - /api/db-test (database test endpoint)
      * - /api/check-env (environment check endpoint)
+     * - /api/resource (resource forecast API - has own auth checks)
      * - /_next (Next.js internals)
      * - /favicon.ico, /robots.txt (static files)
      */
-    "/((?!login|test-session|api/auth|api/setup|api/migrate|api/db-test|api/check-env|api/test-login|api/seed-permissions|_next|favicon.ico|robots.txt).*)",
+    "/((?!login|test-session|api/auth|api/setup|api/migrate|api/db-test|api/check-env|api/test-login|api/seed-permissions|api/resource|_next|favicon.ico|robots.txt).*)",
   ],
 };
