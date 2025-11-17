@@ -27,7 +27,7 @@ CREATE INDEX IF NOT EXISTS "idx_notifications_user_read" ON "notifications"("use
 CREATE INDEX IF NOT EXISTS "idx_notifications_unread" ON "notifications"("userId") WHERE "isRead" = false;
 
 -- Show Indexes
-CREATE INDEX IF NOT EXISTS "idx_shows_active" ON "shows"("name") WHERE "id" IS NOT NULL;
+CREATE INDEX IF NOT EXISTS "idx_shows_active" ON "shows"("showName") WHERE "id" IS NOT NULL;
 
 -- Composite indexes for common queries
 CREATE INDEX IF NOT EXISTS "idx_allocations_complex" ON "resource_allocations"("resourceId", "allocationDate", "manDays") 
