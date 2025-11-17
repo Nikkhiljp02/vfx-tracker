@@ -26,11 +26,7 @@ CREATE INDEX IF NOT EXISTS "idx_activity_entity" ON "activity_logs"("entityType"
 CREATE INDEX IF NOT EXISTS "idx_notifications_user_read" ON "notifications"("userId", "isRead", "createdDate" DESC);
 CREATE INDEX IF NOT EXISTS "idx_notifications_unread" ON "notifications"("userId") WHERE "isRead" = false;
 
--- Delivery Schedule Indexes
-CREATE INDEX IF NOT EXISTS "idx_delivery_shot_date" ON "delivery_schedules"("shotId", "deliveryDate");
-CREATE INDEX IF NOT EXISTS "idx_delivery_date" ON "delivery_schedules"("deliveryDate");
-
--- Show and Department Indexes
+-- Show Indexes
 CREATE INDEX IF NOT EXISTS "idx_shows_active" ON "shows"("name") WHERE "id" IS NOT NULL;
 
 -- Composite indexes for common queries
