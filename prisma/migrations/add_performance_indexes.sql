@@ -12,10 +12,10 @@ CREATE INDEX IF NOT EXISTS "idx_members_shift" ON "resource_members"("shift") WH
 CREATE INDEX IF NOT EXISTS "idx_members_emp_id" ON "resource_members"("empId");
 
 -- Shot and Task Indexes
-CREATE INDEX IF NOT EXISTS "idx_shots_show_status" ON "shots"("showId", "status");
-CREATE INDEX IF NOT EXISTS "idx_shots_sequence" ON "shots"("showId", "sequenceName");
+CREATE INDEX IF NOT EXISTS "idx_shots_show_sequence" ON "shots"("showId", "sequence");
+CREATE INDEX IF NOT EXISTS "idx_shots_show_episode" ON "shots"("showId", "episode");
 CREATE INDEX IF NOT EXISTS "idx_tasks_shot_status" ON "tasks"("shotId", "status");
-CREATE INDEX IF NOT EXISTS "idx_tasks_assigned" ON "tasks"("assignedTo");
+CREATE INDEX IF NOT EXISTS "idx_tasks_assigned" ON "tasks"("leadName");
 
 -- Activity Log Indexes (for fast filtering)
 CREATE INDEX IF NOT EXISTS "idx_activity_timestamp" ON "activity_logs"("timestamp" DESC);
