@@ -166,14 +166,6 @@ export default function AllocationListView() {
               <Upload size={18} />
               Import CSV
             </button>
-
-            <button 
-              onClick={loadAllocations}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-            >
-              <RefreshCw size={18} />
-              Refresh
-            </button>
           </div>
         </div>
 
@@ -278,11 +270,8 @@ export default function AllocationListView() {
         isOpen={showImportModal}
         onClose={() => setShowImportModal(false)}
         onSuccess={() => {
-          loadAllocations();
-          // Trigger refresh in ResourceForecastView via broadcast
-          const bc = new BroadcastChannel('resource-updates');
-          bc.postMessage({ type: 'allocation-updated' });
-          bc.close();
+          // React Query will auto-refetch allocations on window focus
+          setShowImportModal(false);
         }}
         type="allocations"
       />
