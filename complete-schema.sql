@@ -335,7 +335,7 @@ ALTER TABLE "resource_allocations" ADD CONSTRAINT "resource_allocations_resource
 -- AWARD SHEET
 -- ============================================
 
-CREATE TABLE IF NOT EXISTS "award_sheet" (
+CREATE TABLE IF NOT EXISTS "award_sheets" (
     "id" TEXT NOT NULL,
     "showName" TEXT NOT NULL,
     "shotName" TEXT NOT NULL,
@@ -343,12 +343,12 @@ CREATE TABLE IF NOT EXISTS "award_sheet" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     
-    CONSTRAINT "award_sheet_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "award_sheets_pkey" PRIMARY KEY ("id")
 );
 
-CREATE INDEX IF NOT EXISTS "award_sheet_showName_idx" ON "award_sheet"("showName");
-CREATE INDEX IF NOT EXISTS "award_sheet_shotName_idx" ON "award_sheet"("shotName");
-CREATE UNIQUE INDEX IF NOT EXISTS "award_sheet_showName_shotName_key" ON "award_sheet"("showName", "shotName");
+CREATE INDEX IF NOT EXISTS "award_sheets_showName_idx" ON "award_sheets"("showName");
+CREATE INDEX IF NOT EXISTS "award_sheets_shotName_idx" ON "award_sheets"("shotName");
+CREATE UNIQUE INDEX IF NOT EXISTS "award_sheets_showName_shotName_key" ON "award_sheets"("showName", "shotName");
 
 -- ============================================
 -- SAVED VIEWS

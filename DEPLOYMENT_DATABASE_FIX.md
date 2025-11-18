@@ -58,10 +58,10 @@ Your production deployment is failing because:
 
 ### Option 3: Manual SQL Execution (Single Table)
 
-Run this SQL in Supabase SQL Editor to create the `award_sheet` table:
+Run this SQL in Supabase SQL Editor to create the `award_sheets` table:
 
 ```sql
-CREATE TABLE IF NOT EXISTS "award_sheet" (
+CREATE TABLE IF NOT EXISTS "award_sheets" (
     "id" TEXT NOT NULL,
     "showName" TEXT NOT NULL,
     "shotName" TEXT NOT NULL,
@@ -69,13 +69,13 @@ CREATE TABLE IF NOT EXISTS "award_sheet" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     
-    CONSTRAINT "award_sheet_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "award_sheets_pkey" PRIMARY KEY ("id")
 );
 
 -- Create indexes for performance
-CREATE INDEX "award_sheet_showName_idx" ON "award_sheet"("showName");
-CREATE INDEX "award_sheet_shotName_idx" ON "award_sheet"("shotName");
-CREATE UNIQUE INDEX "award_sheet_showName_shotName_key" ON "award_sheet"("showName", "shotName");
+CREATE INDEX "award_sheets_showName_idx" ON "award_sheets"("showName");
+CREATE INDEX "award_sheets_shotName_idx" ON "award_sheets"("shotName");
+CREATE UNIQUE INDEX "award_sheets_showName_shotName_key" ON "award_sheets"("showName", "shotName");
 ```
 
 ### Option 4: Complete Schema Migration (All Tables)
@@ -127,10 +127,12 @@ Expected tables:
 - ✅ shot_notes
 - ✅ notifications
 - ✅ delivery_schedules
+- ✅ schedule_execution_logs
 - ✅ resource_members
 - ✅ resource_allocations
-- ✅ award_sheet
+- ✅ award_sheets (plural!)
 - ✅ saved_views
+- ✅ sessions
 
 ## Troubleshooting
 
