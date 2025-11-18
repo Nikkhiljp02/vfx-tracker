@@ -15,8 +15,10 @@ export default async function AllocationsPage() {
     redirect('/login');
   }
 
+  const role = (session.user as { role?: string })?.role;
+
   // Check if user has ADMIN or RESOURCE role
-  if (session.user.role !== 'ADMIN' && session.user.role !== 'RESOURCE') {
+  if (role !== 'ADMIN' && role !== 'RESOURCE') {
     redirect('/');
   }
 
