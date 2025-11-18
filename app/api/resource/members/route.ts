@@ -46,7 +46,11 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    return NextResponse.json(members);
+    return NextResponse.json(members, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+      }
+    });
   } catch (error) {
     console.error('Error fetching resource members:', error);
     return NextResponse.json({ error: 'Failed to fetch resource members' }, { status: 500 });

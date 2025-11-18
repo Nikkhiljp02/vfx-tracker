@@ -36,14 +36,20 @@ export async function GET(request: NextRequest) {
 
     const allocations = await prisma.resourceAllocation.findMany({
       where,
-      include: {
-        resource: {
-          select: {
-            empId: true,
-            empName: true,
-            department: true,
-          }
-        }
+      select: {
+        id: true,
+        resourceId: true,
+        showName: true,
+        shotName: true,
+        allocationDate: true,
+        manDays: true,
+        isLeave: true,
+        isIdle: true,
+        isWeekendWorking: true,
+        notes: true,
+        createdBy: true,
+        createdDate: true,
+        updatedDate: true,
       },
       orderBy: [
         { allocationDate: 'asc' },

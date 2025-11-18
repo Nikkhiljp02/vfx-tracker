@@ -11,12 +11,34 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const shots = await prisma.awardSheet.findMany({
-      orderBy: [
-        { showName: 'asc' },
-        { shotName: 'asc' },
-      ],
-    });
+    const { searchParams } = new URL(request.url);
+    const showName = searchParams.get('showName');
+    const limit = searchParams.get('limit');
+    const skip = searchParams.get('skip');
+
+    const where: any = {};
+    if (showName) where.showName = showName;
+
+    const [shots, total] = await Promise.all([
+      prisma.awardSheet.findMany({
+        where,
+        select: {
+          id: true,
+          showName: true,
+          shotName: true,
+          customFields: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+        orderBy: [
+          { showName: 'asc' },
+          { shotName: 'asc' },
+        ],
+        ...(limit && { take: parseInt(limit) }),
+        ...(skip && { skip: parseInt(skip) }),
+      }),
+      prisma.awardSheet.count({ where }),
+    ]);
 
     // Parse JSON strings back to objects
     const parsedShots = shots.map(shot => ({
@@ -24,7 +46,11 @@ export async function GET(request: NextRequest) {
       customFields: JSON.parse(shot.customFields),
     }));
 
-    return NextResponse.json({ shots: parsedShots });
+    return NextResponse.json({ 
+      shots: parsedShots,
+      total,
+      hasMore: skip && limit ? parseInt(skip) + parseInt(limit) < total : false
+    });
   } catch (error) {
     console.error('Error fetching award sheet:', error);
     return NextResponse.json(
