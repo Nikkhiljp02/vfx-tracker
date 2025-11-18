@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default async function AllocationsPage() {
   const session = await auth();
 
-  if (!session) {
+  if (!session || !session.user) {
     redirect('/login');
   }
 
