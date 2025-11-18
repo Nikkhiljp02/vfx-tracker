@@ -8,7 +8,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { userId, username } = body;
 
+    console.log("Track-login called:", { userId, username });
+
     if (!userId || !username) {
+      console.log("Missing required fields");
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
@@ -18,11 +21,16 @@ export async function POST(req: NextRequest) {
                      "unknown";
     const userAgent = req.headers.get("user-agent") || "";
 
+    console.log("Request info:", { ipAddress, userAgent });
+
     // Parse user agent
     const { browser, os, deviceType } = parseUserAgent(userAgent);
+    console.log("Parsed user agent:", { browser, os, deviceType });
 
     // Track login attempt in login history
+    console.log("Tracking login attempt...");
     await trackLoginAttempt(userId, username, true, ipAddress, userAgent);
+    console.log("Login attempt tracked");
 
     // Generate a unique session token
     const sessionToken = `${userId}-${Date.now()}-${Math.random().toString(36).substring(2)}`;
@@ -37,8 +45,11 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    console.log("Existing sessions found:", existingSessions.length);
+
     if (existingSessions.length > 0) {
       // Update the most recent session
+      console.log("Updating existing session:", existingSessions[0].id);
       await prisma.session.update({
         where: { id: existingSessions[0].id },
         data: {
@@ -48,9 +59,11 @@ export async function POST(req: NextRequest) {
           sessionToken,
         },
       });
+      console.log("Session updated");
     } else {
       // Create new session
-      await prisma.session.create({
+      console.log("Creating new session...");
+      const newSession = await prisma.session.create({
         data: {
           userId,
           sessionToken,
@@ -64,6 +77,7 @@ export async function POST(req: NextRequest) {
           isActive: true,
         },
       });
+      console.log("Session created:", newSession.id);
     }
 
     return NextResponse.json({ success: true });

@@ -29,13 +29,20 @@ export default function LoginPage() {
         setIsLoading(false);
       } else if (result?.ok) {
         // Login successful - track the session
+        console.log("Login successful, tracking session...");
         try {
           const sessionResp = await fetch("/api/auth/session");
           const sessionData = await sessionResp.json();
+          console.log("Session data:", sessionData);
           
           if (sessionData?.user) {
+            console.log("Calling track-login API with:", {
+              userId: sessionData.user.id,
+              username: sessionData.user.username,
+            });
+            
             // Track login
-            await fetch("/api/auth/track-login", {
+            const trackResp = await fetch("/api/auth/track-login", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -43,12 +50,18 @@ export default function LoginPage() {
                 username: sessionData.user.username,
               }),
             });
+            
+            const trackResult = await trackResp.json();
+            console.log("Track-login response:", trackResult);
+          } else {
+            console.log("No user data in session");
           }
         } catch (trackError) {
           console.error("Error tracking login:", trackError);
         }
         
         // Redirect to home
+        console.log("Redirecting to home...");
         router.push("/");
       }
     } catch (error: any) {
