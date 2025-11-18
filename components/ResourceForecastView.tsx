@@ -1377,7 +1377,7 @@ export default function ResourceForecastView() {
                   TOTAL UTILIZATION
                 </td>
                 {dates.map((date, idx) => {
-                  const total = members.reduce((sum, m) => {
+                  const total = members.reduce((sum: number, m: any) => {
                     const alloc = getDailyAllocation(m, date);
                     return sum + alloc.totalMD;
                   }, 0);
