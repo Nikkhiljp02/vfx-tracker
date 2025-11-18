@@ -954,7 +954,7 @@ export default function ResourceForecastView() {
   };
 
   const departments = useMemo(() => {
-    const depts = new Set(members.map(m => m.department));
+    const depts = new Set(members.map((m: any) => m.department));
     return ['all', ...Array.from(depts).sort()];
   }, [members]);
 
@@ -1566,7 +1566,7 @@ export default function ResourceForecastView() {
                     defaultValue=""
                   >
                     <option value="" disabled>Select source artist...</option>
-                    {members.map(m => (
+                    {members.map((m: any) => (
                       <option key={m.id} value={m.id}>
                         {m.empName} ({m.empId}) - {m.designation}
                       </option>
@@ -1585,7 +1585,7 @@ export default function ResourceForecastView() {
                     defaultValue=""
                   >
                     <option value="" disabled>Select target artist...</option>
-                    {members.map(m => (
+                    {members.map((m: any) => (
                       <option key={m.id} value={m.id}>
                         {m.empName} ({m.empId}) - {m.designation}
                       </option>
@@ -1681,7 +1681,7 @@ export default function ResourceForecastView() {
                     defaultValue=""
                   >
                     <option value="" disabled>Select artist...</option>
-                    {members.map(m => (
+                    {members.map((m: any) => (
                       <option key={m.id} value={m.id}>
                         {m.empName} ({m.empId}) - {m.designation}
                       </option>
