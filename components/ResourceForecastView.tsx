@@ -955,7 +955,7 @@ export default function ResourceForecastView() {
 
   const departments = useMemo(() => {
     const depts = new Set(members.map((m: any) => m.department));
-    return ['all', ...Array.from(depts).sort()];
+    return ['all', ...Array.from(depts).sort()] as string[];
   }, [members]);
 
   const navigateDates = (days: number) => {
