@@ -149,7 +149,7 @@ export default function ResourceForecastView() {
     if (storedWeekends) {
       try {
         const parsedWeekends = JSON.parse(storedWeekends) as string[];
-        parsedWeekends.forEach(dateKey => weekendWorkingDates.add(dateKey));
+        parsedWeekends.forEach((dateKey: string) => weekendWorkingDates.add(dateKey));
       } catch (e) {
         console.error('Failed to parse stored working weekends:', e);
       }
@@ -383,7 +383,7 @@ export default function ResourceForecastView() {
 
   const getDailyAllocation = (member: ResourceWithAllocations, date: Date): DailyAllocation => {
     const dateStr = date.toISOString().split('T')[0];
-    const dayAllocations = member.allocations.filter(a => {
+    const dayAllocations = member.allocations.filter((a: any) => {
       const allocDateStr = new Date(a.allocationDate).toISOString().split('T')[0];
       return allocDateStr === dateStr;
     });
@@ -399,14 +399,14 @@ export default function ResourceForecastView() {
   const parseShotString = (input: string): Array<{ shotName: string; manDays: number }> => {
     if (!input.trim()) return [];
     
-    const shots = input.split('/').map(s => s.trim()).filter(Boolean);
+    const shots = input.split('/').map((s: string) => s.trim()).filter(Boolean);
     const result: Array<{ shotName: string; manDays: number }> = [];
     
-    const hasExplicitMD = shots.some(s => s.includes(':'));
+    const hasExplicitMD = shots.some((s: string) => s.includes(':'));
     
     if (hasExplicitMD) {
       for (const shot of shots) {
-        const [shotName, mdStr] = shot.split(':').map(s => s.trim());
+        const [shotName, mdStr] = shot.split(':').map((s: string) => s.trim());
         const manDays = mdStr ? parseFloat(mdStr) : 1.0;
         if (shotName && !isNaN(manDays)) {
           result.push({ shotName, manDays });
@@ -423,16 +423,16 @@ export default function ResourceForecastView() {
   };
 
   const formatAllocationsToString = (allocations: ResourceAllocation[]): string => {
-    const shots = allocations.filter(a => !a.isLeave && !a.isIdle);
+    const shots = allocations.filter((a: any) => !a.isLeave && !a.isIdle);
     if (shots.length === 0) return '';
     
     const firstMD = shots[0].manDays;
-    const allEqual = shots.every(s => Math.abs(s.manDays - firstMD) < 0.001);
+    const allEqual = shots.every((s: any) => Math.abs(s.manDays - firstMD) < 0.001);
     
     if (allEqual && shots.length > 1 && Math.abs(firstMD - 1.0 / shots.length) < 0.001) {
-      return shots.map(s => s.shotName).join('/');
+      return shots.map((s: any) => s.shotName).join('/');
     } else {
-      return shots.map(s => `${s.shotName}:${s.manDays}`).join('/');
+      return shots.map((s: any) => `${s.shotName}:${s.manDays}`).join('/');
     }
   };
 
@@ -624,7 +624,7 @@ export default function ResourceForecastView() {
     
     saveToHistory();
     
-    const pastePromises = Array.from(selectedCells).map(cellKey => {
+    const pastePromises = Array.from(selectedCells).map((cellKey: string) => {
       const [memberId, dateIndexStr] = cellKey.split('-');
       const dateIndex = parseInt(dateIndexStr);
       const member = members.find((m: any) => m.id === memberId);
@@ -729,7 +729,7 @@ export default function ResourceForecastView() {
     rows.push(utilRow);
     
     // Create CSV
-    const csv = rows.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    const csv = rows.map((row: any) => row.map((cell: any) => `"${cell}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -747,7 +747,7 @@ export default function ResourceForecastView() {
     const allocsToDelete = dailyAlloc.allocations;
     
     if (allocsToDelete.length > 0) {
-      await Promise.all(allocsToDelete.map(alloc =>
+      await Promise.all(allocsToDelete.map((alloc: any) =>
         fetch(`/api/resource/allocations/${alloc.id}`, {
           method: 'DELETE',
           headers: { 'Cache-Control': 'no-cache' }
@@ -849,7 +849,7 @@ export default function ResourceForecastView() {
     
     saveToHistory();
     
-    const savePromises = contextMenu.cells.map(cellKey => {
+    const savePromises = contextMenu.cells.map((cellKey: string) => {
       const [memberId, dateIndexStr] = cellKey.split('-');
       const dateIndex = parseInt(dateIndexStr);
       const member = members.find((m: any) => m.id === memberId);
@@ -880,7 +880,7 @@ export default function ResourceForecastView() {
     
     saveToHistory();
     
-    const deletePromises = Array.from(selectedCells).map(cellKey => {
+    const deletePromises = Array.from(selectedCells).map((cellKey: string) => {
       const [memberId, dateIndexStr] = cellKey.split('-');
       const dateIndex = parseInt(dateIndexStr);
       const member = members.find((m: any) => m.id === memberId);
@@ -966,27 +966,27 @@ export default function ResourceForecastView() {
 
   // Advanced filtered members with multiple criteria
   const filteredMembers = useMemo(() => {
-    return members.filter(member => {
+    return members.filter((member: any) => {
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         const matchesSearch = (
           member.empName.toLowerCase().includes(query) ||
           member.empId.toLowerCase().includes(query) ||
-          member.allocations.some(a => a.shotName.toLowerCase().includes(query))
+          member.allocations.some((a: any) => a.shotName.toLowerCase().includes(query))
         );
         if (!matchesSearch) return false;
       }
 
       // Show filter
       if (selectedShow !== 'all') {
-        const hasShow = member.allocations.some(a => a.showName === selectedShow);
+        const hasShow = member.allocations.some((a: any) => a.showName === selectedShow);
         if (!hasShow) return false;
       }
 
       // Utilization filter
       if (utilizationFilter !== 'all') {
-        const totalAllocated = dates.reduce((sum, date) => {
+        const totalAllocated = dates.reduce((sum: number, date: Date) => {
           const daily = getDailyAllocation(member, date);
           return sum + daily.totalMD;
         }, 0);
@@ -1146,13 +1146,13 @@ export default function ResourceForecastView() {
             <select 
               value={activeViewId || ''} 
               onChange={(e) => {
-                const view = savedViews.find(v => v.id === e.target.value);
+                const view = savedViews.find((v: any) => v.id === e.target.value);
                 if (view) applyView(view);
               }}
               className="px-3 py-1 bg-gray-800 border border-gray-700 rounded text-white text-xs"
             >
               <option value="">Select a view...</option>
-              {savedViews.map(view => (
+              {savedViews.map((view: any) => (
                 <option key={view.id} value={view.id}>
                   {view.name} {view.isPublic ? '(Shared)' : '(Private)'}
                 </option>
@@ -1180,7 +1180,7 @@ export default function ResourceForecastView() {
           />
           
           <select value={selectedDepartment} onChange={(e) => setSelectedDepartment(e.target.value)} className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-            {departments.map(dept => <option key={dept} value={dept}>{dept === 'all' ? 'All Departments' : dept}</option>)}
+            {departments.map((dept: string) => <option key={dept} value={dept}>{dept === 'all' ? 'All Departments' : dept}</option>)}
           </select>
           
           <select value={selectedShift} onChange={(e) => setSelectedShift(e.target.value)} className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -1192,7 +1192,7 @@ export default function ResourceForecastView() {
 
           <select value={selectedShow} onChange={(e) => setSelectedShow(e.target.value)} className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value="all">All Shows</option>
-            {availableShows.map(show => <option key={show} value={show}>{show}</option>)}
+            {availableShows.map((show: string) => <option key={show} value={show}>{show}</option>)}
           </select>
 
           <select value={utilizationFilter} onChange={(e) => setUtilizationFilter(e.target.value as any)} className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -1249,7 +1249,7 @@ export default function ResourceForecastView() {
               <th className="sticky z-40 bg-gray-800 px-2 py-2 text-left text-xs font-semibold text-gray-300 uppercase border-r border-gray-700" style={{left: '360px', width: '120px', minWidth: '120px'}}>Reporting</th>
               <th className="sticky z-40 bg-gray-800 px-2 py-2 text-left text-xs font-semibold text-gray-300 uppercase border-r border-gray-700" style={{left: '480px', width: '100px', minWidth: '100px'}}>Dept</th>
               <th className="sticky z-40 bg-gray-800 px-2 py-2 text-left text-xs font-semibold text-gray-300 uppercase border-r-2 border-gray-600 shadow-[2px_0_5px_rgba(0,0,0,0.3)]" style={{left: '580px', width: '80px', minWidth: '80px'}}>Shift</th>
-              {dates.map(date => {
+              {dates.map((date: Date) => {
                 const weekend = isWeekend(date);
                 const working = isWorkingDay(date);
                 const dateKey = date.toISOString().split('T')[0];
@@ -1281,7 +1281,7 @@ export default function ResourceForecastView() {
               <tr><td colSpan={6 + dates.length} className="px-4 py-8 text-center text-gray-500">No members found</td></tr>
             ) : (
               <>
-                {filteredMembers.map((member) => (
+                {filteredMembers.map((member: any) => (
                 <tr key={member.id} className="hover:bg-gray-800/50 h-10 border-b border-gray-800 transition-colors group">
                   <td className="sticky left-0 z-20 bg-gray-900 px-2 py-2 text-xs border-r border-gray-700 font-medium text-gray-300 truncate" style={{width: '80px', minWidth: '80px'}}>{member.empId}</td>
                   <td className="sticky z-20 bg-gray-900 px-2 py-2 text-xs border-r border-gray-700 text-gray-300 truncate" style={{left: '80px', width: '160px', minWidth: '160px'}}>
@@ -1307,7 +1307,7 @@ export default function ResourceForecastView() {
                     const weekend = isWeekend(date);
                     const working = isWorkingDay(date);
                     const disabled = weekend && !working;
-                    const isLeave = dailyAlloc.allocations.some(a => a.isLeave);
+                    const isLeave = dailyAlloc.allocations.some((a: any) => a.isLeave);
                     const hasData = dailyAlloc.totalMD > 0;
                     
                     let bgColor = 'bg-green-900/20'; // Default: Available (light green)
