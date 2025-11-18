@@ -1,6 +1,8 @@
 // Performance monitoring utilities
 'use client';
 
+import React from 'react';
+
 // Performance metrics interface
 export interface PerformanceMetric {
   name: string;
@@ -188,7 +190,7 @@ export function measureRender(componentName: string) {
     return function MeasuredComponent(props: P) {
       const renderStart = performance.now();
       
-      const result = Component(props);
+      const result = React.createElement(Component, props);
       
       const renderEnd = performance.now();
       const duration = renderEnd - renderStart;
