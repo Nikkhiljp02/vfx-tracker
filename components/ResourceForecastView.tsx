@@ -583,19 +583,21 @@ export default function ResourceForecastView() {
   };
 
   const handleUndo = () => {
-    if (historyIndex > 0) {
-      const prevState = history[historyIndex - 1];
-      setMembers(JSON.parse(JSON.stringify(prevState.members)));
-      setHistoryIndex(historyIndex - 1);
-    }
+    // Undo/redo disabled with React Query - data comes from cache
+    // if (historyIndex > 0) {
+    //   const prevState = history[historyIndex - 1];
+    //   setMembers(JSON.parse(JSON.stringify(prevState.members)));
+    //   setHistoryIndex(historyIndex - 1);
+    // }
   };
 
   const handleRedo = () => {
-    if (historyIndex < history.length - 1) {
-      const nextState = history[historyIndex + 1];
-      setMembers(JSON.parse(JSON.stringify(nextState.members)));
-      setHistoryIndex(historyIndex + 1);
-    }
+    // Undo/redo disabled with React Query - data comes from cache
+    // if (historyIndex < history.length - 1) {
+    //   const nextState = history[historyIndex + 1];
+    //   setMembers(JSON.parse(JSON.stringify(nextState.members)));
+    //   setHistoryIndex(historyIndex + 1);
+    // }
   };
 
   const handleCopy = () => {
@@ -754,22 +756,12 @@ export default function ResourceForecastView() {
     }
 
     if (!value.trim()) {
-      // Just delete, no new allocations - remove ALL allocations for this date
-      setMembers(prev => prev.map(m => {
-        if (m.id === member.id) {
-          return {
-            ...m,
-            allocations: m.allocations.filter(a => {
-              const allocDateStr = new Date(a.allocationDate).toISOString().split('T')[0];
-              const targetDateStr = date.toISOString().split('T')[0];
-              return allocDateStr !== targetDateStr;
-            })
-          };
-        }
-        return m;
-      }));
+      // Just delete, no new allocations - React Query will refetch
+      triggerRefresh();
       return;
     }
+
+    
 
     // Parse shots and validate each against award sheet
     const shots = parseShotString(value);
@@ -847,31 +839,9 @@ export default function ResourceForecastView() {
 
     const createdAllocs = (await Promise.all(createPromises)).filter(Boolean) as ResourceAllocation[];
 
-    // Optimistic update
-    setMembers(prev => prev.map(m => {
-      if (m.id === member.id) {
-        return {
-          ...m,
-          allocations: [
-            ...m.allocations.filter(a => {
-              const allocDateStr = new Date(a.allocationDate).toISOString().split('T')[0];
-              const targetDateStr = date.toISOString().split('T')[0];
-              return allocDateStr !== targetDateStr;
-            }),
-            ...createdAllocs
-          ]
-        };
-      }
-      return m;
-    }));
-
-    // Trigger dashboard refresh
+    // React Query will refetch and update cache automatically
     triggerRefresh();
-    
-    // Broadcast change to other views (Allocations page, other tabs)
-    const bc = new BroadcastChannel('resource-updates');
-    bc.postMessage({ type: 'allocation-updated' });
-    bc.close();
+            
   };
 
   const handleBulkPaste = async () => {
@@ -1780,3 +1750,4 @@ export default function ResourceForecastView() {
     </div>
   );
 }
+
