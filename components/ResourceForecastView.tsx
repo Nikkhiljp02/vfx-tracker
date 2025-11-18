@@ -533,8 +533,8 @@ export default function ResourceForecastView() {
     
     const newSelected = new Set<string>();
     
-    const startMemberIdx = members.findIndex(m => m.id === dragStart.memberId);
-    const endMemberIdx = members.findIndex(m => m.id === member.id);
+    const startMemberIdx = members.findIndex((m: any) => m.id === dragStart.memberId);
+    const endMemberIdx = members.findIndex((m: any) => m.id === member.id);
     const startDateIdx = Math.min(dragStart.dateIndex, dateIndex);
     const endDateIdx = Math.max(dragStart.dateIndex, dateIndex);
     const minMemberIdx = Math.min(startMemberIdx, endMemberIdx);
@@ -946,7 +946,7 @@ export default function ResourceForecastView() {
       saveCellValue(member, dateIndex, editValue);
       triggerRefresh();
 
-      const memberIndex = members.findIndex(m => m.id === member.id);
+      const memberIndex = members.findIndex((m: any) => m.id === member.id);
       let nextMemberIndex = memberIndex;
       let nextDateIndex = dateIndex;
 
