@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import DeliveryScheduler from "@/components/DeliveryScheduler";
 import SessionProvider from "@/components/SessionProvider";
 import { QueryProvider } from "@/components/providers/QueryProvider";
+import { SessionValidatorWrapper } from "@/components/SessionValidatorWrapper";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -51,9 +52,11 @@ export default function RootLayout({
       >
         <SessionProvider>
           <QueryProvider>
-            <Toaster position="top-right" />
-            <DeliveryScheduler />
-            {children}
+            <SessionValidatorWrapper>
+              <Toaster position="top-right" />
+              <DeliveryScheduler />
+              {children}
+            </SessionValidatorWrapper>
           </QueryProvider>
         </SessionProvider>
       </body>
