@@ -50,7 +50,7 @@ export default function ResourceCapacityView() {
   const isLoading = membersLoading || allocationsLoading;
 
   // Convert dates from API
-  const allocations = useMemo(() => 
+  const allocations = useMemo((): ResourceAllocation[] => 
     rawAllocations.map((a: any) => ({
       ...a,
       allocationDate: new Date(a.allocationDate)
@@ -64,9 +64,9 @@ export default function ResourceCapacityView() {
   const departmentCapacities = useMemo((): DepartmentCapacity[] => {
     return DEPARTMENTS.map(dept => {
       // Get active members in this department
-      const deptMembers = members.filter(m => m.department === dept && m.isActive);
+      const deptMembers = members.filter((m: ResourceMember) => m.department === dept && m.isActive);
       const artistCount = deptMembers.length;
-      const memberIds = new Set(deptMembers.map(m => m.id));
+      const memberIds = new Set(deptMembers.map((m: ResourceMember) => m.id));
 
       // Calculate available MD for each day
       const dailyCapacity = dates.map(date => {
@@ -76,13 +76,13 @@ export default function ResourceCapacityView() {
         const totalCapacity = artistCount;
         
         // Get allocations for this department on this date
-        const deptAllocations = allocations.filter(a => {
+        const deptAllocations = allocations.filter((a: ResourceAllocation) => {
           const allocDateStr = format(a.allocationDate, 'yyyy-MM-dd');
           return allocDateStr === dateStr && memberIds.has(a.resourceId);
         });
 
         // Sum up allocated MDs (excluding leave and idle)
-        const allocatedMD = deptAllocations.reduce((sum, a) => {
+        const allocatedMD = deptAllocations.reduce((sum: number, a: ResourceAllocation) => {
           if (a.isLeave || a.isIdle) return sum;
           return sum + a.manDays;
         }, 0);
