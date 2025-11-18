@@ -7,14 +7,22 @@ import { toast } from 'react-hot-toast';
 // RESOURCE MEMBERS HOOKS
 // ============================================
 
-export function useResourceMembers() {
+export function useResourceMembers(department?: string, shift?: string, isActive = true) {
   return useQuery({
-    queryKey: ['resourceMembers'],
+    queryKey: ['resourceMembers', department, shift, isActive],
     queryFn: async () => {
-      const res = await fetch('/api/resource/members');
+      const params = new URLSearchParams();
+      if (department && department !== 'all') params.set('department', department);
+      if (shift && shift !== 'all') params.set('shift', shift);
+      params.set('isActive', String(isActive));
+      
+      const res = await fetch(`/api/resource/members?${params}`);
       if (!res.ok) throw new Error('Failed to fetch members');
       return res.json();
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 }
 
@@ -286,6 +294,126 @@ export function useShows() {
       const res = await fetch('/api/shows');
       if (!res.ok) throw new Error('Failed to fetch shows');
       return res.json();
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes (shows don't change often)
+    refetchOnWindowFocus: false,
+  });
+}
+
+// ============================================
+// COMBINED RESOURCE FORECAST HOOK
+// ============================================
+
+export function useResourceForecast(params: {
+  department?: string;
+  shift?: string;
+  startDate: string;
+  endDate: string;
+}) {
+  const { department, shift, startDate, endDate } = params;
+  
+  // Fetch members and allocations in parallel
+  const membersQuery = useResourceMembers(department, shift, true);
+  const allocationsQuery = useResourceAllocations(startDate, endDate);
+
+  return {
+    members: membersQuery.data || [],
+    allocations: allocationsQuery.data || [],
+    isLoading: membersQuery.isLoading || allocationsQuery.isLoading,
+    error: membersQuery.error || allocationsQuery.error,
+    refetch: () => {
+      membersQuery.refetch();
+      allocationsQuery.refetch();
+    },
+  };
+}
+
+// ============================================
+// BULK ALLOCATION OPERATIONS
+// ============================================
+
+export function useBulkAddAllocations() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (allocations: any[]) => {
+      const results = await Promise.all(
+        allocations.map(alloc =>
+          fetch('/api/resource/allocations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(alloc),
+          }).then(r => r.json())
+        )
+      );
+      return results;
+    },
+    onMutate: async (newAllocations) => {
+      await queryClient.cancelQueries({ queryKey: ['resourceAllocations'] });
+      const previous = queryClient.getQueryData(['resourceAllocations']);
+
+      queryClient.setQueriesData(
+        { queryKey: ['resourceAllocations'] },
+        (old: any) => [...(old || []), ...newAllocations]
+      );
+
+      return { previous };
+    },
+    onError: (_err, _vars, context: any) => {
+      queryClient.setQueryData(['resourceAllocations'], context.previous);
+      toast.error('Bulk operation failed');
+    },
+    onSuccess: (data) => {
+      toast.success(`Added ${data.length} allocations`);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['resourceAllocations'] });
+    },
+  });
+}
+
+export function useBulkUpdateAllocations() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (updates: { id: string; data: any }[]) => {
+      const results = await Promise.all(
+        updates.map(({ id, data }) =>
+          fetch(`/api/resource/allocations/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+          }).then(r => r.json())
+        )
+      );
+      return results;
+    },
+    onMutate: async (updates) => {
+      await queryClient.cancelQueries({ queryKey: ['resourceAllocations'] });
+      const previous = queryClient.getQueryData(['resourceAllocations']);
+
+      queryClient.setQueriesData(
+        { queryKey: ['resourceAllocations'] },
+        (old: any) => {
+          if (!old) return old;
+          return old.map((alloc: any) => {
+            const update = updates.find(u => u.id === alloc.id);
+            return update ? { ...alloc, ...update.data } : alloc;
+          });
+        }
+      );
+
+      return { previous };
+    },
+    onError: (_err, _vars, context: any) => {
+      queryClient.setQueryData(['resourceAllocations'], context.previous);
+      toast.error('Bulk update failed');
+    },
+    onSuccess: (data) => {
+      toast.success(`Updated ${data.length} allocations`);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['resourceAllocations'] });
     },
   });
 }
