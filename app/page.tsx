@@ -52,7 +52,8 @@ export default function Home() {
     initializeApp();
   }, [loadPreferences, fetchAllData]);
 
-  if (loading) {
+  // Don't show global loading for award-sheet or resource-forecast (they handle their own loading)
+  if (loading && activeView !== 'award-sheet' && activeView !== 'resource-forecast') {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-lg">Loading VFX Tracker...</div>

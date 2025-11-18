@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 
+// Disable dynamic rendering for faster responses
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // GET - Fetch all award sheet entries
 export async function GET(request: NextRequest) {
   try {
@@ -50,6 +54,11 @@ export async function GET(request: NextRequest) {
       shots: parsedShots,
       total,
       hasMore: skip && limit ? parseInt(skip) + parseInt(limit) < total : false
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, must-revalidate',
+        'Pragma': 'no-cache',
+      },
     });
   } catch (error) {
     console.error('Error fetching award sheet:', error);
