@@ -5,7 +5,7 @@ import { auth } from '@/lib/auth';
 // GET single allocation
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await auth();
@@ -20,7 +20,7 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { id } = await params;
+    const { id } = params;
 
     const allocation = await prisma.resourceAllocation.findUnique({
       where: { id },
@@ -43,7 +43,7 @@ export async function GET(
 // PUT update allocation
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await auth();
@@ -58,7 +58,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { id } = await params;
+    const { id } = params;
     const body = await request.json();
     const { showName, shotName, allocationDate, manDays, isLeave, isIdle, notes } = body;
 
@@ -90,7 +90,7 @@ export async function PUT(
         where: {
           resourceId: existing.resourceId,
           allocationDate: dateObj,
-          id: { not: params.id }
+          id: { not: id }
         }
       });
 
@@ -126,7 +126,7 @@ export async function PUT(
 // DELETE allocation
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await auth();
@@ -141,7 +141,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { id } = await params;
+    const { id } = params;
 
     await prisma.resourceAllocation.delete({
       where: { id },
