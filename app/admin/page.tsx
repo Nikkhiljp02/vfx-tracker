@@ -54,6 +54,7 @@ interface DashboardStats {
     allocated: number;
     available: number;
   };
+  activeSessions: number;
   system: {
     uptime: string;
     dbSize: string;
@@ -163,7 +164,7 @@ export default function AdminDashboard() {
       icon: Activity,
       href: "/admin/sessions",
       color: "bg-purple-500",
-      stat: stats?.users.active || 0,
+      stat: stats?.activeSessions || 0,
       statLabel: "Active Sessions",
     },
     {

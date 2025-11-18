@@ -194,7 +194,10 @@ export default function SessionManagementPage() {
     const matchesDevice = filters.deviceType === "all" || s.deviceType === filters.deviceType;
     const matchesStatus = filters.status === "all" || s.status === filters.status;
 
-    return matchesSearch && matchesDevice && matchesStatus;
+    // Only show sessions that are not expired and not logged out
+    const isValidSession = !s.isExpired && !s.loggedOutAt;
+
+    return matchesSearch && matchesDevice && matchesStatus && isValidSession;
   });
 
   if (status === "loading" || loading) {
@@ -299,7 +302,7 @@ export default function SessionManagementPage() {
                 }`}
               >
                 <Monitor className="w-4 h-4 inline mr-2" />
-                Active Sessions ({sessions.filter((s) => s.isActive && !s.isExpired).length})
+                Active Sessions ({sessions.filter((s) => !s.isExpired && !s.loggedOutAt).length})
               </button>
               <button
                 onClick={() => setActiveTab("history")}

@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
       shotsStats,
       tasksStats,
       resourcesStats,
+      activeSessions,
       recentActivity,
     ] = await Promise.all([
       // Users statistics
@@ -83,6 +84,13 @@ export async function GET(request: NextRequest) {
           },
         }),
       ]),
+
+      // Active sessions count
+      prisma.session.count({
+        where: {
+          expires: { gt: new Date() },
+        },
+      }),
 
       // Recent activity logs
       prisma.activityLog.findMany({
@@ -188,6 +196,7 @@ export async function GET(request: NextRequest) {
       shots,
       tasks,
       resources,
+      activeSessions,
       system,
       recentActivity: formattedActivity,
     });
