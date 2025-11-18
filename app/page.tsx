@@ -11,7 +11,7 @@ import ResourceForecastView from '@/components/ResourceForecastView';
 import ResourceDashboard from '@/components/ResourceDashboard';
 import AllocationListView from '@/components/AllocationListView';
 import ResourceCapacityView from '@/components/ResourceCapacityView';
-import AwardSheetView from '@/components/AwardSheetView';
+import AwardSheetViewOptimized from '@/components/AwardSheetViewOptimized';
 import Header from '@/components/Header';
 import FilterPanel from '@/components/FilterPanel';
 import MobileNav from '@/components/MobileNav';
@@ -174,7 +174,7 @@ export default function Home() {
         ) : activeView === 'delivery' ? (
           <DeliveryView />
         ) : activeView === 'award-sheet' ? (
-          <AwardSheetView />
+          <AwardSheetViewOptimized />
         ) : activeView === 'resource-forecast' ? (
           <ResourceProvider>
             <div className="h-full flex flex-col bg-gray-900">
