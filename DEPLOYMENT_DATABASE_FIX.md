@@ -61,7 +61,6 @@ Your production deployment is failing because:
 Run this SQL in Supabase SQL Editor to create the `award_sheet` table:
 
 ```sql
--- Create award_sheet table
 CREATE TABLE IF NOT EXISTS "award_sheet" (
     "id" TEXT NOT NULL,
     "showName" TEXT NOT NULL,
