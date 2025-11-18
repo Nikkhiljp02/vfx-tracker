@@ -9,7 +9,8 @@ export async function PATCH(
 ) {
   try {
     const session = await auth();
-    if (!session) {
+    const userId = session?.user?.id;
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -22,7 +23,7 @@ export async function PATCH(
       where: { id: params.id }
     });
 
-    if (!view || view.createdBy !== session.user.id) {
+    if (!view || view.createdBy !== userId) {
       return NextResponse.json({ error: 'Not found or unauthorized' }, { status: 404 });
     }
 
@@ -50,7 +51,8 @@ export async function DELETE(
 ) {
   try {
     const session = await auth();
-    if (!session) {
+    const userId = session?.user?.id;
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -61,7 +63,7 @@ export async function DELETE(
       where: { id: params.id }
     });
 
-    if (!view || view.createdBy !== session.user.id) {
+    if (!view || view.createdBy !== userId) {
       return NextResponse.json({ error: 'Not found or unauthorized' }, { status: 404 });
     }
 
