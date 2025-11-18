@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import useSWR from 'swr';
 import { useRef } from 'react';
 import { useResourceContext } from '@/lib/resourceContext';
+import { useResourceForecast, useBulkAddAllocations, useAddAllocation, useUpdateAllocation, useDeleteAllocation } from '@/hooks/useQueryHooks';
+import { toast } from 'react-hot-toast';
 
 // Lazy load modals for better initial performance
 const ResourceImportModal = lazy(() => import('./ResourceImportModal'));
@@ -53,9 +54,8 @@ interface DailyAllocation {
 
 export default function ResourceForecastView() {
   const { triggerRefresh } = useResourceContext();
-  const [members, setMembers] = useState<ResourceWithAllocations[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
+  const [selectedShift, setSelectedShift] = useState<string>('all');
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [dateRange, setDateRange] = useState(30);
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
@@ -78,6 +78,36 @@ export default function ResourceForecastView() {
   const [editingCell, setEditingCell] = useState<{ memberId: string; dateIndex: number } | null>(null);
   const [editValue, setEditValue] = useState('');
   const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
+
+  // Calculate date range for API
+  const startDateStr = useMemo(() => startDate.toISOString().split('T')[0], [startDate]);
+  const endDateStr = useMemo(() => {
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + dateRange - 1);
+    return endDate.toISOString().split('T')[0];
+  }, [startDate, dateRange]);
+
+  // Use React Query for data fetching - NO MORE MANUAL LOADING!
+  const { members: fetchedMembers, allocations: fetchedAllocations, isLoading: loading } = useResourceForecast({
+    department: selectedDepartment,
+    shift: selectedShift,
+    startDate: startDateStr,
+    endDate: endDateStr,
+  });
+
+  // Mutations for instant updates
+  const addAllocation = useAddAllocation();
+  const updateAllocation = useUpdateAllocation();
+  const deleteAllocation = useDeleteAllocation();
+  const bulkAddAllocations = useBulkAddAllocations();
+
+  // Combine members with their allocations
+  const members = useMemo(() => {
+    return fetchedMembers.map((member: ResourceMember) => ({
+      ...member,
+      allocations: fetchedAllocations.filter((a: ResourceAllocation) => a.resourceId === member.id),
+    }));
+  }, [fetchedMembers, fetchedAllocations]);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{ memberId: string; dateIndex: number } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; cells: string[] } | null>(null);
@@ -105,23 +135,32 @@ export default function ResourceForecastView() {
     return cols;
   }, [startDate, dateRange]);
 
-  useEffect(() => {
-    loadMembers();
-  }, [selectedDepartment, startDate, dateRange, selectedShift]);
+  // Weekend working state
+  const [workingWeekends, setWorkingWeekends] = useState<Set<string>>(new Set());
 
-  // Listen for allocation updates from other tabs/views
+  // Load weekend working from allocations and localStorage
   useEffect(() => {
-    const bc = new BroadcastChannel('resource-updates');
+    const weekendWorkingDates = new Set<string>();
     
-    bc.onmessage = (event) => {
-      if (event.data.type === 'allocation-updated') {
-        // Reload allocations when changes come from Allocations page
-        loadMembers();
+    fetchedAllocations.forEach((alloc: ResourceAllocation) => {
+      if (alloc.isWeekendWorking) {
+        const dateKey = new Date(alloc.allocationDate).toISOString().split('T')[0];
+        weekendWorkingDates.add(dateKey);
       }
-    };
-
-    return () => bc.close();
-  }, [startDate, dateRange, selectedDepartment, selectedShift]);
+    });
+    
+    const storedWeekends = localStorage.getItem('workingWeekends');
+    if (storedWeekends) {
+      try {
+        const parsedWeekends = JSON.parse(storedWeekends) as string[];
+        parsedWeekends.forEach(dateKey => weekendWorkingDates.add(dateKey));
+      } catch (e) {
+        console.error('Failed to parse stored working weekends:', e);
+      }
+    }
+    
+    setWorkingWeekends(weekendWorkingDates);
+  }, [fetchedAllocations]);
 
   useEffect(() => {
     const handleGlobalMouseUp = () => {
@@ -170,71 +209,6 @@ export default function ResourceForecastView() {
       window.removeEventListener('keydown', handleGlobalKeyDown);
     };
   }, [selectedCells, editingCell, contextMenu, copiedCells, history, historyIndex]);
-
-  const loadMembers = async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      if (selectedDepartment !== 'all') params.append('department', selectedDepartment);
-      if (selectedShift !== 'all') params.append('shift', selectedShift);
-      params.append('isActive', 'true');
-
-      const response = await fetch(`/api/resource/members?${params}`, {
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache' }
-      });
-      if (!response.ok) throw new Error('Failed to load members');
-      const membersData = await response.json();
-
-      const startDateStr = startDate.toISOString().split('T')[0];
-      const endDate = new Date(startDate);
-      endDate.setDate(endDate.getDate() + dateRange - 1);
-      const endDateStr = endDate.toISOString().split('T')[0];
-
-      const allocParams = new URLSearchParams({ startDate: startDateStr, endDate: endDateStr });
-      const allocResponse = await fetch(`/api/resource/allocations?${allocParams}`, {
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache' }
-      });
-      if (!allocResponse.ok) throw new Error('Failed to load allocations');
-      const allocations = await allocResponse.json();
-
-      const membersWithAllocs = membersData.map((member: ResourceMember) => ({
-        ...member,
-        allocations: allocations.filter((a: ResourceAllocation) => a.resourceId === member.id),
-      }));
-
-      // Load weekend working states from allocations AND localStorage
-      const weekendWorkingDates = new Set<string>();
-      
-      // Load from database allocations
-      allocations.forEach((alloc: ResourceAllocation) => {
-        if (alloc.isWeekendWorking) {
-          const dateKey = new Date(alloc.allocationDate).toISOString().split('T')[0];
-          weekendWorkingDates.add(dateKey);
-        }
-      });
-      
-      // Merge with localStorage (user may have toggled weekend but not added shots yet)
-      const storedWeekends = localStorage.getItem('workingWeekends');
-      if (storedWeekends) {
-        try {
-          const parsedWeekends = JSON.parse(storedWeekends) as string[];
-          parsedWeekends.forEach(dateKey => weekendWorkingDates.add(dateKey));
-        } catch (e) {
-          console.error('Failed to parse stored working weekends:', e);
-        }
-      }
-      
-      setWorkingWeekends(weekendWorkingDates);
-
-      setMembers(membersWithAllocs);
-    } catch (error) {
-      console.error('Error loading members:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Load saved views
   const loadSavedViews = async () => {
