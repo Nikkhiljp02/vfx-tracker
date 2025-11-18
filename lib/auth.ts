@@ -72,7 +72,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id;
         token.username = (user as any).username;
@@ -91,6 +91,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         (session.user as any).lastName = token.lastName;
       }
       return session;
+    },
+  },
+  events: {
+    async signIn({ user, account }) {
+      if (user?.id) {
+        try {
+          const { trackLoginAttempt } = await import("@/lib/session-tracking");
+          await trackLoginAttempt(user.id, (user as any).username, true);
+        } catch (error) {
+          console.error("Error tracking login:", error);
+        }
+      }
     },
   },
   pages: {

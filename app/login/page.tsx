@@ -17,13 +17,49 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      // Use redirect: true to let NextAuth handle the redirect properly
-      await signIn("credentials", {
+      // Sign in without redirect to get the result
+      const result = await signIn("credentials", {
         username,
         password,
-        redirectTo: "/",
+        redirect: false,
       });
-      // If we reach here without error, login succeeded
+
+      if (result?.error) {
+        setError("Invalid username or password");
+        setIsLoading(false);
+      } else if (result?.ok) {
+        // Login successful - track the session
+        try {
+          const sessionResp = await fetch("/api/auth/session");
+          const sessionData = await sessionResp.json();
+          
+          if (sessionData?.user) {
+            // Get session token from cookie
+            const sessionToken = document.cookie
+              .split('; ')
+              .find(row => row.startsWith('authjs.session-token='))
+              ?.split('=')[1];
+
+            if (sessionToken) {
+              // Track login
+              await fetch("/api/auth/track-login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  userId: sessionData.user.id,
+                  username: sessionData.user.username,
+                  sessionToken: sessionToken,
+                }),
+              });
+            }
+          }
+        } catch (trackError) {
+          console.error("Error tracking login:", trackError);
+        }
+        
+        // Redirect to home
+        router.push("/");
+      }
     } catch (error: any) {
       console.error("SignIn error:", error);
       setError("Invalid username or password");

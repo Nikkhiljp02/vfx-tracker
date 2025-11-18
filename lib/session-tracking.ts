@@ -38,19 +38,26 @@ export function parseUserAgent(userAgent: string | null) {
   return { browser, os, deviceType };
 }
 
-export async function trackLoginAttempt(data: SessionTrackingData) {
+export async function trackLoginAttempt(
+  userId: string,
+  username: string,
+  loginSuccess: boolean,
+  ipAddress?: string,
+  userAgent?: string,
+  failureReason?: string
+) {
   try {
-    const { browser, os, deviceType } = parseUserAgent(data.userAgent || null);
+    const { browser, os, deviceType } = parseUserAgent(userAgent || null);
 
     // Detect suspicious login patterns
     const suspicionFlags: string[] = [];
     let isSuspicious = false;
 
-    if (data.loginSuccess) {
+    if (loginSuccess) {
       // Check for suspicious patterns
       const recentLogins = await prisma.loginHistory.findMany({
         where: {
-          userId: data.userId,
+          userId: userId,
           loginSuccess: true,
           loginAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }, // Last 24 hours
         },
@@ -63,8 +70,8 @@ export async function trackLoginAttempt(data: SessionTrackingData) {
         const timeDiff = Date.now() - new Date(lastLogin.loginAt).getTime();
         
         // Different IP within short time
-        if (lastLogin.ipAddress && data.ipAddress && 
-            lastLogin.ipAddress !== data.ipAddress && 
+        if (lastLogin.ipAddress && ipAddress && 
+            lastLogin.ipAddress !== ipAddress && 
             timeDiff < 30 * 60 * 1000) {
           suspicionFlags.push("ip-change");
           isSuspicious = true;
@@ -90,7 +97,7 @@ export async function trackLoginAttempt(data: SessionTrackingData) {
       // Check for brute force attempts
       const recentFailed = await prisma.loginHistory.findMany({
         where: {
-          username: data.username,
+          username: username,
           loginSuccess: false,
           loginAt: { gte: new Date(Date.now() - 15 * 60 * 1000) },
         },
@@ -105,15 +112,15 @@ export async function trackLoginAttempt(data: SessionTrackingData) {
     // Create login history record
     await prisma.loginHistory.create({
       data: {
-        userId: data.userId,
-        username: data.username,
-        ipAddress: data.ipAddress || null,
-        userAgent: data.userAgent || null,
+        userId: userId,
+        username: username,
+        ipAddress: ipAddress || null,
+        userAgent: userAgent || null,
         browser,
         os,
         deviceType,
-        loginSuccess: data.loginSuccess,
-        failureReason: data.failureReason || null,
+        loginSuccess: loginSuccess,
+        failureReason: failureReason || null,
         isSuspicious,
         suspicionFlags: suspicionFlags.length > 0 ? JSON.stringify(suspicionFlags) : null,
       },
