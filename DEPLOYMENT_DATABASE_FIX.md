@@ -56,7 +56,7 @@ Your production deployment is failing because:
    npx prisma studio
    ```
 
-### Option 3: Manual SQL Execution
+### Option 3: Manual SQL Execution (Single Table)
 
 Run this SQL in Supabase SQL Editor to create the `award_sheet` table:
 
@@ -77,6 +77,19 @@ CREATE INDEX "award_sheet_showName_idx" ON "award_sheet"("showName");
 CREATE INDEX "award_sheet_shotName_idx" ON "award_sheet"("shotName");
 CREATE UNIQUE INDEX "award_sheet_showName_shotName_key" ON "award_sheet"("showName", "shotName");
 ```
+
+### Option 4: Complete Schema Migration (All Tables)
+
+**Recommended if you have a fresh Supabase database.**
+
+Run the complete schema from `complete-schema.sql`:
+
+1. Open the file: `c:\Users\nikhil patil\VFX TRACKER\vfx-tracker\complete-schema.sql`
+2. Copy the entire contents
+3. Go to Supabase → SQL Editor
+4. Paste and run
+
+This creates all tables at once with proper indexes and foreign keys.
 
 ## Verify Environment Variables in Vercel
 
