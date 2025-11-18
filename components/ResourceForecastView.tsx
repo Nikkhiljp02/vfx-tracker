@@ -692,13 +692,13 @@ export default function ResourceForecastView() {
     
     // Header row
     const headerRow = ['ID', 'Name', 'Designation', 'Reporting', 'Dept', 'Shift'];
-    dates.forEach(date => {
+    dates.forEach((date: Date) => {
       headerRow.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
     });
     rows.push(headerRow);
     
     // Data rows
-    members.forEach(member => {
+    members.forEach((member: any) => {
       const row = [
         member.empId,
         member.empName,
@@ -708,7 +708,7 @@ export default function ResourceForecastView() {
         member.shift
       ];
       
-      dates.forEach(date => {
+      dates.forEach((date: Date) => {
         const dailyAlloc = getDailyAllocation(member, date);
         row.push(formatAllocationsToString(dailyAlloc.allocations) || '');
       });
@@ -718,9 +718,9 @@ export default function ResourceForecastView() {
     
     // Utilization row
     const utilRow = ['', '', '', '', '', 'TOTAL MD'];
-    dates.forEach((date, idx) => {
+    dates.forEach((date: Date, idx: number) => {
       let totalMD = 0;
-      members.forEach(member => {
+      members.forEach((member: any) => {
         const dailyAlloc = getDailyAllocation(member, date);
         totalMD += dailyAlloc.totalMD;
       });
@@ -1004,8 +1004,8 @@ export default function ResourceForecastView() {
   // Get unique shows from allocations
   const availableShows = useMemo(() => {
     const shows = new Set<string>();
-    members.forEach(member => {
-      member.allocations.forEach(alloc => {
+    members.forEach((member: any) => {
+      member.allocations.forEach((alloc: any) => {
         if (alloc.showName && alloc.showName !== 'Default') {
           shows.add(alloc.showName);
         }
