@@ -852,7 +852,7 @@ export default function ResourceForecastView() {
     const savePromises = contextMenu.cells.map(cellKey => {
       const [memberId, dateIndexStr] = cellKey.split('-');
       const dateIndex = parseInt(dateIndexStr);
-      const member = members.find(m => m.id === memberId);
+      const member = members.find((m: any) => m.id === memberId);
       
       if (member) {
         return saveCellValue(member, dateIndex, bulkInputValue.trim());
@@ -883,7 +883,7 @@ export default function ResourceForecastView() {
     const deletePromises = Array.from(selectedCells).map(cellKey => {
       const [memberId, dateIndexStr] = cellKey.split('-');
       const dateIndex = parseInt(dateIndexStr);
-      const member = members.find(m => m.id === memberId);
+      const member = members.find((m: any) => m.id === memberId);
       
       if (member) {
         return saveCellValue(member, dateIndex, '');
