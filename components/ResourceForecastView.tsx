@@ -744,12 +744,23 @@ export default function ResourceForecastView() {
     const dailyAlloc = getDailyAllocation(member, date);
     
     // Delete ALL existing allocations using React Query mutation
-    const allocsToDelete = dailyAlloc.allocations;
+    const allocsToDelete = dailyAlloc.allocations.filter((alloc: any) => alloc.id); // Only delete allocations with valid IDs
     
     if (allocsToDelete.length > 0) {
-      await Promise.all(allocsToDelete.map((alloc: any) =>
-        deleteAllocation.mutateAsync(alloc.id)
-      ));
+      try {
+        await Promise.all(allocsToDelete.map((alloc: any) =>
+          deleteAllocation.mutateAsync(alloc.id).catch((err) => {
+            // Ignore "not found" errors (P2025) - allocation might already be deleted
+            if (!err.message?.includes('P2025') && !err.message?.includes('not found')) {
+              throw err;
+            }
+          })
+        ));
+      } catch (error) {
+        console.error('Error deleting allocations:', error);
+        toast.error('Failed to delete existing allocations');
+        return;
+      }
     }
 
     if (!value.trim()) {
