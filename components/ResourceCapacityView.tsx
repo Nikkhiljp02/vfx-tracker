@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { format, addDays, startOfDay } from 'date-fns';
 import { ChevronLeft, ChevronRight, Users } from 'lucide-react';
+import { useResourceMembers, useResourceAllocations } from '@/hooks/useQueryHooks';
 
 interface ResourceMember {
   id: string;
@@ -33,73 +34,31 @@ interface DepartmentCapacity {
 const DEPARTMENTS = ['Roto', 'Paint', 'Comp', 'MMRA'];
 
 export default function ResourceCapacityView() {
-  const [members, setMembers] = useState<ResourceMember[]>([]);
-  const [allocations, setAllocations] = useState<ResourceAllocation[]>([]);
   const [weekStartDate, setWeekStartDate] = useState<Date>(startOfDay(new Date()));
-  const [isLoading, setIsLoading] = useState(true);
 
   // Generate 14 days from start date
   const dates = useMemo(() => {
     return Array.from({ length: 14 }, (_, i) => addDays(weekStartDate, i));
   }, [weekStartDate]);
 
-  // Load members
-  const loadMembers = async () => {
-    try {
-      const response = await fetch('/api/resource/members?isActive=true');
-      if (!response.ok) throw new Error('Failed to load members');
-      const data = await response.json();
-      setMembers(data);
-    } catch (error) {
-      console.error('Failed to load members:', error);
-    }
-  };
+  const startDate = format(dates[0], 'yyyy-MM-dd');
+  const endDate = format(dates[dates.length - 1], 'yyyy-MM-dd');
 
-  // Load allocations
-  const loadAllocations = async () => {
-    try {
-      const startDate = format(dates[0], 'yyyy-MM-dd');
-      const endDate = format(dates[dates.length - 1], 'yyyy-MM-dd');
-      const params = new URLSearchParams({ startDate, endDate });
-      
-      const response = await fetch(`/api/resource/allocations?${params}`);
-      if (!response.ok) throw new Error('Failed to load allocations');
-      const data = await response.json();
-      
-      setAllocations(data.map((a: any) => ({
-        ...a,
-        allocationDate: new Date(a.allocationDate)
-      })));
-    } catch (error) {
-      console.error('Failed to load allocations:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // React Query - instant caching, zero refresh!
+  const { data: members = [], isLoading: membersLoading } = useResourceMembers(undefined, undefined, true);
+  const { data: rawAllocations = [], isLoading: allocationsLoading } = useResourceAllocations(startDate, endDate);
+  const isLoading = membersLoading || allocationsLoading;
 
-  useEffect(() => {
-    loadMembers();
-  }, []);
+  // Convert dates from API
+  const allocations = useMemo(() => 
+    rawAllocations.map((a: any) => ({
+      ...a,
+      allocationDate: new Date(a.allocationDate)
+    })),
+    [rawAllocations]
+  );
 
-  useEffect(() => {
-    if (members.length > 0) {
-      loadAllocations();
-    }
-  }, [weekStartDate, members]);
-
-  // Listen for allocation updates via BroadcastChannel
-  useEffect(() => {
-    const bc = new BroadcastChannel('resource-updates');
-    
-    bc.onmessage = (event) => {
-      if (event.data.type === 'allocation-updated' || event.data.type === 'member-updated') {
-        loadMembers();
-        loadAllocations();
-      }
-    };
-
-    return () => bc.close();
-  }, []);
+  // No more manual loading - React Query handles everything!
 
   // Calculate department capacity
   const departmentCapacities = useMemo((): DepartmentCapacity[] => {

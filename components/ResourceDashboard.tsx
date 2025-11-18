@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, isWeekend, isSaturday, isSunday } from 'date-fns';
-import { useResourceContext } from '@/lib/resourceContext';
+import { useResourceMembers, useResourceAllocations } from '@/hooks/useQueryHooks';
 import { TrendingUp, TrendingDown, Users, Calendar, Clock, Award, BarChart3, PieChart, Activity } from 'lucide-react';
 
 interface ResourceMember {
@@ -45,8 +45,16 @@ interface AvailabilityFilter {
 }
 
 export default function ResourceDashboard() {
-  const { members, allocations, loading, setMembers, setAllocations, setLoading, refreshTrigger } = useResourceContext();
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
+  
+  const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
+  const startDateStr = format(currentWeekStart, 'yyyy-MM-dd');
+  const endDateStr = format(weekEnd, 'yyyy-MM-dd');
+  
+  // Use React Query - instant caching, no manual loading!
+  const { data: members = [], isLoading: membersLoading } = useResourceMembers();
+  const { data: allocations = [], isLoading: allocationsLoading } = useResourceAllocations(startDateStr, endDateStr);
+  const loading = membersLoading || allocationsLoading;
   
   // Filters for availability checker
   const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
@@ -54,47 +62,7 @@ export default function ResourceDashboard() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [minAvailability, setMinAvailability] = useState<number>(0);
 
-  useEffect(() => {
-    loadData();
-  }, [currentWeekStart, refreshTrigger]);
-
-  // Listen for allocation updates from other views
-  useEffect(() => {
-    const bc = new BroadcastChannel('resource-updates');
-    
-    bc.onmessage = (event) => {
-      if (event.data.type === 'allocation-updated') {
-        // Reload data when changes come from Forecast or Allocations page
-        loadData();
-      }
-    };
-
-    return () => bc.close();
-  }, [currentWeekStart]);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      // Load members
-      const membersRes = await fetch('/api/resource/members');
-      if (!membersRes.ok) throw new Error('Failed to load members');
-      const membersData = await membersRes.json();
-      setMembers(membersData);
-
-      // Load allocations for current week
-      const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
-      const allocRes = await fetch(
-        `/api/resource/allocations?startDate=${format(currentWeekStart, 'yyyy-MM-dd')}&endDate=${format(weekEnd, 'yyyy-MM-dd')}`
-      );
-      if (!allocRes.ok) throw new Error('Failed to load allocations');
-      const allocData = await allocRes.json();
-      setAllocations(allocData);
-    } catch (error) {
-      console.error('Error loading dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // React Query handles all loading automatically - no useEffect needed!
 
   const weekDays = useMemo(() => {
     const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });

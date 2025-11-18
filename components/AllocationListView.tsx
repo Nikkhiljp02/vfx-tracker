@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { format } from 'date-fns';
 import { Download, Upload, Filter, RefreshCw } from 'lucide-react';
 import ResourceImportModal from './ResourceImportModal';
+import { useResourceMembers, useResourceAllocations } from '@/hooks/useQueryHooks';
 
 interface AllocationWithDetails {
   id: string;
@@ -23,8 +24,6 @@ interface AllocationWithDetails {
 }
 
 export default function AllocationListView() {
-  const [allocations, setAllocations] = useState<AllocationWithDetails[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
   const [selectedShift, setSelectedShift] = useState<string>('all');
   const [selectedShow, setSelectedShow] = useState<string>('all');
@@ -33,91 +32,58 @@ export default function AllocationListView() {
   const [dateTo, setDateTo] = useState<string>('');
   const [showImportModal, setShowImportModal] = useState(false);
 
-  useEffect(() => {
-    loadAllocations();
-  }, [selectedDepartment, dateFrom, dateTo]);
+  // React Query - instant caching, zero refresh!
+  const { data: members = [], isLoading: membersLoading } = useResourceMembers(undefined, undefined, true);
+  const { data: rawAllocations = [], isLoading: allocationsLoading } = useResourceAllocations(dateFrom, dateTo);
+  const loading = membersLoading || allocationsLoading;
 
-  // Listen for allocation updates from ResourceForecastView
-  useEffect(() => {
-    const bc = new BroadcastChannel('resource-updates');
-    
-    bc.onmessage = (event) => {
-      if (event.data.type === 'allocation-updated') {
-        // Reload allocations when changes come from Forecast view
-        loadAllocations();
+  // Group allocations by member and shot (computed from cached data)
+  const allocations = useMemo(() => {
+    const groupedAllocations = new Map<string, AllocationWithDetails>();
+
+    for (const alloc of rawAllocations) {
+      if (alloc.isLeave || alloc.isIdle) continue;
+
+      const member = members.find((m: any) => m.id === alloc.resourceId);
+      if (!member) continue;
+
+      if (selectedDepartment !== 'all' && member.department !== selectedDepartment) continue;
+
+      const key = `${alloc.resourceId}-${alloc.shotName}`;
+      const allocDate = new Date(alloc.allocationDate);
+
+      if (groupedAllocations.has(key)) {
+        const existing = groupedAllocations.get(key)!;
+        existing.startDate = new Date(Math.min(existing.startDate.getTime(), allocDate.getTime()));
+        existing.endDate = new Date(Math.max(existing.endDate.getTime(), allocDate.getTime()));
+        existing.totalManDays += alloc.manDays;
+      } else {
+        groupedAllocations.set(key, {
+          id: key,
+          member: {
+            empId: member.empId,
+            empName: member.empName,
+            designation: member.designation,
+            department: member.department,
+            shift: member.shift,
+          },
+          shotName: alloc.shotName,
+          showName: alloc.showName,
+          startDate: allocDate,
+          endDate: allocDate,
+          totalManDays: alloc.manDays,
+          status: alloc.isLeave ? 'Leave' : alloc.isIdle ? 'Idle' : 'Active',
+        });
       }
-    };
+    }
 
-    return () => bc.close();
-  }, [selectedDepartment, dateFrom, dateTo]);
+    return Array.from(groupedAllocations.values()).sort((a, b) => {
+      if (a.member.empName !== b.member.empName) return a.member.empName.localeCompare(b.member.empName);
+      return a.startDate.getTime() - b.startDate.getTime();
+    });
+  }, [members, rawAllocations, selectedDepartment]);
 
-  const loadAllocations = async () => {
-    try {
-      setLoading(true);
-      
-      // Get all members
-      const membersResponse = await fetch('/api/resource/members?isActive=true');
-      if (!membersResponse.ok) throw new Error('Failed to load members');
-      const members = await membersResponse.json();
-
-      // Get allocations
-      const params = new URLSearchParams();
-      if (dateFrom) params.append('startDate', dateFrom);
-      if (dateTo) params.append('endDate', dateTo);
-
-      const allocResponse = await fetch(`/api/resource/allocations?${params}`);
-      if (!allocResponse.ok) throw new Error('Failed to load allocations');
-      const allocations = await allocResponse.json();
-
-      // Group allocations by member and shot to get date ranges
-      const groupedAllocations = new Map<string, AllocationWithDetails>();
-
-      for (const alloc of allocations) {
-        if (alloc.isLeave || alloc.isIdle) continue; // Skip leave/idle
-
-        const member = members.find((m: any) => m.id === alloc.resourceId);
-        if (!member) continue;
-
-        if (selectedDepartment !== 'all' && member.department !== selectedDepartment) continue;
-
-        const key = `${alloc.resourceId}-${alloc.shotName}`;
-        const allocDate = new Date(alloc.allocationDate);
-
-        if (groupedAllocations.has(key)) {
-          const existing = groupedAllocations.get(key)!;
-          existing.startDate = new Date(Math.min(existing.startDate.getTime(), allocDate.getTime()));
-          existing.endDate = new Date(Math.max(existing.endDate.getTime(), allocDate.getTime()));
-          existing.totalManDays += alloc.manDays;
-        } else {
-          groupedAllocations.set(key, {
-            id: key,
-            member: {
-              empId: member.empId,
-              empName: member.empName,
-              designation: member.designation,
-              department: member.department,
-              shift: member.shift,
-            },
-            shotName: alloc.shotName,
-            showName: alloc.showName,
-            startDate: allocDate,
-            endDate: allocDate,
-            totalManDays: alloc.manDays,
-            status: alloc.isLeave ? 'Leave' : alloc.isIdle ? 'Idle' : 'Active',
-          });
-        }
-      }
-
-      const allocList = Array.from(groupedAllocations.values()).sort((a, b) => {
-        if (a.member.empName !== b.member.empName) return a.member.empName.localeCompare(b.member.empName);
-        return a.startDate.getTime() - b.startDate.getTime();
-      });
-
-      setAllocations(allocList);
-    } catch (error) {
-      console.error('Error loading allocations:', error);
-    } finally {
-      setLoading(false);
+  // No more manual loading - React Query handles everything!
     }
   };
 
