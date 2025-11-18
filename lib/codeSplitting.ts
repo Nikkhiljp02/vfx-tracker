@@ -1,7 +1,7 @@
 // Code splitting utilities for lazy loading large components
 'use client';
 
-import { ComponentType, lazy, Suspense } from 'react';
+import React, { ComponentType, lazy, Suspense } from 'react';
 
 // Loading component for suspense fallback
 export const ComponentLoader = () => (
