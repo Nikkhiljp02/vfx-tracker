@@ -325,7 +325,7 @@ export default function ResourceForecastView() {
       ));
     }
 
-    await loadMembers();
+    // React Query auto-refetches
     triggerRefresh();
     
     const bc = new BroadcastChannel('resource-updates');
@@ -369,7 +369,7 @@ export default function ResourceForecastView() {
       ));
     }
 
-    await loadMembers();
+    // React Query auto-refetches
     triggerRefresh();
     
     const bc = new BroadcastChannel('resource-updates');
@@ -1445,9 +1445,9 @@ export default function ResourceForecastView() {
         </div>
       </div>
 
-      {showAddMemberModal && <ResourceMemberForm isOpen={showAddMemberModal} onClose={() => setShowAddMemberModal(false)} onSuccess={loadMembers} />}
-      {editingMember && <ResourceMemberForm isOpen={true} onClose={() => setEditingMember(null)} onSuccess={() => { setEditingMember(null); loadMembers(); }} member={editingMember} />}
-      {showImportModal && <ResourceImportModal isOpen={showImportModal} onClose={() => setShowImportModal(false)} onSuccess={loadMembers} type={importType} />}
+      {showAddMemberModal && <ResourceMemberForm isOpen={showAddMemberModal} onClose={() => setShowAddMemberModal(false)} onSuccess={() => setShowAddMemberModal(false)} />}
+      {editingMember && <ResourceMemberForm isOpen={true} onClose={() => setEditingMember(null)} onSuccess={() => setEditingMember(null)} member={editingMember} />}
+      {showImportModal && <ResourceImportModal isOpen={showImportModal} onClose={() => setShowImportModal(false)} onSuccess={() => setShowImportModal(false)} type={importType} />}
       
       {/* Save View Modal */}
       {showSaveViewModal && (
