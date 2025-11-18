@@ -6,7 +6,8 @@ import { prisma } from '@/lib/prisma';
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
-    if (!session) {
+    const userId = session?.user?.id;
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
       where: {
         viewType,
         OR: [
-          { createdBy: session.user.id },
+          { createdBy: userId },
           { isPublic: true }
         ]
       },
@@ -39,7 +40,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
-    if (!session) {
+    const userId = session?.user?.id;
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -57,7 +59,7 @@ export async function POST(request: NextRequest) {
         filters: JSON.stringify(filters),
         isPublic: isPublic || false,
         isQuickFilter: isQuickFilter || false,
-        createdBy: session.user.id
+        createdBy: userId
       }
     });
 
