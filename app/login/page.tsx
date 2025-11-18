@@ -34,24 +34,15 @@ export default function LoginPage() {
           const sessionData = await sessionResp.json();
           
           if (sessionData?.user) {
-            // Get session token from cookie
-            const sessionToken = document.cookie
-              .split('; ')
-              .find(row => row.startsWith('authjs.session-token='))
-              ?.split('=')[1];
-
-            if (sessionToken) {
-              // Track login
-              await fetch("/api/auth/track-login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  userId: sessionData.user.id,
-                  username: sessionData.user.username,
-                  sessionToken: sessionToken,
-                }),
-              });
-            }
+            // Track login
+            await fetch("/api/auth/track-login", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                userId: sessionData.user.id,
+                username: sessionData.user.username,
+              }),
+            });
           }
         } catch (trackError) {
           console.error("Error tracking login:", trackError);

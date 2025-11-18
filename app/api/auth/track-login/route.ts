@@ -6,9 +6,9 @@ import { trackLoginAttempt, parseUserAgent } from "@/lib/session-tracking";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { userId, username, sessionToken } = body;
+    const { userId, username } = body;
 
-    if (!userId || !username || !sessionToken) {
+    if (!userId || !username) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
@@ -24,26 +24,28 @@ export async function POST(req: NextRequest) {
     // Track login attempt in login history
     await trackLoginAttempt(userId, username, true, ipAddress, userAgent);
 
-    // Create or update session record
+    // Generate a unique session token
+    const sessionToken = `${userId}-${Date.now()}-${Math.random().toString(36).substring(2)}`;
     const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
 
-    const existingSession = await prisma.session.findUnique({
-      where: { sessionToken },
+    // Check if user has an existing active session from same device
+    const existingSessions = await prisma.session.findMany({
+      where: {
+        userId,
+        isActive: true,
+        userAgent,
+      },
     });
 
-    if (existingSession) {
-      // Update existing session
+    if (existingSessions.length > 0) {
+      // Update the most recent session
       await prisma.session.update({
-        where: { sessionToken },
+        where: { id: existingSessions[0].id },
         data: {
           lastActivity: new Date(),
           ipAddress,
-          userAgent,
-          browser,
-          os,
-          deviceType,
-          isActive: true,
           expires,
+          sessionToken,
         },
       });
     } else {
