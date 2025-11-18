@@ -32,6 +32,18 @@ export async function GET(request: NextRequest) {
         { department: 'asc' },
         { empName: 'asc' }
       ],
+      select: {
+        id: true,
+        empId: true,
+        empName: true,
+        designation: true,
+        reportingTo: true,
+        department: true,
+        shift: true,
+        isActive: true,
+        createdDate: true,
+        updatedDate: true,
+      }
     });
 
     return NextResponse.json(members);

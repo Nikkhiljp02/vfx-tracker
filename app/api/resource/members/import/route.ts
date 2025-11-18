@@ -90,32 +90,72 @@ export async function POST(request: NextRequest) {
       where: {
         empId: { in: empIds }
       },
-      select: { empId: true }
+      select: { 
+        id: true,
+        empId: true,
+        isActive: true
+      }
     });
 
-    const existingIds = existingMembers.map(m => m.empId);
-    if (existingIds.length > 0) {
-      errors.push(`Emp IDs already exist in database: ${existingIds.join(', ')}`);
-    }
+    const existingMap = new Map(existingMembers.map(m => [m.empId, m]));
+    
+    // Separate new members from existing ones
+    const newMembers = members.filter(m => !existingMap.has(m.empId));
+    const updateMembers = members.filter(m => existingMap.has(m.empId));
 
-    // If there are blocking errors, return them
-    if (duplicates.length > 0 || existingIds.length > 0) {
+    // If there are file duplicates, block the import
+    if (duplicates.length > 0) {
       return NextResponse.json({
         error: 'Import validation failed',
         errors,
-        preview: members.slice(0, 5), // Show first 5 for review
+        preview: members.slice(0, 5),
       }, { status: 400 });
     }
 
-    // Create all members (SQLite doesn't support skipDuplicates, but we already checked for duplicates)
-    const created = await prisma.resourceMember.createMany({
-      data: members,
-    });
+    let created = 0;
+    let updated = 0;
+    let reactivated = 0;
+
+    // Create new members
+    if (newMembers.length > 0) {
+      const result = await prisma.resourceMember.createMany({
+        data: newMembers,
+      });
+      created = result.count;
+    }
+
+    // Update existing members (reactivate if inactive, update details)
+    for (const member of updateMembers) {
+      const existing = existingMap.get(member.empId)!;
+      await prisma.resourceMember.update({
+        where: { id: existing.id },
+        data: {
+          empName: member.empName,
+          designation: member.designation,
+          reportingTo: member.reportingTo,
+          department: member.department,
+          shift: member.shift,
+          isActive: true, // Ensure member is active
+        }
+      });
+      updated++;
+      if (!existing.isActive) {
+        reactivated++;
+      }
+    }
+
+    const messages = [];
+    if (created > 0) messages.push(`${created} new members created`);
+    if (updated > 0) messages.push(`${updated} existing members updated`);
+    if (reactivated > 0) messages.push(`${reactivated} inactive members reactivated`);
 
     return NextResponse.json({
       success: true,
-      imported: created.count,
+      imported: created,
+      updated,
+      reactivated,
       total: members.length,
+      message: messages.join(', '),
       errors: errors.length > 0 ? errors : undefined,
     });
   } catch (error) {
