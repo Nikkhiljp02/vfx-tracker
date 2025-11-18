@@ -588,12 +588,12 @@ export default function Header() {
                         <button
                           onClick={() => {
                             setShowUserMenu(false);
-                            router.push('/admin/users');
+                            router.push('/admin');
                           }}
                           className="w-full flex items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                         >
-                          <Users size={16} />
-                          User Management
+                          <Settings size={16} />
+                          Admin Panel
                         </button>
                       )}
                       

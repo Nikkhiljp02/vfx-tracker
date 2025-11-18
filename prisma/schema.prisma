@@ -101,8 +101,43 @@ model Session {
   sessionToken  String    @unique
   expires       DateTime
   createdAt     DateTime  @default(now())
+  lastActivity  DateTime  @default(now())
+  ipAddress     String?
+  userAgent     String?
+  deviceType    String?   // "desktop", "mobile", "tablet"
+  browser       String?   // "Chrome", "Firefox", "Safari", etc.
+  os            String?   // "Windows", "macOS", "Linux", "iOS", "Android"
+  location      String?   // City/Country from IP
+  isActive      Boolean   @default(true)
+  loggedOutAt   DateTime?
+  loggedOutBy   String?   // userId of admin who forced logout
 
+  @@index([userId, isActive])
+  @@index([sessionToken])
   @@map("sessions")
+}
+
+model LoginHistory {
+  id            String    @id @default(cuid())
+  userId        String
+  username      String
+  loginAt       DateTime  @default(now())
+  logoutAt      DateTime?
+  ipAddress     String?
+  userAgent     String?
+  deviceType    String?
+  browser       String?
+  os            String?
+  location      String?
+  loginSuccess  Boolean   @default(true)
+  failureReason String?
+  isSuspicious  Boolean   @default(false)
+  suspicionFlags String?  // JSON array of flags
+
+  @@index([userId, loginAt])
+  @@index([isSuspicious])
+  @@index([loginSuccess])
+  @@map("login_history")
 }
 
 // ============================================

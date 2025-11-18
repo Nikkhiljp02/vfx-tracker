@@ -7,16 +7,40 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const entityType = searchParams.get('entityType');
     const entityId = searchParams.get('entityId');
-    const limit = parseInt(searchParams.get('limit') || '100');
+    const actionType = searchParams.get('actionType');
+    const search = searchParams.get('search');
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '50');
 
     const where: any = {};
-    if (entityType) where.entityType = entityType;
+    if (entityType && entityType !== 'all') where.entityType = entityType;
     if (entityId) where.entityId = entityId;
+    if (actionType && actionType !== 'all') where.actionType = actionType;
+    if (search) {
+      where.OR = [
+        { userName: { contains: search } },
+        { fieldName: { contains: search } },
+        { oldValue: { contains: search } },
+        { newValue: { contains: search } },
+      ];
+    }
+    if (startDate || endDate) {
+      where.timestamp = {};
+      if (startDate) where.timestamp.gte = new Date(startDate);
+      if (endDate) where.timestamp.lte = new Date(endDate);
+    }
+
+    // Get total count for pagination
+    // @ts-ignore - ActivityLog model will be available after prisma generate
+    const total = await prisma.activityLog.count({ where });
 
     // @ts-ignore - ActivityLog model will be available after prisma generate
     const logs = await prisma.activityLog.findMany({
       where,
       orderBy: { timestamp: 'desc' },
+      skip: (page - 1) * limit,
       take: limit,
     });
 
@@ -82,11 +106,23 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    return NextResponse.json(enrichedLogs);
+    return NextResponse.json({
+      logs: enrichedLogs,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    });
   } catch (error) {
     console.error('Error fetching activity logs:', error);
-    // Return empty array instead of error to prevent UI crash
-    return NextResponse.json([], { status: 200 });
+    // Return empty result instead of error to prevent UI crash
+    return NextResponse.json({
+      logs: [],
+      total: 0,
+      page: 1,
+      limit: 50,
+      totalPages: 0,
+    }, { status: 200 });
   }
 }
 

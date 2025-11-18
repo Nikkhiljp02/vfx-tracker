@@ -1,12 +1,17 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useSession } from "next-auth/react";
 
 export default function DeliveryScheduler() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastCheckRef = useRef<string>("");
+  const { data: session, status } = useSession();
 
   useEffect(() => {
+    // Don't run if not authenticated
+    if (status !== "authenticated") return;
+
     // Function to check schedules
     const checkSchedules = async () => {
       try {
@@ -46,7 +51,7 @@ export default function DeliveryScheduler() {
         clearInterval(intervalRef.current);
       }
     };
-  }, []);
+  }, [status]);
 
   // This component doesn't render anything
   return null;

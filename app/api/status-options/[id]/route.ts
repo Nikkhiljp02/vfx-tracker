@@ -29,6 +29,31 @@ export async function PUT(
   }
 }
 
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+
+    const statusOption = await prisma.statusOption.update({
+      where: { id },
+      data: {
+        isActive: body.isActive,
+      },
+    });
+
+    return NextResponse.json(statusOption);
+  } catch (error) {
+    console.error('Error toggling status option:', error);
+    return NextResponse.json(
+      { error: 'Failed to toggle status option' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

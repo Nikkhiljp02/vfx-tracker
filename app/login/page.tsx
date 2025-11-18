@@ -17,36 +17,16 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      console.log("Starting sign in with username:", username);
-      
-      const result = await signIn("credentials", {
+      // Use redirect: true to let NextAuth handle the redirect properly
+      await signIn("credentials", {
         username,
         password,
-        redirect: false,
-        callbackUrl: "/",
+        redirectTo: "/",
       });
-
-      console.log("SignIn result:", JSON.stringify(result, null, 2));
-
-      if (result?.error) {
-        console.error("SignIn error:", result.error);
-        setError(result.error);
-        setIsLoading(false);
-      } else if (result?.ok) {
-        console.log("SignIn successful! Waiting 2 seconds before redirect...");
-        // Wait 2 seconds so you can see the console
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        console.log("Now redirecting to home page...");
-        // Force a hard redirect
-        window.location.href = "/";
-      } else {
-        console.warn("Unexpected result:", result);
-        setError("Login failed - unexpected response");
-        setIsLoading(false);
-      }
-    } catch (err) {
-      console.error("SignIn exception:", err);
-      setError("An unexpected error occurred");
+      // If we reach here without error, login succeeded
+    } catch (error: any) {
+      console.error("SignIn error:", error);
+      setError("Invalid username or password");
       setIsLoading(false);
     }
   };

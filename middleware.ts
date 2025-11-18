@@ -3,11 +3,18 @@ import type { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 
 export async function middleware(request: NextRequest) {
-  console.log("Middleware checking:", request.nextUrl.pathname);
+  const pathname = request.nextUrl.pathname;
+  console.log("Middleware checking:", pathname);
   
   const session = await auth();
   
-  console.log("Session found:", !!session, "for path:", request.nextUrl.pathname);
+  console.log("Session found:", !!session, "User:", session?.user ? (session.user as any).username : "none", "Path:", pathname);
+
+  // If user is authenticated and on login page, redirect to home
+  if (session && pathname === "/login") {
+    console.log("User already authenticated, redirecting from login to home");
+    return NextResponse.redirect(new URL("/", request.url));
+  }
 
   // If user is not authenticated and trying to access protected route
   if (!session) {
@@ -33,7 +40,8 @@ export const config = {
      * - /api/resource (resource forecast API - has own auth checks)
      * - /_next (Next.js internals)
      * - /favicon.ico, /robots.txt (static files)
+     * - /manifest.json, /sw.js (PWA files)
      */
-    "/((?!login|test-session|api/auth|api/setup|api/migrate|api/db-test|api/check-env|api/test-login|api/seed-permissions|api/resource|_next|favicon.ico|robots.txt).*)",
+    "/((?!login|test-session|api/auth|api/setup|api/migrate|api/db-test|api/check-env|api/test-login|api/seed-permissions|api/resource|_next|favicon.ico|robots.txt|manifest.json|sw.js|workbox-.*.js|icon-.*\\.png|.well-known).*)",
   ],
 };

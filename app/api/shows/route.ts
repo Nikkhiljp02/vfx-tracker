@@ -22,6 +22,9 @@ export async function GET() {
     if (isAdminOrCoordinator) {
       const shows = await prisma.show.findMany({
         include: {
+          _count: {
+            select: { shots: true }
+          },
           shots: {
             include: {
               tasks: {
@@ -55,6 +58,9 @@ export async function GET() {
       where: { userId: user.id },
       include: { show: {
         include: {
+          _count: {
+            select: { shots: true }
+          },
           shots: {
             include: {
               tasks: {
