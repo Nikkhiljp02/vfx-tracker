@@ -117,7 +117,6 @@ export default function ResourceForecastView() {
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedCells, setCopiedCells] = useState<Map<string, string>>(new Map());
-  const [selectedShift, setSelectedShift] = useState<string>('all');
   const [fillHandleActive, setFillHandleActive] = useState(false);
   const [fillHandleCell, setFillHandleCell] = useState<{ memberId: string; dateIndex: number } | null>(null);
 
@@ -134,9 +133,6 @@ export default function ResourceForecastView() {
     }
     return cols;
   }, [startDate, dateRange]);
-
-  // Weekend working state
-  const [workingWeekends, setWorkingWeekends] = useState<Set<string>>(new Set());
 
   // Load weekend working from allocations and localStorage
   useEffect(() => {

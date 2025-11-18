@@ -84,8 +84,6 @@ export default function AllocationListView() {
   }, [members, rawAllocations, selectedDepartment]);
 
   // No more manual loading - React Query handles everything!
-    }
-  };
 
   const filteredAllocations = allocations.filter(alloc => {
     if (!searchQuery) return true;
