@@ -288,8 +288,8 @@ export default function ResourceForecastView() {
 
   // Bulk operations
   const handleBulkReassign = async (fromMemberId: string, toMemberId: string, dateIndices: number[]) => {
-    const fromMember = members.find(m => m.id === fromMemberId);
-    const toMember = members.find(m => m.id === toMemberId);
+    const fromMember = members.find((m: any) => m.id === fromMemberId);
+    const toMember = members.find((m: any) => m.id === toMemberId);
     
     if (!fromMember || !toMember) return;
 
@@ -302,12 +302,12 @@ export default function ResourceForecastView() {
       if (dailyAlloc.allocations.length === 0) continue;
 
       // Delete from source
-      await Promise.all(dailyAlloc.allocations.map(alloc =>
+      await Promise.all(dailyAlloc.allocations.map((alloc: any) =>
         fetch(`/api/resource/allocations/${alloc.id}`, { method: 'DELETE' })
       ));
 
       // Create for target
-      await Promise.all(dailyAlloc.allocations.map(alloc =>
+      await Promise.all(dailyAlloc.allocations.map((alloc: any) =>
         fetch('/api/resource/allocations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -335,7 +335,7 @@ export default function ResourceForecastView() {
 
   // Bulk copy (copy allocation pattern from one week to another)
   const handleBulkCopyWeek = async (sourceMemberId: string, sourceStartDate: Date, targetStartDate: Date) => {
-    const member = members.find(m => m.id === sourceMemberId);
+    const member = members.find((m: any) => m.id === sourceMemberId);
     if (!member) return;
 
     saveToHistory();
@@ -351,7 +351,7 @@ export default function ResourceForecastView() {
       const dailyAlloc = getDailyAllocation(member, sourceDate);
       
       // Create same allocations for target date
-      await Promise.all(dailyAlloc.allocations.map(alloc =>
+      await Promise.all(dailyAlloc.allocations.map((alloc: any) =>
         fetch('/api/resource/allocations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -496,7 +496,7 @@ export default function ResourceForecastView() {
   const handleFillHandleMouseEnter = (member: ResourceWithAllocations, dateIndex: number) => {
     if (!fillHandleActive || !fillHandleCell) return;
 
-    const sourceMember = members.find(m => m.id === fillHandleCell.memberId);
+    const sourceMember = members.find((m: any) => m.id === fillHandleCell.memberId);
     if (!sourceMember) return;
 
     const sourceDate = dates[fillHandleCell.dateIndex];
@@ -625,7 +625,7 @@ export default function ResourceForecastView() {
     const pastePromises = Array.from(selectedCells).map(cellKey => {
       const [memberId, dateIndexStr] = cellKey.split('-');
       const dateIndex = parseInt(dateIndexStr);
-      const member = members.find(m => m.id === memberId);
+      const member = members.find((m: any) => m.id === memberId);
       
       if (member && copiedCells.size === 1) {
         const value = Array.from(copiedCells.values())[0];
@@ -647,14 +647,14 @@ export default function ResourceForecastView() {
     const leavePromises = Array.from(selectedCells).map(async (cellKey) => {
       const [memberId, dateIndexStr] = cellKey.split('-');
       const dateIndex = parseInt(dateIndexStr);
-      const member = members.find(m => m.id === memberId);
+      const member = members.find((m: any) => m.id === memberId);
       const date = dates[dateIndex];
       
       if (member && date) {
         const dailyAlloc = getDailyAllocation(member, date);
         
         // Delete existing in parallel
-        await Promise.all(dailyAlloc.allocations.map(alloc =>
+        await Promise.all(dailyAlloc.allocations.map((alloc: any) =>
           fetch(`/api/resource/allocations/${alloc.id}`, {
             method: 'DELETE',
             headers: { 'Cache-Control': 'no-cache' }
