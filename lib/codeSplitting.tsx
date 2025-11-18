@@ -1,14 +1,17 @@
 // Code splitting utilities for lazy loading large components
 'use client';
 
-import React, { ComponentType, lazy, Suspense } from 'react';
+import React from 'react';
+import { ComponentType, lazy, Suspense } from 'react';
 
 // Loading component for suspense fallback
-export const ComponentLoader = () => (
-  <div className="flex items-center justify-center p-8">
-    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-  </div>
-);
+export const ComponentLoader: React.FC = () => {
+  return (
+    <div className="flex items-center justify-center p-8">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+    </div>
+  );
+};
 
 // Higher-order component for lazy loading with suspense
 export function lazyLoad<T extends ComponentType<any>>(
