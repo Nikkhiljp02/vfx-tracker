@@ -71,17 +71,17 @@ export default function ResourceDashboard() {
 
   // Calculate overall statistics
   const overallStats = useMemo(() => {
-    const activeMembers = members.filter(m => m.isActive);
+    const activeMembers = members.filter((m: any) => m.isActive);
     
     // Count actual working days including weekend working allocations
     const workingDaysSet = new Set<string>();
-    weekDays.forEach(day => {
+    weekDays.forEach((day: Date) => {
       const dateStr = format(day, 'yyyy-MM-dd');
       const isSat = isSaturday(day);
       const isSun = isSunday(day);
       
       // Check if any allocation is marked as weekend working for this date
-      const hasWeekendWorking = allocations.some(a => 
+      const hasWeekendWorking = allocations.some((a: any) => 
         a.allocationDate === dateStr && a.isWeekendWorking && !a.isLeave
       );
       
@@ -99,7 +99,7 @@ export default function ResourceDashboard() {
     let allocatedManDays = 0;
     let leaveDays = 0;
 
-    allocations.forEach(alloc => {
+    allocations.forEach((alloc: any) => {
       if (alloc.isLeave) {
         leaveDays += alloc.manDays;
       } else {
@@ -126,16 +126,16 @@ export default function ResourceDashboard() {
 
   // Calculate department-wise statistics
   const departmentStats = useMemo(() => {
-    const departments = Array.from(new Set(members.map(m => m.department))).sort();
+    const departments = Array.from(new Set(members.map((m: any) => m.department))).sort() as string[];
     
     // Use same working days calculation as overall stats
     const workingDaysSet = new Set<string>();
-    weekDays.forEach(day => {
+    weekDays.forEach((day: Date) => {
       const dateStr = format(day, 'yyyy-MM-dd');
       const isSat = isSaturday(day);
       const isSun = isSunday(day);
       
-      const hasWeekendWorking = allocations.some(a => 
+      const hasWeekendWorking = allocations.some((a: any) => 
         a.allocationDate === dateStr && a.isWeekendWorking && !a.isLeave
       );
       
@@ -148,16 +148,16 @@ export default function ResourceDashboard() {
     
     const workingDaysCount = workingDaysSet.size;
 
-    return departments.map(dept => {
-      const deptMembers = members.filter(m => m.department === dept && m.isActive);
+    return departments.map((dept: string) => {
+      const deptMembers = members.filter((m: any) => m.department === dept && m.isActive);
       const totalCapacity = deptMembers.length * workingDaysCount;
 
       let allocatedManDays = 0;
       let leaveDays = 0;
 
-      deptMembers.forEach(member => {
-        const memberAllocs = allocations.filter(a => a.resourceId === member.id);
-        memberAllocs.forEach(alloc => {
+      deptMembers.forEach((member: any) => {
+        const memberAllocs = allocations.filter((a: any) => a.resourceId === member.id);
+        memberAllocs.forEach((alloc: any) => {
           if (alloc.isLeave) {
             leaveDays += alloc.manDays;
           } else {
@@ -193,7 +193,7 @@ export default function ResourceDashboard() {
       departmentBreakdown: Map<string, number>;
     }>();
 
-    allocations.forEach(alloc => {
+    allocations.forEach((alloc: any) => {
       if (alloc.isLeave || !alloc.showName || alloc.showName === 'Default') return;
 
       if (!showMap.has(alloc.showName)) {
@@ -215,7 +215,7 @@ export default function ResourceDashboard() {
       
       show.uniqueArtists.add(alloc.resourceId);
 
-      const member = members.find(m => m.id === alloc.resourceId);
+      const member = members.find((m: any) => m.id === alloc.resourceId);
       if (member) {
         const currentDept = show.departmentBreakdown.get(member.department) || 0;
         show.departmentBreakdown.set(member.department, currentDept + alloc.manDays);
@@ -238,16 +238,16 @@ export default function ResourceDashboard() {
 
   // Calculate efficiency metrics
   const efficiencyMetrics = useMemo(() => {
-    const totalPossibleCapacity = members.filter(m => m.isActive).length * 7; // Full week
+    const totalPossibleCapacity = members.filter((m: any) => m.isActive).length * 7; // Full week
     const actualWorkingCapacity = overallStats.adjustedCapacity;
     const utilizationRate = totalPossibleCapacity > 0 
       ? (overallStats.allocatedManDays / totalPossibleCapacity) * 100 
       : 0;
 
-    const weekendWorkingDays = allocations.filter(a => {
+    const weekendWorkingDays = allocations.filter((a: any) => {
       const date = new Date(a.allocationDate);
       return a.isWeekendWorking && !a.isLeave && (isSaturday(date) || isSunday(date));
-    }).reduce((sum, a) => sum + a.manDays, 0);
+    }).reduce((sum: number, a: any) => sum + a.manDays, 0);
 
     return {
       utilizationRate,
@@ -264,28 +264,28 @@ export default function ResourceDashboard() {
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
     const isWeekendDay = isWeekend(selectedDate);
 
-    let filteredMembers = members.filter(m => m.isActive);
+    let filteredMembers = members.filter((m: any) => m.isActive);
 
     if (selectedDepartment !== 'all') {
-      filteredMembers = filteredMembers.filter(m => m.department === selectedDepartment);
+      filteredMembers = filteredMembers.filter((m: any) => m.department === selectedDepartment);
     }
 
     if (selectedShift !== 'all') {
-      filteredMembers = filteredMembers.filter(m => m.shift === selectedShift);
+      filteredMembers = filteredMembers.filter((m: any) => m.shift === selectedShift);
     }
 
-    return filteredMembers.map(member => {
-      const dayAllocs = allocations.filter(
-        a => a.resourceId === member.id && a.allocationDate === dateStr
+    return filteredMembers.map((member: any) => {
+      const dayAllocs = allocations.filter((a: any) =>
+        a.resourceId === member.id && a.allocationDate === dateStr
       );
 
-      const isOnLeave = dayAllocs.some(a => a.isLeave);
-      const totalAllocated = dayAllocs.reduce((sum, a) => sum + (a.isLeave ? 0 : a.manDays), 0);
+      const isOnLeave = dayAllocs.some((a: any) => a.isLeave);
+      const totalAllocated = dayAllocs.reduce((sum: number, a: any) => sum + (a.isLeave ? 0 : a.manDays), 0);
       const availability = isOnLeave ? 0 : Math.max(0, 1 - totalAllocated);
 
       const allocatedTo = dayAllocs
-        .filter(a => !a.isLeave && a.showName && a.shotName)
-        .map(a => `${a.showName} - ${a.shotName}`)
+        .filter((a: any) => !a.isLeave && a.showName && a.shotName)
+        .map((a: any) => `${a.showName} - ${a.shotName}`)
         .join(', ');
 
       return {
@@ -295,11 +295,11 @@ export default function ResourceDashboard() {
         allocatedTo: allocatedTo || 'N/A',
         totalAllocated,
       };
-    }).filter(m => m.availability >= minAvailability / 100);
+    }).filter((m: any) => m.availability >= minAvailability / 100);
   }, [members, allocations, selectedDate, selectedDepartment, selectedShift, minAvailability]);
 
-  const departments = Array.from(new Set(members.map(m => m.department))).sort();
-  const shifts = Array.from(new Set(members.map(m => m.shift))).sort();
+  const departments = Array.from(new Set(members.map((m: any) => m.department))).sort() as string[];
+  const shifts = Array.from(new Set(members.map((m: any) => m.shift))).sort() as string[];
 
   const handlePreviousWeek = () => setCurrentWeekStart(subWeeks(currentWeekStart, 1));
   const handleNextWeek = () => setCurrentWeekStart(addWeeks(currentWeekStart, 1));
@@ -723,7 +723,7 @@ export default function ResourceDashboard() {
                         </td>
                       </tr>
                     ) : (
-                      availableResources.map((resource, idx) => (
+                      availableResources.map((resource: any, idx: number) => (
                         <tr key={resource.id} className={`border-b border-gray-700/30 hover:bg-gray-800/50 transition-colors ${idx % 2 === 0 ? 'bg-gray-900/30' : ''}`}>
                           <td className="px-4 py-4 text-sm text-gray-300 font-medium">{resource.empId}</td>
                           <td className="px-4 py-4 text-sm text-gray-300">{resource.department}</td>
