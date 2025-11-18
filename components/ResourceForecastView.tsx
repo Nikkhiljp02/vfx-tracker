@@ -743,21 +743,17 @@ export default function ResourceForecastView() {
     const date = dates[dateIndex];
     const dailyAlloc = getDailyAllocation(member, date);
     
-    // Delete ALL existing allocations (including Leave and Idle)
+    // Delete ALL existing allocations using React Query mutation
     const allocsToDelete = dailyAlloc.allocations;
     
     if (allocsToDelete.length > 0) {
       await Promise.all(allocsToDelete.map((alloc: any) =>
-        fetch(`/api/resource/allocations/${alloc.id}`, {
-          method: 'DELETE',
-          headers: { 'Cache-Control': 'no-cache' }
-        })
+        deleteAllocation.mutateAsync(alloc.id)
       ));
     }
 
     if (!value.trim()) {
-      // Just delete, no new allocations - React Query will refetch
-      triggerRefresh();
+      // Just delete, no new allocations - React Query automatically refetches
       return;
     }
 
@@ -816,31 +812,25 @@ export default function ResourceForecastView() {
       }
     }
 
-    // Create new allocations in parallel (only for validated shots)
+    // Create new allocations using React Query mutation
     const isWeekendDate = isWeekend(date);
     const isWorkingWeekend = isWeekendDate && isWorkingDay(date);
     
-    const createPromises = validatedShots.map(({ shotName, showName, manDays }) =>
-      fetch('/api/resource/allocations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          resourceId: member.id,
-          showName,
-          shotName,
-          allocationDate: date.toISOString(),
-          manDays,
-          isLeave: false,
-          isIdle: false,
-          isWeekendWorking: isWorkingWeekend,
-        }),
-      }).then(r => r.ok ? r.json() : null)
-    );
+    const allocations = validatedShots.map(({ shotName, showName, manDays }) => ({
+      resourceId: member.id,
+      showName,
+      shotName,
+      allocationDate: date.toISOString(),
+      manDays,
+      isLeave: false,
+      isIdle: false,
+      isWeekendWorking: isWorkingWeekend,
+    }));
 
-    const createdAllocs = (await Promise.all(createPromises)).filter(Boolean) as ResourceAllocation[];
-
-    // React Query will refetch and update cache automatically
-    triggerRefresh();
+    // Use bulk mutation for better performance
+    await bulkAddAllocations.mutateAsync(allocations);
+    
+    // React Query automatically refetches and updates cache
             
   };
 
