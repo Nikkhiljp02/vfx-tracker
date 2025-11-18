@@ -606,7 +606,7 @@ export default function ResourceForecastView() {
     for (const cellKey of Array.from(selectedCells)) {
       const [memberId, dateIndexStr] = cellKey.split('-');
       const dateIndex = parseInt(dateIndexStr);
-      const member = members.find(m => m.id === memberId);
+      const member = members.find((m: any) => m.id === memberId);
       const date = dates[dateIndex];
       
       if (member && date) {
