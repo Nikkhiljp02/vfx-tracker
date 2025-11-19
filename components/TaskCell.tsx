@@ -31,6 +31,12 @@ export default function TaskCell({ task }: TaskCellProps) {
   const statusColor = statusOption?.colorCode || '#6B7280';
 
   const handleSave = async () => {
+    // Validate internal task status - cannot be AWF or C APP
+    if (task.isInternal && (editedTask.status === 'AWF' || editedTask.status === 'C APP')) {
+      alert('Internal dependency tasks cannot be marked as AWF or C APP.\nAllowed statuses: YTS, WIP, Int App, OMIT, HOLD');
+      return;
+    }
+
     setIsSaving(true);
     
     // Optimistic update - update UI immediately
@@ -49,16 +55,29 @@ export default function TaskCell({ task }: TaskCellProps) {
     setIsEditing(false);
     
     try {
+      // Prepare request body
+      const requestBody: any = {
+        status: editedTask.status,
+        leadName: editedTask.leadName,
+        bidMds: editedTask.bidMds,
+        internalEta: editedTask.internalEta,
+        clientEta: editedTask.clientEta,
+      };
+
+      // Only include deliveredVersion and deliveredDate if:
+      // 1. Status is already AWF (editing existing AWF task)
+      // 2. OR they have been explicitly modified from the original task values
+      if (task.status === 'AWF' || editedTask.deliveredVersion !== task.deliveredVersion) {
+        requestBody.deliveredVersion = editedTask.deliveredVersion;
+      }
+      if (task.status === 'AWF' || editedTask.deliveredDate !== task.deliveredDate) {
+        requestBody.deliveredDate = editedTask.deliveredDate;
+      }
+
       const response = await fetch(`/api/tasks/${task.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          status: editedTask.status,
-          leadName: editedTask.leadName,
-          bidMds: editedTask.bidMds,
-          internalEta: editedTask.internalEta,
-          clientEta: editedTask.clientEta,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -95,17 +114,30 @@ export default function TaskCell({ task }: TaskCellProps) {
       <div className="p-2 bg-white border-2 border-blue-500 rounded space-y-2">
         {/* Status */}
         <div>
-          <label className="block text-xs font-medium text-gray-700">Status</label>
+          <label className="block text-xs font-medium text-gray-700">
+            Status
+            {task.isInternal && (
+              <span className="ml-1 text-[10px] text-blue-600">(Internal - Limited)</span>
+            )}
+          </label>
           <select
             value={editedTask.status}
             onChange={(e) => setEditedTask({ ...editedTask, status: e.target.value })}
             className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
           >
-            {statusOptions.map((status) => (
-              <option key={status.id} value={status.statusName}>
-                {status.statusName}
-              </option>
-            ))}
+            {statusOptions.map((status) => {
+              const isDisallowed = task.isInternal && (status.statusName === 'AWF' || status.statusName === 'C APP');
+              return (
+                <option 
+                  key={status.id} 
+                  value={status.statusName}
+                  disabled={isDisallowed}
+                  style={{ color: isDisallowed ? '#9CA3AF' : 'inherit' }}
+                >
+                  {status.statusName}{isDisallowed ? ' (Not allowed for internal)' : ''}
+                </option>
+              );
+            })}
           </select>
         </div>
 
@@ -152,6 +184,29 @@ export default function TaskCell({ task }: TaskCellProps) {
             type="date"
             value={editedTask.clientEta ? new Date(editedTask.clientEta).toISOString().split('T')[0] : ''}
             onChange={(e) => setEditedTask({ ...editedTask, clientEta: e.target.value ? new Date(e.target.value) : null })}
+            className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
+
+        {/* Delivered Version */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700">Delivered Version</label>
+          <input
+            type="text"
+            value={editedTask.deliveredVersion || ''}
+            onChange={(e) => setEditedTask({ ...editedTask, deliveredVersion: e.target.value })}
+            placeholder="v001"
+            className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
+
+        {/* Delivered Date */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700">Delivered Date</label>
+          <input
+            type="date"
+            value={editedTask.deliveredDate ? new Date(editedTask.deliveredDate).toISOString().split('T')[0] : ''}
+            onChange={(e) => setEditedTask({ ...editedTask, deliveredDate: e.target.value ? new Date(e.target.value) : null })}
             className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
           />
         </div>

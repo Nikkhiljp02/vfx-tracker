@@ -35,6 +35,8 @@ export default function ActivityLogModal({ isOpen, onClose }: ActivityLogModalPr
   const [filterType, setFilterType] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [undoing, setUndoing] = useState<string | null>(null);
+  const [selectedLogs, setSelectedLogs] = useState<string[]>([]);
+  const [bulkUndoing, setBulkUndoing] = useState(false);
   
   // Check if user has edit permission (only Admin and Coordinator can undo)
   const canUndo = useMemo(() => {
@@ -82,9 +84,11 @@ export default function ActivityLogModal({ isOpen, onClose }: ActivityLogModalPr
       }
       const data = await response.json();
       
-      // Ensure data is an array
+      // Handle both array format (legacy) and object format with logs property
       if (Array.isArray(data)) {
         setLogs(data);
+      } else if (data && Array.isArray(data.logs)) {
+        setLogs(data.logs);
       } else {
         console.error('Unexpected response format:', data);
         setLogs([]);
@@ -94,6 +98,85 @@ export default function ActivityLogModal({ isOpen, onClose }: ActivityLogModalPr
       setLogs([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Get undoable logs (not reversed, and either UPDATE or DELETE)
+  const undoableLogs = useMemo(() => {
+    return filteredLogs.filter(log => 
+      !log.isReversed && (log.actionType === 'UPDATE' || log.actionType === 'DELETE')
+    );
+  }, [filteredLogs]);
+
+  // Toggle single log selection
+  const toggleLogSelection = (logId: string) => {
+    setSelectedLogs(prev => 
+      prev.includes(logId) 
+        ? prev.filter(id => id !== logId)
+        : [...prev, logId]
+    );
+  };
+
+  // Toggle all logs selection
+  const toggleSelectAll = () => {
+    if (selectedLogs.length === undoableLogs.length) {
+      setSelectedLogs([]);
+    } else {
+      setSelectedLogs(undoableLogs.map(log => log.id));
+    }
+  };
+
+  // Bulk undo selected logs
+  const handleBulkUndo = async () => {
+    if (selectedLogs.length === 0) return;
+
+    const confirmMessage = `Are you sure you want to undo ${selectedLogs.length} selected change(s)?`;
+    if (!confirm(confirmMessage)) return;
+
+    setBulkUndoing(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    try {
+      // Process each selected log
+      for (const logId of selectedLogs) {
+        try {
+          const response = await fetch(`/api/activity-logs/${logId}/undo`, {
+            method: 'POST',
+          });
+
+          if (response.ok) {
+            successCount++;
+          } else {
+            failCount++;
+          }
+        } catch (error) {
+          console.error(`Failed to undo log ${logId}:`, error);
+          failCount++;
+        }
+      }
+
+      // Show result message
+      if (successCount > 0) {
+        showSuccess(`Successfully undone ${successCount} change(s)${failCount > 0 ? `, ${failCount} failed` : ''}`);
+      }
+      if (failCount > 0 && successCount === 0) {
+        showError(`Failed to undo ${failCount} change(s)`);
+      }
+
+      // Refresh logs and shows
+      fetchLogs();
+      const showsRes = await fetch('/api/shows');
+      const showsData = await showsRes.json();
+      setShows(showsData);
+
+      // Clear selection
+      setSelectedLogs([]);
+    } catch (error) {
+      console.error('Bulk undo failed:', error);
+      showError('Bulk undo operation failed');
+    } finally {
+      setBulkUndoing(false);
     }
   };
 
@@ -228,6 +311,36 @@ export default function ActivityLogModal({ isOpen, onClose }: ActivityLogModalPr
                 Refresh
               </button>
             </div>
+
+            {/* Bulk Actions Toolbar */}
+            {canUndo && undoableLogs.length > 0 && (
+              <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedLogs.length === undoableLogs.length && undoableLogs.length > 0}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    {selectedLogs.length > 0 
+                      ? `${selectedLogs.length} selected`
+                      : 'Select all undoable logs'
+                    }
+                  </span>
+                </div>
+                {selectedLogs.length > 0 && (
+                  <button
+                    onClick={handleBulkUndo}
+                    disabled={bulkUndoing}
+                    className="flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors disabled:opacity-50"
+                  >
+                    <RotateCcw size={16} />
+                    {bulkUndoing ? 'Processing...' : `Undo ${selectedLogs.length} Selected`}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -254,9 +367,22 @@ export default function ActivityLogModal({ isOpen, onClose }: ActivityLogModalPr
                   className={`
                     border border-gray-200 rounded-lg p-4 
                     ${log.isReversed ? 'bg-gray-50 opacity-60' : 'bg-white'}
+                    ${selectedLogs.includes(log.id) ? 'ring-2 ring-blue-500' : ''}
                   `}
                 >
                   <div className="flex items-start justify-between">
+                    {/* Checkbox for bulk selection */}
+                    {canUndo && !log.isReversed && (log.actionType === 'UPDATE' || log.actionType === 'DELETE') && (
+                      <div className="mr-3 pt-1">
+                        <input
+                          type="checkbox"
+                          checked={selectedLogs.includes(log.id)}
+                          onChange={() => toggleLogSelection(log.id)}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                      </div>
+                    )}
+
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <span className={`px-2 py-1 rounded text-xs font-semibold ${getActionColor(log.actionType)}`}>

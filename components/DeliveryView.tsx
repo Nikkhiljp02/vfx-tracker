@@ -17,20 +17,27 @@ export default function DeliveryView() {
   const { shows, statusOptions } = useVFXStore();
   const { data: session } = useSession();
   const [selectedDepartment, setSelectedDepartment] = useState<string>('ALL');
-  const [deliveryTypes, setDeliveryTypes] = useState<DeliveryType[]>(['internalEta', 'clientEta']);
-  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
-  const [customDateFrom, setCustomDateFrom] = useState<string>('');
-  const [customDateTo, setCustomDateTo] = useState<string>('');
+  
+  // Set default to Today's Delivery preset
+  const today = new Date().toISOString().split('T')[0];
+  const [deliveryTypes, setDeliveryTypes] = useState<DeliveryType[]>(['clientEta']);
+  const [dateFilter, setDateFilter] = useState<DateFilter>('custom');
+  const [customDateFrom, setCustomDateFrom] = useState<string>(today);
+  const [customDateTo, setCustomDateTo] = useState<string>(today);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [showSendDeliveryModal, setShowSendDeliveryModal] = useState(false);
   
-  // Additional filters
+  // Additional filters - Default to Today's Delivery preset
   const [selectedShows, setSelectedShows] = useState<string[]>([]);
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>(['YTS', 'WIP', 'Int App', 'C KB']);
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [selectedTypes, setSelectedTypes] = useState<string[]>([]); // Internal/Main filter
+  const [selectedTags, setSelectedTags] = useState<string[]>(['Fresh', 'Additional']);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>(['Main']); // Internal/Main filter
+  const [excludedStatuses] = useState<string[]>(['AWF', 'C APP', 'OMIT', 'HOLD']); // Statuses to exclude by default
+  const [showDeliveredShots, setShowDeliveredShots] = useState(false); // Filter for delivered shots
+  const [deliveredDateFrom, setDeliveredDateFrom] = useState<string>(''); // Delivered date range from
+  const [deliveredDateTo, setDeliveredDateTo] = useState<string>(''); // Delivered date range to
 
   // Check if user has permission to send deliveries (ADMIN or COORDINATOR only)
   const canSendDelivery = useMemo(() => {
@@ -75,6 +82,40 @@ export default function DeliveryView() {
     });
     return Array.from(leads).sort();
   }, [shows]);
+
+  // Clear all filters function
+  const clearAllFilters = () => {
+    setSelectedShows([]);
+    setSelectedStatuses([]);
+    setSelectedLeads([]);
+    setSelectedTags([]);
+    setSelectedTypes([]);
+    setDateFilter('all');
+    setDeliveryTypes(['internalEta', 'clientEta']);
+    setCustomDateFrom('');
+    setCustomDateTo('');
+    setShowDeliveredShots(false);
+    setDeliveredDateFrom('');
+    setDeliveredDateTo('');
+  };
+
+  // Apply "Today's Delivery" preset filter
+  const applyTodaysDeliveryPreset = () => {
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    
+    // Set filters according to the preset
+    setDeliveryTypes(['clientEta']); // Only Client ETA
+    setDateFilter('custom');
+    setCustomDateFrom(todayStr);
+    setCustomDateTo(todayStr);
+    setSelectedShows([]); // All shows
+    setSelectedStatuses(['YTS', 'WIP', 'Int App', 'C KB']); // Specific statuses
+    setSelectedLeads([]); // All leads
+    setSelectedTypes(['Main']); // Only Main type
+    setSelectedTags(['Fresh', 'Additional']); // Both tags
+    setShowFilterPanel(false);
+  };
 
   // Helper function to check if date matches filter
   const matchesDateFilter = (date: Date | null, deliveryType: DeliveryType) => {
@@ -148,9 +189,47 @@ export default function DeliveryView() {
             return;
           }
 
-          // Apply status filter
-          if (selectedStatuses.length > 0 && !selectedStatuses.includes(task.status)) {
-            return;
+          // Apply delivered shots filter
+          if (showDeliveredShots) {
+            // Only show delivered shots (AWF, C APP)
+            if (!['AWF', 'C APP'].includes(task.status)) {
+              return;
+            }
+            
+            // Apply delivered date range filter
+            if (task.deliveredDate) {
+              const deliveredDate = new Date(task.deliveredDate);
+              deliveredDate.setHours(0, 0, 0, 0);
+              
+              if (deliveredDateFrom) {
+                const fromDate = new Date(deliveredDateFrom);
+                fromDate.setHours(0, 0, 0, 0);
+                if (deliveredDate < fromDate) {
+                  return;
+                }
+              }
+              
+              if (deliveredDateTo) {
+                const toDate = new Date(deliveredDateTo);
+                toDate.setHours(23, 59, 59, 999);
+                if (deliveredDate > toDate) {
+                  return;
+                }
+              }
+            }
+          } else {
+            // Apply normal status filter when not showing delivered shots
+            if (selectedStatuses.length > 0) {
+              // If specific statuses are selected, only show those
+              if (!selectedStatuses.includes(task.status)) {
+                return;
+              }
+            } else {
+              // If no statuses are selected, exclude the default excluded statuses (AWF, C APP, OMIT, HOLD)
+              if (excludedStatuses.includes(task.status)) {
+                return;
+              }
+            }
           }
 
           // Apply lead filter
@@ -194,7 +273,7 @@ export default function DeliveryView() {
       const bDate = new Date(b.internalEta || b.clientEta || '9999-12-31');
       return aDate.getTime() - bDate.getTime();
     });
-  }, [shows, selectedDepartment, deliveryTypes, dateFilter, customDateFrom, customDateTo, selectedShows, selectedStatuses, selectedLeads, selectedTags, selectedTypes]);
+  }, [shows, selectedDepartment, deliveryTypes, dateFilter, customDateFrom, customDateTo, selectedShows, selectedStatuses, selectedLeads, selectedTags, selectedTypes, showDeliveredShots, deliveredDateFrom, deliveredDateTo]);
 
   // Apply search filter to delivery items
   const filteredDeliveryItems = useMemo(() => {
@@ -329,7 +408,8 @@ export default function DeliveryView() {
 
   const hasActiveFilters = selectedShows.length > 0 || selectedStatuses.length > 0 || 
                           selectedLeads.length > 0 || selectedTags.length > 0 || 
-                          selectedTypes.length > 0 || dateFilter !== 'all' || deliveryTypes.length < 2;
+                          selectedTypes.length > 0 || dateFilter !== 'all' || deliveryTypes.length < 2 ||
+                          showDeliveredShots || deliveredDateFrom || deliveredDateTo;
 
   return (
     <div className="space-y-4">
@@ -341,6 +421,16 @@ export default function DeliveryView() {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Today's Delivery Preset Button */}
+          <button
+            onClick={applyTodaysDeliveryPreset}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            title="Filter today's client deliveries (YTS, WIP, Int App, C KB)"
+          >
+            <Calendar size={18} />
+            Today's Delivery
+          </button>
+
           {/* Export button */}
           <button
             onClick={handleExportDeliveries}
@@ -390,6 +480,18 @@ export default function DeliveryView() {
               </span>
             )}
           </button>
+
+          {/* Clear Filters button - shown when filters are active */}
+          {hasActiveFilters && (
+            <button
+              onClick={clearAllFilters}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              title="Clear all active filters"
+            >
+              <X size={18} />
+              Clear Filters
+            </button>
+          )}
         </div>
       </div>
 
@@ -422,17 +524,7 @@ export default function DeliveryView() {
             <h3 className="font-semibold text-gray-900 text-sm">Filter Options</h3>
             {hasActiveFilters && (
               <button
-                onClick={() => {
-                  setSelectedShows([]);
-                  setSelectedStatuses([]);
-                  setSelectedLeads([]);
-                  setSelectedTags([]);
-                  setSelectedTypes([]);
-                  setDateFilter('all');
-                  setDeliveryTypes(['internalEta', 'clientEta']);
-                  setCustomDateFrom('');
-                  setCustomDateTo('');
-                }}
+                onClick={clearAllFilters}
                 className="flex items-center gap-1 px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded transition-colors"
               >
                 <X size={12} />
@@ -442,6 +534,43 @@ export default function DeliveryView() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+            {/* Delivered Shots Filter */}
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Delivered Shots
+              </label>
+              <div className="space-y-1">
+                <label className="flex items-center gap-1.5 cursor-pointer hover:bg-gray-50 px-1 py-0.5 rounded">
+                  <input
+                    type="checkbox"
+                    checked={showDeliveredShots}
+                    onChange={(e) => setShowDeliveredShots(e.target.checked)}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-3 h-3"
+                  />
+                  <span className="text-xs text-gray-700">Show Only Delivered</span>
+                </label>
+              </div>
+              
+              {showDeliveredShots && (
+                <div className="mt-1.5 space-y-1.5">
+                  <input
+                    type="date"
+                    value={deliveredDateFrom}
+                    onChange={(e) => setDeliveredDateFrom(e.target.value)}
+                    placeholder="From"
+                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                  />
+                  <input
+                    type="date"
+                    value={deliveredDateTo}
+                    onChange={(e) => setDeliveredDateTo(e.target.value)}
+                    placeholder="To"
+                    className="w-full px-2 py-1 text-xs border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+              )}
+            </div>
+
             {/* Delivery Type Filter */}
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -555,23 +684,29 @@ export default function DeliveryView() {
                 Status
               </label>
               <div className="space-y-1 max-h-24 overflow-y-auto border border-gray-300 rounded-md p-1.5">
-                {statusOptions.filter(opt => opt.isActive).map(status => (
-                  <label key={status.id} className="flex items-center gap-1.5 cursor-pointer hover:bg-gray-50 px-1 py-0.5 rounded">
-                    <input
-                      type="checkbox"
-                      checked={selectedStatuses.includes(status.statusName)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedStatuses([...selectedStatuses, status.statusName]);
-                        } else {
-                          setSelectedStatuses(selectedStatuses.filter(s => s !== status.statusName));
-                        }
-                      }}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-3 h-3"
-                    />
-                    <span className="text-xs text-gray-700">{status.statusName}</span>
-                  </label>
-                ))}
+                {statusOptions.filter(opt => opt.isActive).map(status => {
+                  const isExcluded = excludedStatuses.includes(status.statusName);
+                  return (
+                    <label key={status.id} className="flex items-center gap-1.5 cursor-pointer hover:bg-gray-50 px-1 py-0.5 rounded">
+                      <input
+                        type="checkbox"
+                        checked={selectedStatuses.includes(status.statusName)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedStatuses([...selectedStatuses, status.statusName]);
+                          } else {
+                            setSelectedStatuses(selectedStatuses.filter(s => s !== status.statusName));
+                          }
+                        }}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-3 h-3"
+                      />
+                      <span className={`text-xs ${isExcluded ? 'text-gray-400 italic' : 'text-gray-700'}`}>
+                        {status.statusName}
+                        {isExcluded && <span className="ml-1 text-[10px]">(hidden by default)</span>}
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
 

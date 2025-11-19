@@ -67,6 +67,11 @@ export async function POST(request: NextRequest) {
       whereClause.department = department;
     }
 
+    // For deliveredVersion and deliveredDate, only update tasks with AWF, C APP, or C KB status
+    if (updates.deliveredVersion !== undefined || updates.deliveredDate !== undefined) {
+      whereClause.status = { in: ['AWF', 'C APP', 'C KB'] };
+    }
+
     // Fetch tasks BEFORE updating to capture old values
     const tasksBeforeUpdate = await prisma.task.findMany({
       where: whereClause,

@@ -8,6 +8,8 @@ export default function BulkActionsBar() {
   const { selectedShotIds, clearSelection, shows, shots } = useVFXStore();
   const [showETAModal, setShowETAModal] = useState(false);
   const [showLeadModal, setShowLeadModal] = useState(false);
+  const [showDeliveredDateModal, setShowDeliveredDateModal] = useState(false);
+  const [showDeliveredVersionModal, setShowDeliveredVersionModal] = useState(false);
   const [etaType, setETAType] = useState<'internal' | 'client'>('internal');
 
   // Check if user has edit permission for selected shots
@@ -28,16 +30,16 @@ export default function BulkActionsBar() {
     <>
       {/* Floating Action Bar */}
       <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 animate-slide-up">
-        <div className="bg-gray-900 text-white rounded-lg shadow-2xl border border-gray-700 px-6 py-4 flex items-center gap-4">
+        <div className="bg-gray-900 text-white rounded-lg shadow-2xl border border-gray-700 px-4 py-2 flex items-center gap-2">
           {/* Selection Count */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-            <span className="font-semibold">
-              {selectedShotIds.size} shot{selectedShotIds.size !== 1 ? 's' : ''} selected
+            <span className="text-sm font-semibold">
+              {selectedShotIds.size} shot{selectedShotIds.size !== 1 ? 's' : ''}
             </span>
           </div>
 
-          <div className="w-px h-8 bg-gray-700"></div>
+          <div className="w-px h-6 bg-gray-700"></div>
 
           {/* Action Buttons */}
           <button
@@ -45,10 +47,10 @@ export default function BulkActionsBar() {
               setETAType('internal');
               setShowETAModal(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors font-medium"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors text-sm font-medium"
           >
-            <Calendar size={18} />
-            Set Internal ETA
+            <Calendar size={16} />
+            Int ETA
           </button>
 
           <button
@@ -56,28 +58,43 @@ export default function BulkActionsBar() {
               setETAType('client');
               setShowETAModal(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors font-medium"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors text-sm font-medium"
           >
-            <Calendar size={18} />
-            Set Client ETA
+            <Calendar size={16} />
+            Client ETA
           </button>
 
           <button
             onClick={() => setShowLeadModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors font-medium"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded-lg transition-colors text-sm font-medium"
           >
-            <User size={18} />
-            Assign Lead
+            <User size={16} />
+            Lead
           </button>
 
-          <div className="w-px h-8 bg-gray-700"></div>
+          <button
+            onClick={() => setShowDeliveredDateModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors text-sm font-medium"
+          >
+            <Calendar size={16} />
+            Del. Date
+          </button>
+
+          <button
+            onClick={() => setShowDeliveredVersionModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 rounded-lg transition-colors text-sm font-medium"
+          >
+            Del. Version
+          </button>
+
+          <div className="w-px h-6 bg-gray-700"></div>
 
           {/* Clear Selection */}
           <button
             onClick={clearSelection}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-sm"
           >
-            <X size={18} />
+            <X size={16} />
             Clear
           </button>
         </div>
@@ -93,6 +110,14 @@ export default function BulkActionsBar() {
 
       {showLeadModal && (
         <BulkLeadModal onClose={() => setShowLeadModal(false)} />
+      )}
+
+      {showDeliveredDateModal && (
+        <BulkDeliveredDateModal onClose={() => setShowDeliveredDateModal(false)} />
+      )}
+
+      {showDeliveredVersionModal && (
+        <BulkDeliveredVersionModal onClose={() => setShowDeliveredVersionModal(false)} />
       )}
     </>
   );
@@ -347,6 +372,223 @@ function BulkLeadModal({ onClose }: { onClose: () => void }) {
               className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
             >
               {submitting ? 'Assigning...' : 'Assign Lead'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Bulk Delivered Date Update Modal
+function BulkDeliveredDateModal({ onClose }: { onClose: () => void }) {
+  const { selectedShotIds, clearSelection, setShows } = useVFXStore();
+  const [date, setDate] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!date) {
+      setError('Please select a date');
+      return;
+    }
+
+    const confirmed = confirm(
+      `Set Delivered Date to ${new Date(date).toLocaleDateString()} for ${selectedShotIds.size} shot${selectedShotIds.size !== 1 ? 's' : ''}?`
+    );
+
+    if (!confirmed) return;
+
+    setSubmitting(true);
+
+    try {
+      const res = await fetch('/api/tasks/bulk-update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shotIds: Array.from(selectedShotIds),
+          updates: {
+            deliveredDate: new Date(date).toISOString()
+          }
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Failed to update delivered dates');
+        return;
+      }
+
+      // Fetch updated shows
+      const showsRes = await fetch('/api/shows');
+      const showsData = await showsRes.json();
+      setShows(showsData);
+      
+      clearSelection();
+      onClose();
+    } catch (err) {
+      setError('An error occurred');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
+        <h2 className="text-xl font-bold mb-4">Set Delivered Date</h2>
+
+        <p className="text-gray-600 mb-4">
+          This will update the Delivered Date for all tasks in {selectedShotIds.size} selected shot{selectedShotIds.size !== 1 ? 's' : ''}.
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Select Date
+            </label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              required
+            />
+          </div>
+
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              {error}
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+            >
+              {submitting ? 'Updating...' : 'Update Date'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Bulk Delivered Version Update Modal
+function BulkDeliveredVersionModal({ onClose }: { onClose: () => void }) {
+  const { selectedShotIds, clearSelection, setShows } = useVFXStore();
+  const [version, setVersion] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!version.trim()) {
+      setError('Please enter a version');
+      return;
+    }
+
+    const confirmed = confirm(
+      `Set Delivered Version to "${version}" for ${selectedShotIds.size} shot${selectedShotIds.size !== 1 ? 's' : ''}?`
+    );
+
+    if (!confirmed) return;
+
+    setSubmitting(true);
+
+    try {
+      const res = await fetch('/api/tasks/bulk-update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shotIds: Array.from(selectedShotIds),
+          updates: {
+            deliveredVersion: version
+          }
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Failed to update delivered versions');
+        return;
+      }
+
+      // Fetch updated shows
+      const showsRes = await fetch('/api/shows');
+      const showsData = await showsRes.json();
+      setShows(showsData);
+      
+      clearSelection();
+      onClose();
+    } catch (err) {
+      setError('An error occurred');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
+        <h2 className="text-xl font-bold mb-4">Set Delivered Version</h2>
+
+        <p className="text-gray-600 mb-4">
+          This will update the Delivered Version for all tasks in {selectedShotIds.size} selected shot{selectedShotIds.size !== 1 ? 's' : ''}.
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Version
+            </label>
+            <input
+              type="text"
+              value={version}
+              onChange={(e) => setVersion(e.target.value)}
+              placeholder="e.g., v001, v002"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+              required
+            />
+          </div>
+
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              {error}
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex-1 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+            >
+              {submitting ? 'Updating...' : 'Update Version'}
             </button>
           </div>
         </form>

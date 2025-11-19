@@ -126,6 +126,7 @@ export async function PUT(
       internalEta,
       clientEta,
       deliveredVersion,
+      deliveredDate,
     } = body;
 
     // Get current task to validate status transition
@@ -135,6 +136,14 @@ export async function PUT(
 
     if (!currentTask) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    }
+
+    // Validate internal task status - cannot be AWF or C APP
+    if (currentTask.isInternal && status && (status === 'AWF' || status === 'C APP')) {
+      return NextResponse.json(
+        { error: 'Internal dependency tasks cannot be marked as AWF or C APP. Allowed statuses: YTS, WIP, Int App, OMIT, HOLD' },
+        { status: 400 }
+      );
     }
 
     // Validate status transition if status is being changed
@@ -158,15 +167,23 @@ export async function PUT(
     // This happens when going from any status to AWF (including C KB -> AWF for kickback redelivery)
     if (status === 'AWF' && currentTask.status !== 'AWF') {
       updateData.status = status;
+      // Auto-increment version unless a specific version is provided
       updateData.deliveredVersion = deliveredVersion || incrementVersion(currentTask.deliveredVersion);
-      updateData.deliveredDate = new Date();
+      // Auto-set delivered date unless a specific date is provided
+      updateData.deliveredDate = deliveredDate ? new Date(deliveredDate) : new Date();
     } else if (status) {
       updateData.status = status;
     }
 
-    // Allow manual version update
-    if (deliveredVersion !== undefined) {
-      updateData.deliveredVersion = deliveredVersion;
+    // Allow manual version and delivered date update ONLY when status is not changing to AWF
+    // This prevents overwriting the automatic values set above
+    if (status !== 'AWF' || currentTask.status === 'AWF') {
+      if (deliveredVersion !== undefined && deliveredVersion !== null) {
+        updateData.deliveredVersion = deliveredVersion;
+      }
+      if (deliveredDate !== undefined) {
+        updateData.deliveredDate = deliveredDate ? new Date(deliveredDate) : null;
+      }
     }
 
     const task = await prisma.task.update({
