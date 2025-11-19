@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
@@ -18,36 +17,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Check if user has any active sessions in database (for force logout support)
-  // Only check on page navigations, not on API calls or static resources
-  const shouldCheckSession = !pathname.startsWith('/api') && 
-                             !pathname.startsWith('/_next') &&
-                             pathname !== '/';
+  // Note: Session validation is handled by client-side polling (useSessionValidator hook)
+  // Middleware can't check database sessions because Prisma doesn't run in Edge runtime
   
-  if (shouldCheckSession) {
-    try {
-      const user = session.user as any;
-      const activeSessions = await prisma.session.count({
-        where: {
-          userId: user.id,
-          isActive: true,
-          expires: { gt: new Date() },
-        },
-      });
-
-      if (activeSessions === 0) {
-        // Clear the session and redirect to login
-        const response = NextResponse.redirect(new URL("/login?session=expired", request.url));
-        response.cookies.delete("authjs.session-token");
-        response.cookies.delete("__Secure-authjs.session-token");
-        return response;
-      }
-    } catch (error) {
-      console.error("Session validation error:", error);
-      // Don't block access if database check fails
-    }
-  }
-
   return NextResponse.next();
 }
 

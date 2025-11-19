@@ -15,6 +15,8 @@ async function createAdmin() {
         username: 'admin',
         email: 'admin@vfxtracker.com',
         password: hashedPassword,
+        firstName: 'Admin',
+        lastName: 'User',
         role: 'ADMIN',
       },
     });
