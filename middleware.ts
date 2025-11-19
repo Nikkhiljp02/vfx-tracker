@@ -5,50 +5,49 @@ import { prisma } from "@/lib/prisma";
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  console.log("Middleware checking:", pathname);
   
   const session = await auth();
-  
-  console.log("Session found:", !!session, "User:", session?.user ? (session.user as any).username : "none", "Path:", pathname);
 
   // If user is authenticated and on login page, redirect to home
   if (session && pathname === "/login") {
-    console.log("User already authenticated, redirecting from login to home");
     return NextResponse.redirect(new URL("/", request.url));
   }
 
   // If user is not authenticated and trying to access protected route
   if (!session) {
-    console.log("No session, redirecting to login");
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
   // Check if user has any active sessions in database (for force logout support)
-  try {
-    const user = session.user as any;
-    const activeSessions = await prisma.session.count({
-      where: {
-        userId: user.id,
-        isActive: true,
-        expires: { gt: new Date() },
-      },
-    });
+  // Only check on page navigations, not on API calls or static resources
+  const shouldCheckSession = !pathname.startsWith('/api') && 
+                             !pathname.startsWith('/_next') &&
+                             pathname !== '/';
+  
+  if (shouldCheckSession) {
+    try {
+      const user = session.user as any;
+      const activeSessions = await prisma.session.count({
+        where: {
+          userId: user.id,
+          isActive: true,
+          expires: { gt: new Date() },
+        },
+      });
 
-    if (activeSessions === 0) {
-      console.log("No active sessions in database, forcing logout");
-      // Clear the session and redirect to login
-      const response = NextResponse.redirect(new URL("/login?session=expired", request.url));
-      // Clear auth cookies
-      response.cookies.delete("authjs.session-token");
-      response.cookies.delete("__Secure-authjs.session-token");
-      return response;
+      if (activeSessions === 0) {
+        // Clear the session and redirect to login
+        const response = NextResponse.redirect(new URL("/login?session=expired", request.url));
+        response.cookies.delete("authjs.session-token");
+        response.cookies.delete("__Secure-authjs.session-token");
+        return response;
+      }
+    } catch (error) {
+      console.error("Session validation error:", error);
+      // Don't block access if database check fails
     }
-  } catch (error) {
-    console.error("Error checking session status:", error);
-    // Don't block access if database check fails
   }
 
-  console.log("Session valid, allowing access");
   return NextResponse.next();
 }
 

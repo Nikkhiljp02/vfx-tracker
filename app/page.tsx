@@ -44,34 +44,40 @@ export default function Home() {
   }, [detailedView]);
 
   useEffect(() => {
-    // Load user preferences first, then fetch data
+    // Load preferences and data in parallel for faster initialization
     const initializeApp = async () => {
-      await loadPreferences();
-      await fetchAllData();
+      try {
+        await Promise.all([
+          loadPreferences(),
+          fetchAllData()
+        ]);
+      } catch (error) {
+        console.error('Error initializing app:', error);
+      }
     };
     initializeApp();
   }, [loadPreferences, fetchAllData]);
 
-  // Don't show global loading for award-sheet or resource-forecast (they handle their own loading)
-  if (loading && activeView !== 'award-sheet' && activeView !== 'resource-forecast') {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Loading VFX Tracker...</div>
-      </div>
-    );
-  }
+  // Show skeleton UI instead of blocking the entire page
+  // Note: Individual components will show their own loading states
 
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg text-red-500">Error: {error}</div>
-      </div>
-    );
-  }
+  // Show error as toast notification (handled by components)
+  useEffect(() => {
+    if (error) {
+      console.error('VFX Tracker Error:', error);
+    }
+  }, [error]);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-16 md:pb-0">
       <Header />
+      
+      {/* Show subtle loading indicator if data is loading */}
+      {loading && (
+        <div className="fixed top-16 right-4 z-50 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm animate-pulse">
+          Loading data...
+        </div>
+      )}
       
       {/* Mobile Filter Button - Floating */}
       {(activeView === 'tracker' || activeView === 'department') && (

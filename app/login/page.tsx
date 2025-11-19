@@ -28,40 +28,27 @@ export default function LoginPage() {
         setError("Invalid username or password");
         setIsLoading(false);
       } else if (result?.ok) {
-        // Login successful - track the session
-        console.log("Login successful, tracking session...");
-        try {
-          const sessionResp = await fetch("/api/auth/session");
-          const sessionData = await sessionResp.json();
-          console.log("Session data:", sessionData);
-          
-          if (sessionData?.user) {
-            console.log("Calling track-login API with:", {
-              userId: sessionData.user.id,
-              username: sessionData.user.username,
-            });
-            
-            // Track login
-            const trackResp = await fetch("/api/auth/track-login", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                userId: sessionData.user.id,
-                username: sessionData.user.username,
-              }),
-            });
-            
-            const trackResult = await trackResp.json();
-            console.log("Track-login response:", trackResult);
-          } else {
-            console.log("No user data in session");
-          }
-        } catch (trackError) {
-          console.error("Error tracking login:", trackError);
-        }
+        // Login successful - track the session in background (non-blocking)
+        console.log("Login successful, redirecting immediately...");
         
-        // Redirect to home
-        console.log("Redirecting to home...");
+        // Track login in background without waiting
+        fetch("/api/auth/session")
+          .then(res => res.json())
+          .then(sessionData => {
+            if (sessionData?.user) {
+              fetch("/api/auth/track-login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  userId: sessionData.user.id,
+                  username: sessionData.user.username,
+                }),
+              }).catch(err => console.error("Background track-login error:", err));
+            }
+          })
+          .catch(err => console.error("Background session fetch error:", err));
+        
+        // Redirect immediately without waiting
         router.push("/");
       }
     } catch (error: any) {
