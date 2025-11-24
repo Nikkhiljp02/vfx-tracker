@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { Download, Upload, Search, X, Filter, Plus, Trash2, Edit2, Save, Calendar } from 'lucide-react';
+import { Download, Upload, Search, X, Filter, Plus, Trash2, Edit2, Save, Calendar, ChevronDown } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { showSuccess, showError, showLoading, dismissToast } from '@/lib/toast';
 import { matchesShotName } from '@/lib/searchUtils';
 import { formatDisplayDate } from '@/lib/utils';
+import { useVFXStore } from '@/lib/store';
 
 interface Feedback {
   id: string;
@@ -24,9 +25,31 @@ interface Feedback {
   updatedAt: Date;
 }
 
-export default function FeedbackView() {
+interface PrefilledData {
+  showName?: string;
+  shotName?: string;
+  shotTag?: string;
+  version?: string;
+  department?: string;
+  status?: string;
+  taskId?: string;
+}
+
+interface FeedbackViewProps {
+  prefilledData?: PrefilledData;
+}
+
+interface ShotSuggestion {
+  shotName: string;
+  showName: string;
+  showId: string;
+}
+
+export default function FeedbackView({ prefilledData }: FeedbackViewProps) {
+  const { shows, shots, fetchShows, fetchShots } = useVFXStore();
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [dataLoaded, setDataLoaded] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingData, setEditingData] = useState<Partial<Feedback>>({});
@@ -40,7 +63,19 @@ export default function FeedbackView() {
     status: 'C KB',
     feedbackNotes: '',
     feedbackDate: new Date().toISOString().split('T')[0],
+    taskId: '',
   });
+
+  // Autocomplete states
+  const [shotNameInput, setShotNameInput] = useState('');
+  const [showNameInput, setShowNameInput] = useState('');
+  const [showShotDropdown, setShowShotDropdown] = useState(false);
+  const [showShowDropdown, setShowShowDropdown] = useState(false);
+  const [selectedShotIndex, setSelectedShotIndex] = useState(-1);
+
+  // Multiple shot selection (for future)
+  const [multiSelectMode, setMultiSelectMode] = useState(false);
+  const [selectedShots, setSelectedShots] = useState<Set<string>>(new Set());
 
   // Filters
   const [selectedShows, setSelectedShows] = useState<string[]>([]);
@@ -52,9 +87,42 @@ export default function FeedbackView() {
   const [dateTo, setDateTo] = useState('');
   const [showFilterPanel, setShowFilterPanel] = useState(false);
 
+  // Load data only once when feedbacks array is empty
   useEffect(() => {
-    loadFeedbacks();
+    if (!dataLoaded && feedbacks.length === 0) {
+      loadFeedbacks();
+    }
+  }, [dataLoaded, feedbacks.length]);
+
+  // Load shows and shots data from store
+  useEffect(() => {
+    if (shows.length === 0) {
+      fetchShows();
+    }
+    if (shots.length === 0) {
+      fetchShots();
+    }
   }, []);
+
+  // Handle prefilled data - auto-open modal with prefilled values
+  useEffect(() => {
+    if (prefilledData) {
+      setNewFeedback({
+        showName: prefilledData.showName || '',
+        shotName: prefilledData.shotName || '',
+        shotTag: prefilledData.shotTag || 'Fresh',
+        version: prefilledData.version || '',
+        department: prefilledData.department || '',
+        status: prefilledData.status || 'C KB',
+        feedbackNotes: '',
+        feedbackDate: new Date().toISOString().split('T')[0],
+        taskId: prefilledData.taskId || '',
+      });
+      setShotNameInput(prefilledData.shotName || '');
+      setShowNameInput(prefilledData.showName || '');
+      setShowAddModal(true);
+    }
+  }, [prefilledData]);
 
   const loadFeedbacks = async () => {
     try {
@@ -63,12 +131,105 @@ export default function FeedbackView() {
       if (!response.ok) throw new Error('Failed to load feedbacks');
       const data = await response.json();
       setFeedbacks(data);
+      setDataLoaded(true);
     } catch (error) {
       console.error('Error loading feedbacks:', error);
       showError('Failed to load feedbacks');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Get shot suggestions based on input
+  const shotSuggestions = useMemo((): ShotSuggestion[] => {
+    if (!shotNameInput.trim()) return [];
+    
+    const query = shotNameInput.toLowerCase();
+    return shots
+      .filter(shot => shot.shotName.toLowerCase().includes(query))
+      .slice(0, 10)
+      .map(shot => {
+        const show = shows.find(s => s.id === shot.showId);
+        return {
+          shotName: shot.shotName,
+          showName: show?.showName || '',
+          showId: shot.showId,
+        };
+      });
+  }, [shotNameInput, shots, shows]);
+
+  // Get show suggestions
+  const showSuggestions = useMemo(() => {
+    if (!showNameInput.trim()) return shows;
+    const query = showNameInput.toLowerCase();
+    return shows.filter(show => show.showName.toLowerCase().includes(query));
+  }, [showNameInput, shows]);
+
+  // Handle shot name input change with autocomplete
+  const handleShotNameChange = (value: string) => {
+    setShotNameInput(value);
+    setShowShotDropdown(true);
+    setSelectedShotIndex(-1);
+    setNewFeedback({ ...newFeedback, shotName: value });
+  };
+
+  // Handle show name input change with autocomplete
+  const handleShowNameChange = (value: string) => {
+    setShowNameInput(value);
+    setShowShowDropdown(true);
+    setNewFeedback({ ...newFeedback, showName: value });
+  };
+
+  // Select shot from dropdown
+  const selectShotSuggestion = (suggestion: ShotSuggestion) => {
+    setShotNameInput(suggestion.shotName);
+    setShowNameInput(suggestion.showName);
+    setNewFeedback({
+      ...newFeedback,
+      shotName: suggestion.shotName,
+      showName: suggestion.showName,
+    });
+    setShowShotDropdown(false);
+    setSelectedShotIndex(-1);
+  };
+
+  // Select show from dropdown
+  const selectShowSuggestion = (showName: string) => {
+    setShowNameInput(showName);
+    setNewFeedback({ ...newFeedback, showName });
+    setShowShowDropdown(false);
+  };
+
+  // Handle keyboard navigation in shot dropdown
+  const handleShotKeyDown = (e: React.KeyboardEvent) => {
+    if (!showShotDropdown || shotSuggestions.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedShotIndex(prev => 
+        prev < shotSuggestions.length - 1 ? prev + 1 : prev
+      );
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedShotIndex(prev => prev > 0 ? prev - 1 : -1);
+    } else if (e.key === 'Enter' && selectedShotIndex >= 0) {
+      e.preventDefault();
+      selectShotSuggestion(shotSuggestions[selectedShotIndex]);
+    } else if (e.key === 'Escape') {
+      setShowShotDropdown(false);
+      setSelectedShotIndex(-1);
+    }
+  };
+
+  // Toggle shot selection for multi-select
+  const toggleShotSelection = (shotName: string) => {
+    const newSelected = new Set(selectedShots);
+    if (newSelected.has(shotName)) {
+      newSelected.delete(shotName);
+    } else {
+      newSelected.add(shotName);
+    }
+    setSelectedShots(newSelected);
   };
 
   // Get unique values for filters
@@ -274,7 +435,12 @@ export default function FeedbackView() {
         status: 'C KB',
         feedbackNotes: '',
         feedbackDate: new Date().toISOString().split('T')[0],
+        taskId: '',
       });
+      setShotNameInput('');
+      setShowNameInput('');
+      setSelectedShots(new Set());
+      setMultiSelectMode(false);
       await loadFeedbacks();
     } catch (error: any) {
       console.error('Error adding feedback:', error);
@@ -698,32 +864,91 @@ export default function FeedbackView() {
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-gray-900">Add Feedback</h2>
-                <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">
+                <button 
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setShotNameInput('');
+                    setShowNameInput('');
+                    setShowShotDropdown(false);
+                    setShowShowDropdown(false);
+                  }} 
+                  className="text-gray-400 hover:text-gray-600"
+                >
                   <X size={24} />
                 </button>
               </div>
 
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
+                  {/* Show Name with Autocomplete Dropdown */}
+                  <div className="relative">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Show Name *</label>
-                    <input
-                      type="text"
-                      value={newFeedback.showName}
-                      onChange={(e) => setNewFeedback({ ...newFeedback, showName: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter show name"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={showNameInput}
+                        onChange={(e) => handleShowNameChange(e.target.value)}
+                        onFocus={() => setShowShowDropdown(true)}
+                        onBlur={() => setTimeout(() => setShowShowDropdown(false), 200)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        placeholder="Type to search shows..."
+                      />
+                      <ChevronDown 
+                        size={16} 
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"
+                      />
+                    </div>
+                    {showShowDropdown && showSuggestions.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        {showSuggestions.map((show) => (
+                          <button
+                            key={show.id}
+                            type="button"
+                            onClick={() => selectShowSuggestion(show.showName)}
+                            className="w-full text-left px-3 py-2 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none border-b last:border-b-0"
+                          >
+                            <div className="font-medium text-gray-900">{show.showName}</div>
+                            {show.clientName && (
+                              <div className="text-xs text-gray-500">{show.clientName}</div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div>
+
+                  {/* Shot Name with Autocomplete */}
+                  <div className="relative">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Shot Name *</label>
                     <input
                       type="text"
-                      value={newFeedback.shotName}
-                      onChange={(e) => setNewFeedback({ ...newFeedback, shotName: e.target.value })}
+                      value={shotNameInput}
+                      onChange={(e) => handleShotNameChange(e.target.value)}
+                      onKeyDown={handleShotKeyDown}
+                      onFocus={() => shotNameInput && setShowShotDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowShotDropdown(false), 200)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter shot name"
+                      placeholder="Type to search shots..."
                     />
+                    {showShotDropdown && shotSuggestions.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        {shotSuggestions.map((suggestion, index) => (
+                          <button
+                            key={`${suggestion.shotName}-${suggestion.showId}`}
+                            type="button"
+                            onClick={() => selectShotSuggestion(suggestion)}
+                            className={`w-full text-left px-3 py-2 border-b last:border-b-0 focus:outline-none ${
+                              index === selectedShotIndex 
+                                ? 'bg-blue-100' 
+                                : 'hover:bg-blue-50'
+                            }`}
+                          >
+                            <div className="font-medium text-gray-900">{suggestion.shotName}</div>
+                            <div className="text-xs text-gray-500">{suggestion.showName}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -796,9 +1021,53 @@ export default function FeedbackView() {
                   />
                 </div>
 
+                {/* Multiple Shot Selection (Future Feature - Currently Disabled) */}
+                {false && multiSelectMode && (
+                  <div className="border border-gray-300 rounded-lg p-3 max-h-48 overflow-y-auto">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm font-medium text-gray-700">Select Multiple Shots</label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMultiSelectMode(false);
+                          setSelectedShots(new Set());
+                        }}
+                        className="text-xs text-gray-500 hover:text-gray-700"
+                      >
+                        Clear Selection
+                      </button>
+                    </div>
+                    <div className="space-y-1">
+                      {shots.slice(0, 20).map((shot) => {
+                        const show = shows.find(s => s.id === shot.showId);
+                        return (
+                          <label
+                            key={shot.id}
+                            className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedShots.has(shot.shotName)}
+                              onChange={() => toggleShotSelection(shot.shotName)}
+                              className="rounded border-gray-300"
+                            />
+                            <span className="text-sm text-gray-900">{shot.shotName}</span>
+                            <span className="text-xs text-gray-500">({show?.showName})</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
                   <strong>Note:</strong> Lead name will be auto-detected based on the show, shot, tag, and department.
                   Status updates will sync across all views (Tracker, Department, Delivery, Dashboard).
+                  {shotSuggestions.length > 0 && shotNameInput && (
+                    <div className="mt-2">
+                      <strong>Tip:</strong> Press ↑↓ arrows to navigate suggestions, Enter to select, Esc to close.
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -810,7 +1079,15 @@ export default function FeedbackView() {
                   Add Feedback
                 </button>
                 <button
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setShotNameInput('');
+                    setShowNameInput('');
+                    setShowShotDropdown(false);
+                    setShowShowDropdown(false);
+                    setSelectedShots(new Set());
+                    setMultiSelectMode(false);
+                  }}
                   className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
                 >
                   Cancel
