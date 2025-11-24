@@ -128,3 +128,21 @@ export interface TrackerFilters {
     to: Date | null;
   };
 }
+
+// Feedback type
+export interface Feedback {
+  id: string;
+  showName: string;
+  shotName: string;
+  shotTag: string;
+  version: string;
+  department: string;
+  leadName: string | null;
+  status: string; // C APP, C KB, AWF
+  feedbackNotes: string | null;
+  feedbackDate: Date;
+  taskId: string | null;
+  createdBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}

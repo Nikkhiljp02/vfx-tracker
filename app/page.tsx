@@ -7,6 +7,7 @@ import TrackerTable from '@/components/TrackerTable';
 import DepartmentView from '@/components/DepartmentView';
 import DeliveryView from '@/components/DeliveryView';
 import AdvancedDashboard from '@/components/AdvancedDashboard';
+import FeedbackView from '@/components/FeedbackView';
 import ResourceForecastView from '@/components/ResourceForecastView';
 import ResourceDashboard from '@/components/ResourceDashboard';
 import AllocationListView from '@/components/AllocationListView';
@@ -30,7 +31,7 @@ export default function Home() {
     }
     return false;
   });
-  const [activeView, setActiveView] = useState<'tracker' | 'department' | 'delivery' | 'dashboard' | 'resource-forecast' | 'award-sheet'>('dashboard');
+  const [activeView, setActiveView] = useState<'tracker' | 'department' | 'delivery' | 'dashboard' | 'feedback' | 'resource-forecast' | 'award-sheet'>('dashboard');
   const [resourceTab, setResourceTab] = useState<'summary' | 'forecast' | 'allocations' | 'capacity'>('summary');
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [showUnhideModal, setShowUnhideModal] = useState(false);
@@ -144,6 +145,19 @@ export default function Home() {
             <Truck size={18} />
             Delivery
           </button>
+          <button
+            onClick={() => setActiveView('feedback')}
+            className={`
+              flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors
+              ${activeView === 'feedback'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+              }
+            `}
+          >
+            <Activity size={18} />
+            Feedback
+          </button>
           {(session?.user as any)?.role === 'ADMIN' || (session?.user as any)?.role === 'RESOURCE' ? (
             <>
               <button
@@ -180,6 +194,8 @@ export default function Home() {
           <AdvancedDashboard />
         ) : activeView === 'delivery' ? (
           <DeliveryView />
+        ) : activeView === 'feedback' ? (
+          <FeedbackView />
         ) : activeView === 'award-sheet' ? (
           <AwardSheetViewOptimized />
         ) : activeView === 'resource-forecast' ? (

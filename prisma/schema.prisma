@@ -6,9 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 // ============================================
@@ -457,4 +456,34 @@ model SavedView {
   @@index([viewType, isPublic])
   @@index([viewType, isQuickFilter])
   @@map("saved_views")
+}
+
+// Feedback Sheet - Manages client feedback on delivered shots
+model Feedback {
+  id              String   @id @default(cuid())
+  showName        String   // Show name
+  shotName        String   // Shot name
+  shotTag         String   // Fresh, Additional
+  version         String   // Version (e.g., v001, v002)
+  department      String   // Department (Comp, Paint, Roto, MMRA)
+  leadName        String?  // Auto-detected lead based on task
+  status          String   // C APP, C KB, AWF (only these 3 allowed)
+  feedbackNotes   String?  // Consolidated feedback text
+  feedbackDate    DateTime @default(now()) // When feedback was received
+  
+  // Relations (for auto-detecting lead and syncing status)
+  taskId          String?  // Link to the task for status sync
+  
+  createdBy       String?  // User who created the feedback
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([showName])
+  @@index([shotName])
+  @@index([department])
+  @@index([status])
+  @@index([leadName])
+  @@index([feedbackDate])
+  @@index([shotTag])
+  @@map("feedbacks")
 }

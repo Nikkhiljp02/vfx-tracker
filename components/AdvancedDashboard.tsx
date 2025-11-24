@@ -106,23 +106,25 @@ export default function AdvancedDashboard() {
   const { shows } = useVFXStore();
   const dashboardRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
-  const [widgets, setWidgets] = useState<Widget[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('dashboard-widgets');
-      if (saved) {
-        try {
-          return sanitizeWidgets(JSON.parse(saved));
-        } catch {
-          return defaultWidgets;
-        }
-      }
-    }
-    return defaultWidgets;
-  });
+  const [widgets, setWidgets] = useState<Widget[]>(defaultWidgets);
+  const [isClient, setIsClient] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshInterval, setRefreshInterval] = useState(30); // seconds
   const [lastRefresh, setLastRefresh] = useState(new Date());
+
+  // Load saved widgets on client-side only
+  useEffect(() => {
+    setIsClient(true);
+    const saved = localStorage.getItem('dashboard-widgets');
+    if (saved) {
+      try {
+        setWidgets(sanitizeWidgets(JSON.parse(saved)));
+      } catch {
+        setWidgets(defaultWidgets);
+      }
+    }
+  }, []);
 
   // Save widgets to localStorage
   useEffect(() => {
@@ -212,7 +214,7 @@ export default function AdvancedDashboard() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600" suppressHydrationWarning>
               Real-time analytics and insights • Last updated: {lastRefresh.toLocaleTimeString()}
             </p>
           </div>
@@ -417,7 +419,7 @@ function OverviewWidget({ title }: { title: string }) {
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <h3 className="text-lg font-bold text-gray-900 mb-4">{title}</h3>
+      <h3 className="text-lg font-bold text-gray-900 mb-4" suppressHydrationWarning>{title}</h3>
       
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard
@@ -616,7 +618,7 @@ function StatusDistributionWidget({ title }: { title: string }) {
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <h3 className="text-lg font-bold text-gray-900 mb-4">{title}</h3>
+      <h3 className="text-lg font-bold text-gray-900 mb-4" suppressHydrationWarning>{title}</h3>
       
       <div className="space-y-3">
         {distribution.map(({ status, count, percentage }) => (
@@ -670,7 +672,7 @@ function DepartmentBreakdownWidget({ title }: { title: string }) {
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+      <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2" suppressHydrationWarning>
         <PieChart size={20} className="text-purple-600" />
         {title}
       </h3>
@@ -764,7 +766,7 @@ function UpcomingDeliveriesWidget({ title }: { title: string }) {
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+      <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2" suppressHydrationWarning>
         <Calendar size={20} />
         {title}
       </h3>
@@ -822,7 +824,7 @@ function OverdueTasksWidget({ title }: { title: string }) {
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-red-200 p-6">
-      <h3 className="text-lg font-bold text-red-700 mb-4 flex items-center gap-2">
+      <h3 className="text-lg font-bold text-red-700 mb-4 flex items-center gap-2" suppressHydrationWarning>
         <AlertTriangle size={20} />
         {title} ({overdue.length})
       </h3>
@@ -955,7 +957,7 @@ function ShowProgressWidget({ title }: { title: string }) {
   
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <h3 className="text-lg font-bold text-gray-900 mb-4">{title}</h3>
+      <h3 className="text-lg font-bold text-gray-900 mb-4" suppressHydrationWarning>{title}</h3>
       
       <div className="space-y-6">
         {shows.map(show => {
@@ -1164,7 +1166,7 @@ function RecentActivityWidget({ title }: { title: string }) {
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+      <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2" suppressHydrationWarning>
         <Activity size={20} className="text-blue-600" />
         {title}
       </h3>
@@ -1272,7 +1274,7 @@ function AlertsWidget({ title }: { title: string }) {
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <h3 className="text-lg font-bold text-gray-900 mb-4">{title}</h3>
+      <h3 className="text-lg font-bold text-gray-900 mb-4" suppressHydrationWarning>{title}</h3>
       
       {alerts.length === 0 ? (
         <div className="text-center py-8">
@@ -1301,7 +1303,7 @@ function AlertsWidget({ title }: { title: string }) {
 function PlaceholderWidget({ title, description }: { title: string; description: string }) {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <h3 className="text-lg font-bold text-gray-900 mb-2">{title}</h3>
+      <h3 className="text-lg font-bold text-gray-900 mb-2" suppressHydrationWarning>{title}</h3>
       <p className="text-gray-500 text-center py-12">{description}</p>
       <p className="text-xs text-gray-400 text-center">Coming soon...</p>
     </div>
