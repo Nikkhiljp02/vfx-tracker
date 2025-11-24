@@ -103,6 +103,34 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Log feedback creation
+    try {
+      await prisma.activityLog.create({
+        data: {
+          entityType: 'Feedback',
+          entityId: feedback.id,
+          actionType: 'CREATE',
+          fieldName: null,
+          oldValue: null,
+          newValue: JSON.stringify({
+            showName: feedback.showName,
+            shotName: feedback.shotName,
+            shotTag: feedback.shotTag,
+            version: feedback.version,
+            department: feedback.department,
+            leadName: feedback.leadName,
+            status: feedback.status,
+            feedbackNotes: feedback.feedbackNotes,
+            feedbackDate: feedback.feedbackDate.toISOString(),
+          }),
+          userName: user.username || user.email || 'System',
+          userId: user.id,
+        },
+      });
+    } catch (logError) {
+      console.error('Failed to create activity log:', logError);
+    }
+
     // Update task status if task exists
     if (taskId) {
       await prisma.task.update({

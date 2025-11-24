@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
 
         if (existing) {
           // Update existing feedback
-          await prisma.feedback.update({
+          const updated = await prisma.feedback.update({
             where: { id: existing.id },
             data: {
               status,
@@ -104,10 +104,29 @@ export async function POST(request: NextRequest) {
               taskId,
             },
           });
+          
+          // Log bulk import update
+          try {
+            await prisma.activityLog.create({
+              data: {
+                entityType: 'Feedback',
+                entityId: updated.id,
+                actionType: 'UPDATE',
+                fieldName: 'bulk_import',
+                oldValue: JSON.stringify(existing),
+                newValue: JSON.stringify(updated),
+                userName: user.username || user.email || 'System',
+                userId: user.id,
+              },
+            });
+          } catch (logError) {
+            console.error('Failed to create activity log for import update:', logError);
+          }
+          
           results.updated++;
         } else {
           // Create new feedback
-          await prisma.feedback.create({
+          const created = await prisma.feedback.create({
             data: {
               showName,
               shotName,
@@ -122,6 +141,25 @@ export async function POST(request: NextRequest) {
               createdBy: user.id,
             },
           });
+          
+          // Log bulk import creation
+          try {
+            await prisma.activityLog.create({
+              data: {
+                entityType: 'Feedback',
+                entityId: created.id,
+                actionType: 'CREATE',
+                fieldName: 'bulk_import',
+                oldValue: null,
+                newValue: JSON.stringify(created),
+                userName: user.username || user.email || 'System',
+                userId: user.id,
+              },
+            });
+          } catch (logError) {
+            console.error('Failed to create activity log for import creation:', logError);
+          }
+          
           results.created++;
         }
 
