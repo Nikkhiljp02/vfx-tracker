@@ -18,7 +18,8 @@ import FilterPanel from '@/components/FilterPanel';
 import MobileNav from '@/components/MobileNav';
 import MobileFilterDrawer from '@/components/MobileFilterDrawer';
 import { ResourceProvider } from '@/lib/resourceContext';
-import { LayoutGrid, Layers, Truck, Filter, Users, Activity } from 'lucide-react';
+import { FeedbackModalProvider, useFeedbackModal } from '@/lib/feedbackModalContext';
+import { LayoutGrid, Layers, Truck, Filter, Users, Activity, X } from 'lucide-react';
 
 export default function Home() {
   const { data: session } = useSession();
@@ -70,8 +71,9 @@ export default function Home() {
   }, [error]);
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-16 md:pb-0">
-      <Header />
+    <FeedbackModalProvider>
+      <div className="min-h-screen bg-gray-50 pb-16 md:pb-0">
+        <Header />
       
       {/* Show subtle loading indicator if data is loading */}
       {loading && (
@@ -293,6 +295,42 @@ export default function Home() {
         isOpen={mobileFilterOpen} 
         onClose={() => setMobileFilterOpen(false)} 
       />
+      </div>
+      
+      {/* Feedback Modal */}
+      <FeedbackModalComponent />
+    </FeedbackModalProvider>
+  );
+}
+
+// Feedback Modal Component
+function FeedbackModalComponent() {
+  const { isOpen, closeFeedbackModal, prefilledData } = useFeedbackModal();
+  
+  if (!isOpen) return null;
+  
+  return (
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 z-[100] flex items-center justify-center p-4" 
+      onClick={closeFeedbackModal}
+    >
+      <div 
+        className="bg-white rounded-lg shadow-xl max-w-7xl w-full max-h-[90vh] overflow-hidden" 
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-blue-600 to-purple-600">
+          <h2 className="text-xl font-bold text-white">Add Feedback</h2>
+          <button 
+            onClick={closeFeedbackModal}
+            className="p-2 hover:bg-white/20 rounded-full transition-colors"
+          >
+            <X size={20} className="text-white" />
+          </button>
+        </div>
+        <div className="overflow-auto max-h-[calc(90vh-80px)]">
+          <FeedbackView prefilledData={prefilledData || undefined} />
+        </div>
+      </div>
     </div>
   );
 }

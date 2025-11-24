@@ -10,10 +10,11 @@ import BulkActionsBar from './BulkActionsBar';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 import MobileCardView from './MobileCardView';
 import { showSuccess, showError, showUndo } from '@/lib/toast';
-import { Trash2, Settings, X, ChevronRight, ChevronDown, Save, RotateCcw, Eye, EyeOff, Plus, Search, ArrowUpDown, ArrowUp, ArrowDown, Download, Copy, ChevronUp } from 'lucide-react';
+import { Trash2, Settings, X, ChevronRight, ChevronDown, Save, RotateCcw, Eye, EyeOff, Plus, Search, ArrowUpDown, ArrowUp, ArrowDown, Download, Copy, ChevronUp, MessageSquarePlus } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { supabase } from '@/lib/supabase';
 import { matchesShotName } from '@/lib/searchUtils';
+import { useFeedbackModal } from '@/lib/feedbackModalContext';
 
 interface TrackerTableProps {
   detailedView: boolean;
@@ -40,6 +41,7 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
   const { data: session } = useSession();
   const { shows, selectionMode, selectedShotIds, toggleShotSelection, selectAllShots, clearSelection, setShows } = useVFXStore();
   const { filters } = useVFXStore();
+  const { openFeedbackModal } = useFeedbackModal();
   
   // Check if user has edit permission
   const hasEditPermission = useMemo(() => {
@@ -2241,7 +2243,49 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
           </div>
         </div>
         
+        {/* Add Feedback Option */}
         <div className="border-t border-gray-200 mt-1 pt-1">
+          <button
+            onClick={() => {
+              if (selectedCells.size > 0) {
+                const firstCell = Array.from(selectedCells)[0];
+                const [taskId, dept] = firstCell.split('|');
+                
+                // Find the task and shot info
+                const allTasks = shows.flatMap(show => 
+                  (show.shots || []).flatMap(shot => 
+                    (shot.tasks || []).map(task => ({
+                      ...task,
+                      shotId: shot.id,
+                      shotName: shot.shotName,
+                      shotTag: shot.shotTag,
+                      showName: show.showName,
+                    }))
+                  )
+                );
+                
+                const task = allTasks.find(t => t.id === taskId);
+                
+                if (task) {
+                  openFeedbackModal({
+                    showName: task.showName,
+                    shotName: task.shotName,
+                    shotTag: task.shotTag,
+                    version: task.deliveredVersion || 'v001',
+                    department: dept,
+                    status: 'C KB',
+                    taskId: taskId,
+                  });
+                  setContextMenu({ x: 0, y: 0, visible: false, flipSubmenu: false });
+                }
+              }
+            }}
+            className="w-full text-left px-4 py-2 text-sm hover:bg-blue-50 flex items-center gap-2 text-blue-600"
+          >
+            <MessageSquarePlus size={16} />
+            Add Feedback
+          </button>
+          
           <button
             onClick={() => {
               setSelectedCells(new Set());

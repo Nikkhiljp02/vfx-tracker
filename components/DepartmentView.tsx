@@ -8,9 +8,10 @@ import BulkActionsBar from './BulkActionsBar';
 import ShotChatPanel from './ShotChatPanel';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 import { showSuccess, showError, showUndo } from '@/lib/toast';
-import { Search, X, ChevronRight } from 'lucide-react';
+import { Search, X, ChevronRight, MessageSquarePlus } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { matchesShotName } from '@/lib/searchUtils';
+import { useFeedbackModal } from '@/lib/feedbackModalContext';
 
 interface DepartmentViewProps {
   detailedView: boolean;
@@ -19,6 +20,7 @@ interface DepartmentViewProps {
 export default function DepartmentView({ detailedView }: DepartmentViewProps) {
   const { data: session } = useSession();
   const { shows, filters, statusOptions, setShows, selectionMode, selectedShotIds, toggleShotSelection, selectAllShots, clearSelection } = useVFXStore();
+  const { openFeedbackModal } = useFeedbackModal();
   const [selectedDepartment, setSelectedDepartment] = useState<string>('Comp');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set()); // For delete mode
@@ -761,7 +763,36 @@ export default function DepartmentView({ detailedView }: DepartmentViewProps) {
             </div>
           </div>
           
+          {/* Add Feedback Option */}
           <div className="border-t border-gray-200 mt-1 pt-1">
+            <button
+              onClick={() => {
+                if (selectedCells.size > 0) {
+                  const firstCell = Array.from(selectedCells)[0];
+                  const [taskId] = firstCell.split('|');
+                  
+                  const task = departmentTasks.find(t => t.taskId === taskId);
+                  
+                  if (task) {
+                    openFeedbackModal({
+                      showName: task.showName,
+                      shotName: task.shotName,
+                      shotTag: task.shotTag,
+                      version: task.task.deliveredVersion || 'v001',
+                      department: selectedDepartment,
+                      status: 'C KB',
+                      taskId: taskId,
+                    });
+                    setContextMenu({ x: 0, y: 0, visible: false, flipSubmenu: false });
+                  }
+                }
+              }}
+              className="w-full text-left px-4 py-2 text-sm hover:bg-blue-50 flex items-center gap-2 text-blue-600"
+            >
+              <MessageSquarePlus size={16} />
+              Add Feedback
+            </button>
+            
             <button
               onClick={() => {
                 setSelectedCells(new Set());
