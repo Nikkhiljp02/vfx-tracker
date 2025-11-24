@@ -1,6 +1,6 @@
 'use client';
 
-import { LayoutGrid, Layers, Truck, BarChart3, Users } from 'lucide-react';
+import { LayoutGrid, Layers, Truck, Users, Activity } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 
 interface MobileNavProps {
@@ -14,7 +14,7 @@ export default function MobileNav({ activeView, onViewChange }: MobileNavProps) 
   const showResourceForecast = user?.role === 'ADMIN' || user?.role === 'RESOURCE';
 
   const navItems = [
-    { id: 'dashboard' as const, icon: BarChart3, label: 'Dashboard' },
+    { id: 'dashboard' as const, icon: Activity, label: 'Dashboard' },
     { id: 'tracker' as const, icon: LayoutGrid, label: 'Tracker' },
     { id: 'department' as const, icon: Layers, label: 'Depts' },
     { id: 'delivery' as const, icon: Truck, label: 'Delivery' },

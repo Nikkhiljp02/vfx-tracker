@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react';
 import TrackerTable from '@/components/TrackerTable';
 import DepartmentView from '@/components/DepartmentView';
 import DeliveryView from '@/components/DeliveryView';
-import DashboardView from '@/components/DashboardView';
+import AdvancedDashboard from '@/components/AdvancedDashboard';
 import ResourceForecastView from '@/components/ResourceForecastView';
 import ResourceDashboard from '@/components/ResourceDashboard';
 import AllocationListView from '@/components/AllocationListView';
@@ -17,7 +17,7 @@ import FilterPanel from '@/components/FilterPanel';
 import MobileNav from '@/components/MobileNav';
 import MobileFilterDrawer from '@/components/MobileFilterDrawer';
 import { ResourceProvider } from '@/lib/resourceContext';
-import { LayoutGrid, Layers, BarChart3, Truck, Filter, Users } from 'lucide-react';
+import { LayoutGrid, Layers, Truck, Filter, Users, Activity } from 'lucide-react';
 
 export default function Home() {
   const { data: session } = useSession();
@@ -102,7 +102,7 @@ export default function Home() {
               }
             `}
           >
-            <BarChart3 size={18} />
+            <Activity size={18} />
             Dashboard
           </button>
           <button
@@ -177,7 +177,7 @@ export default function Home() {
         </div>
 
         {activeView === 'dashboard' ? (
-          <DashboardView />
+          <AdvancedDashboard />
         ) : activeView === 'delivery' ? (
           <DeliveryView />
         ) : activeView === 'award-sheet' ? (
