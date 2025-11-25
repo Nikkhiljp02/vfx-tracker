@@ -24,20 +24,37 @@ export async function GET() {
                                   user.role?.toUpperCase().includes('COORDINATOR');
 
     if (isAdminOrCoordinator) {
+      // Optimized: Only load show data with shot count, not full nested data
       const shows = await prisma.show.findMany({
         include: {
           _count: {
             select: { shots: true }
           },
+          // Load shots with task counts but not full task data
           shots: {
-            include: {
+            select: {
+              id: true,
+              shotName: true,
+              shotTag: true,
+              episode: true,
+              sequence: true,
+              turnover: true,
+              _count: {
+                select: { tasks: true }
+              },
+              // Include tasks but with selective fields
               tasks: {
-                include: {
-                  shot: {
-                    include: {
-                      show: true,
-                    },
-                  },
+                select: {
+                  id: true,
+                  department: true,
+                  status: true,
+                  leadName: true,
+                  bidMds: true,
+                  deliveredVersion: true,
+                  deliveredDate: true,
+                  internalEta: true,
+                  clientEta: true,
+                  isInternal: true,
                 },
               },
             },
@@ -70,14 +87,28 @@ export async function GET() {
             select: { shots: true }
           },
           shots: {
-            include: {
+            select: {
+              id: true,
+              shotName: true,
+              shotTag: true,
+              episode: true,
+              sequence: true,
+              turnover: true,
+              _count: {
+                select: { tasks: true }
+              },
               tasks: {
-                include: {
-                  shot: {
-                    include: {
-                      show: true,
-                    },
-                  },
+                select: {
+                  id: true,
+                  department: true,
+                  status: true,
+                  leadName: true,
+                  bidMds: true,
+                  deliveredVersion: true,
+                  deliveredDate: true,
+                  internalEta: true,
+                  clientEta: true,
+                  isInternal: true,
                 },
               },
             },

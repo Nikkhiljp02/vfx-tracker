@@ -10,22 +10,28 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            // Cache data for 5 minutes
-            staleTime: 5 * 60 * 1000,
-            // Keep unused data in cache for 10 minutes
-            gcTime: 10 * 60 * 1000,
+            // Data is fresh for 30 seconds (increased from 5 min for real-time feel)
+            staleTime: 30 * 1000,
+            // Keep unused data in cache for 5 minutes
+            gcTime: 5 * 60 * 1000,
             // Retry failed requests 1 time
             retry: 1,
-            // Don't refetch on window focus (prevents reload when switching tabs)
-            refetchOnWindowFocus: false,
-            // Don't refetch on mount if data exists
-            refetchOnMount: false,
-            // Don't refetch on reconnect
-            refetchOnReconnect: false,
+            // Refetch on window focus to ensure fresh data
+            refetchOnWindowFocus: true,
+            // Refetch on mount if data is stale
+            refetchOnMount: 'always',
+            // Refetch on reconnect to sync after offline
+            refetchOnReconnect: true,
+            // Enable network mode for better offline handling
+            networkMode: 'online',
           },
           mutations: {
             // Retry failed mutations once
             retry: 1,
+            // Enable optimistic updates by default
+            onError: (error) => {
+              console.error('Mutation error:', error);
+            },
           },
         },
       })
