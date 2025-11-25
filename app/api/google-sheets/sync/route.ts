@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { syncToGoogleSheets, setCredentials, getGoogleAuth } from '@/lib/google-sheets';
 import { prisma } from '@/lib/prisma';
-import { auth } from '@/lib/auth';
+import { auth as getAuth } from '@/lib/auth';
 
 // Sync tracker data to Google Sheets
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
+    const session = await getAuth();
     if (!session?.user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
