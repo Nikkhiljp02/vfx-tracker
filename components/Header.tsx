@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, Download, Upload, FileSpreadsheet, RefreshCw, Settings, History, ChevronRight, ChevronLeft, User, LogOut, Users, Sheet } from 'lucide-react';
+import { Plus, Download, Upload, FileSpreadsheet, RefreshCw, Settings, History, ChevronRight, ChevronLeft, User, LogOut, Users, Sheet, MoreVertical } from 'lucide-react';
 import { useState, useRef } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -26,6 +26,7 @@ export default function Header() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [showActivityLog, setShowActivityLog] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showSheetsMenu, setShowSheetsMenu] = useState(false);
   const [buttonsVisible, setButtonsVisible] = useState(true);
   const [importChanges, setImportChanges] = useState<any[]>([]);
   const [importData, setImportData] = useState<any>(null);
@@ -642,9 +643,92 @@ export default function Header() {
       <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-40">
         <div className="w-full px-2 md:px-4 py-3 md:py-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-lg md:text-2xl font-bold text-gray-900">VFX TRACKER</h1>
-              <p className="text-xs md:text-sm text-gray-500 hidden sm:block">Production Coordination System</p>
+            <div className="flex items-center gap-2">
+              <div>
+                <h1 className="text-lg md:text-2xl font-bold text-gray-900">VFX TRACKER</h1>
+                <p className="text-xs md:text-sm text-gray-500 hidden sm:block">Production Coordination System</p>
+              </div>
+              
+              {/* Google Sheets Menu */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowSheetsMenu(!showSheetsMenu)}
+                  className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Google Sheets Options"
+                >
+                  <MoreVertical size={20} />
+                </button>
+
+                {showSheetsMenu && (
+                  <div className="absolute left-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                    {!googleSheetsConnected ? (
+                      <button
+                        onClick={() => {
+                          setShowSheetsMenu(false);
+                          handleConnectGoogleSheets();
+                        }}
+                        className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors rounded-t-lg"
+                      >
+                        <Sheet size={16} />
+                        <div>
+                          <div className="font-medium">Connect Sheets</div>
+                          <div className="text-xs text-gray-500">Link Google Sheets</div>
+                        </div>
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => {
+                            setShowSheetsMenu(false);
+                            handleSyncToGoogleSheets();
+                          }}
+                          disabled={shows.length === 0 || syncingToSheets}
+                          className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed rounded-t-lg"
+                        >
+                          <Sheet size={16} />
+                          <div>
+                            <div className="font-medium">{syncingToSheets ? 'Syncing...' : 'Sync to Sheets'}</div>
+                            <div className="text-xs text-gray-500">Push data to Google Sheets</div>
+                          </div>
+                        </button>
+
+                        {canImport && (
+                          <button
+                            onClick={() => {
+                              setShowSheetsMenu(false);
+                              handleImportFromGoogleSheets();
+                            }}
+                            disabled={importingFromSheets}
+                            className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border-t border-gray-100"
+                          >
+                            <RefreshCw size={16} className={importingFromSheets ? 'animate-spin' : ''} />
+                            <div>
+                              <div className="font-medium">{importingFromSheets ? 'Updating...' : 'Update from Sheets'}</div>
+                              <div className="text-xs text-gray-500">Pull changes from Google Sheets</div>
+                            </div>
+                          </button>
+                        )}
+
+                        {googleSheetUrl && (
+                          <button
+                            onClick={() => {
+                              setShowSheetsMenu(false);
+                              window.open(googleSheetUrl, '_blank');
+                            }}
+                            className="w-full flex items-center gap-2 px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors border-t border-gray-100 rounded-b-lg"
+                          >
+                            <FileSpreadsheet size={16} />
+                            <div>
+                              <div className="font-medium">Open Sheet</div>
+                              <div className="text-xs text-gray-500">View in Google Sheets</div>
+                            </div>
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
             
             <div className="flex gap-2 md:gap-3 items-center">
@@ -742,63 +826,6 @@ export default function Header() {
                     Export to Excel (Ctrl+E)
                   </span>
                 </button>
-
-                {/* Google Sheets Integration */}
-                {!googleSheetsConnected ? (
-                  <button
-                    onClick={handleConnectGoogleSheets}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all whitespace-nowrap animate-slideInFromLeft"
-                    style={{ animationDelay: '100ms' }}
-                    title="Connect Google Sheets"
-                  >
-                    <Sheet size={18} />
-                    Connect Sheets
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      onClick={handleSyncToGoogleSheets}
-                      disabled={shows.length === 0 || syncingToSheets}
-                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all disabled:opacity-50 group relative whitespace-nowrap animate-slideInFromLeft"
-                      style={{ animationDelay: '100ms' }}
-                      title="Sync to Google Sheets (Live)"
-                    >
-                      <Sheet size={18} />
-                      {syncingToSheets ? 'Syncing...' : 'Sync to Sheets'}
-                      <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-                        Push data to Google Sheets
-                      </span>
-                    </button>
-
-                    {canImport && (
-                      <button
-                        onClick={handleImportFromGoogleSheets}
-                        disabled={importingFromSheets}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 group relative whitespace-nowrap animate-slideInFromLeft"
-                        style={{ animationDelay: '150ms' }}
-                        title="Import changes from Google Sheets"
-                      >
-                        <RefreshCw size={18} className={importingFromSheets ? 'animate-spin' : ''} />
-                        {importingFromSheets ? 'Updating...' : 'Update from Sheets'}
-                        <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-                          Pull changes from Google Sheets
-                        </span>
-                      </button>
-                    )}
-
-                    {googleSheetUrl && (
-                      <button
-                        onClick={() => window.open(googleSheetUrl, '_blank')}
-                        className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all whitespace-nowrap animate-slideInFromLeft"
-                        style={{ animationDelay: '200ms' }}
-                        title="Open Google Sheet"
-                      >
-                        <FileSpreadsheet size={18} />
-                        Open Sheet
-                      </button>
-                    )}
-                  </>
-                )}
 
                 {/* Edit-only buttons - Hidden for view-only users */}
                 {canImport && (
