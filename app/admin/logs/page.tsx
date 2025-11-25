@@ -264,6 +264,7 @@ export default function ActivityLogsPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">All Types</option>
+                <option value="Feedback">Feedback</option>
                 <option value="Shot">Shots</option>
                 <option value="Task">Tasks</option>
                 <option value="Show">Shows</option>
