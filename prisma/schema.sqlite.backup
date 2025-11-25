@@ -5,10 +5,11 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// SQLite for local development
+// PostgreSQL for production
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ============================================
@@ -427,7 +428,7 @@ model AwardSheet {
   id            String   @id @default(cuid())
   showName      String   // Show name
   shotName      String   // Shot name
-  customFields  String   @default("{}") // Dynamic columns as JSON string (for SQLite compatibility)
+  customFields  String   @default("{}") // Dynamic columns as JSON string
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
