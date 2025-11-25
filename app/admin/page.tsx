@@ -179,18 +179,18 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+    <div className="min-h-screen bg-gray-50 pb-safe">
+      {/* Header - Mobile Optimized */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 md:py-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-              <p className="text-gray-600 mt-1">System administration and management</p>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+              <p className="text-sm md:text-base text-gray-600 mt-1">System administration and management</p>
             </div>
             <Link
               href="/"
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
+              className="px-4 py-2.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 active:bg-gray-800 transition text-center touch-manipulation"
             >
               ← Back to App
             </Link>
@@ -198,93 +198,93 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Quick Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {/* Users Card */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <Users className="w-6 h-6 text-blue-600" />
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 md:py-8">
+        {/* Quick Stats Grid - Mobile Optimized */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">
+          {/* Users Card - Mobile Optimized */}
+          <div className="bg-white rounded-lg shadow p-4 md:p-6 touch-manipulation active:shadow-lg transition-shadow">
+            <div className="flex items-center justify-between mb-3 md:mb-4">
+              <div className="p-2 md:p-3 bg-blue-100 rounded-lg">
+                <Users className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
               </div>
-              <span className="text-sm text-green-600 font-medium">
+              <span className="text-xs md:text-sm text-green-600 font-medium">
                 {stats?.users.active || 0} Active
               </span>
             </div>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-xl md:text-2xl font-bold text-gray-900">
               {stats?.users.total || 0}
             </div>
-            <div className="text-sm text-gray-600">Total Users</div>
-            <div className="mt-2 text-xs text-gray-500">
+            <div className="text-xs md:text-sm text-gray-600">Total Users</div>
+            <div className="mt-1.5 md:mt-2 text-xs text-gray-500">
               {stats?.users.admins || 0} Admins · {stats?.users.inactive || 0} Inactive
             </div>
           </div>
 
-          {/* Shows Card */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-purple-100 rounded-lg">
-                <Folder className="w-6 h-6 text-purple-600" />
+          {/* Shows Card - Mobile Optimized */}
+          <div className="bg-white rounded-lg shadow p-4 md:p-6 touch-manipulation active:shadow-lg transition-shadow">
+            <div className="flex items-center justify-between mb-3 md:mb-4">
+              <div className="p-2 md:p-3 bg-purple-100 rounded-lg">
+                <Folder className="w-5 h-5 md:w-6 md:h-6 text-purple-600" />
               </div>
-              <span className="text-sm text-green-600 font-medium">
+              <span className="text-xs md:text-sm text-green-600 font-medium">
                 {stats?.shows.active || 0} Active
               </span>
             </div>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-xl md:text-2xl font-bold text-gray-900">
               {stats?.shows.total || 0}
             </div>
-            <div className="text-sm text-gray-600">Total Shows</div>
-            <div className="mt-2 text-xs text-gray-500">
+            <div className="text-xs md:text-sm text-gray-600">Total Shows</div>
+            <div className="mt-1.5 md:mt-2 text-xs text-gray-500">
               {stats?.shows.completed || 0} Completed · {stats?.shows.onHold || 0} On Hold
             </div>
           </div>
 
-          {/* Shots Card */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-green-100 rounded-lg">
-                <Layers className="w-6 h-6 text-green-600" />
+          {/* Shots Card - Mobile Optimized */}
+          <div className="bg-white rounded-lg shadow p-4 md:p-6 touch-manipulation active:shadow-lg transition-shadow">
+            <div className="flex items-center justify-between mb-3 md:mb-4">
+              <div className="p-2 md:p-3 bg-green-100 rounded-lg">
+                <Layers className="w-5 h-5 md:w-6 md:h-6 text-green-600" />
               </div>
-              <span className="text-sm text-blue-600 font-medium">
+              <span className="text-xs md:text-sm text-blue-600 font-medium">
                 +{stats?.shots.today || 0} Today
               </span>
             </div>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-xl md:text-2xl font-bold text-gray-900">
               {stats?.shots.total || 0}
             </div>
-            <div className="text-sm text-gray-600">Total Shots</div>
-            <div className="mt-2 text-xs text-gray-500">
+            <div className="text-xs md:text-sm text-gray-600">Total Shots</div>
+            <div className="mt-1.5 md:mt-2 text-xs text-gray-500">
               {stats?.shots.thisWeek || 0} This Week · {stats?.shots.thisMonth || 0} This Month
             </div>
           </div>
 
-          {/* Resources Card */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-orange-100 rounded-lg">
-                <Users className="w-6 h-6 text-orange-600" />
+          {/* Resources Card - Mobile Optimized */}
+          <div className="bg-white rounded-lg shadow p-4 md:p-6 touch-manipulation active:shadow-lg transition-shadow">
+            <div className="flex items-center justify-between mb-3 md:mb-4">
+              <div className="p-2 md:p-3 bg-orange-100 rounded-lg">
+                <Users className="w-5 h-5 md:w-6 md:h-6 text-orange-600" />
               </div>
-              <span className="text-sm text-green-600 font-medium">
+              <span className="text-xs md:text-sm text-green-600 font-medium">
                 {stats?.resources.active || 0} Active
               </span>
             </div>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-xl md:text-2xl font-bold text-gray-900">
               {stats?.resources.total || 0}
             </div>
-            <div className="text-sm text-gray-600">Resource Members</div>
-            <div className="mt-2 text-xs text-gray-500">
+            <div className="text-xs md:text-sm text-gray-600">Resource Members</div>
+            <div className="mt-1.5 md:mt-2 text-xs text-gray-500">
               {stats?.resources.allocated || 0} Allocated · {stats?.resources.available || 0} Available
             </div>
           </div>
         </div>
 
-        {/* System Health */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <Server className="w-5 h-5 mr-2" />
+        {/* System Health - Mobile Optimized */}
+        <div className="bg-white rounded-lg shadow p-4 md:p-6 mb-6 md:mb-8">
+          <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4 flex items-center">
+            <Server className="w-4 h-4 md:w-5 md:h-5 mr-2" />
             System Health
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-green-100 rounded">
                 <CheckCircle className="w-5 h-5 text-green-600" />
@@ -330,44 +330,44 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Admin Sections Grid */}
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Administration</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Admin Sections Grid - Mobile Optimized */}
+        <div className="mb-6 md:mb-8">
+          <h2 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Administration</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
             {adminSections.map((section) => (
               <Link
                 key={section.href}
                 href={section.href}
-                className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6 group"
+                className="bg-white rounded-lg shadow hover:shadow-lg active:shadow-xl transition-all p-4 md:p-6 group touch-manipulation"
               >
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`p-3 ${section.color} rounded-lg group-hover:scale-110 transition-transform`}>
-                    <section.icon className="w-6 h-6 text-white" />
+                <div className="flex items-start justify-between mb-3 md:mb-4">
+                  <div className={`p-2 md:p-3 ${section.color} rounded-lg group-hover:scale-110 group-active:scale-105 transition-transform`}>
+                    <section.icon className="w-5 h-5 md:w-6 md:h-6 text-white" />
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold text-gray-900">{section.stat}</div>
+                    <div className="text-lg md:text-2xl font-bold text-gray-900">{section.stat}</div>
                     <div className="text-xs text-gray-500">{section.statLabel}</div>
                   </div>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
+                <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-1.5 md:mb-2 group-hover:text-blue-600 transition-colors">
                   {section.title}
                 </h3>
-                <p className="text-sm text-gray-600">{section.description}</p>
+                <p className="text-xs md:text-sm text-gray-600 line-clamp-2">{section.description}</p>
               </Link>
             ))}
           </div>
         </div>
 
-        {/* Recent Activity */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center">
-              <Activity className="w-5 h-5 mr-2" />
+        {/* Recent Activity - Mobile Optimized */}
+        <div className="bg-white rounded-lg shadow p-4 md:p-6">
+          <div className="flex items-center justify-between mb-3 md:mb-4">
+            <h2 className="text-base md:text-lg font-semibold text-gray-900 flex items-center">
+              <Activity className="w-4 h-4 md:w-5 md:h-5 mr-2" />
               Recent Activity
             </h2>
             <Link
               href="/admin/logs"
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              className="text-xs md:text-sm text-blue-600 hover:text-blue-700 active:text-blue-800 font-medium touch-manipulation"
             >
               View All →
             </Link>
