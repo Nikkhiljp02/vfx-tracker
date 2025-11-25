@@ -15,6 +15,7 @@ import { useSession } from 'next-auth/react';
 import { supabase } from '@/lib/supabase';
 import { matchesShotName } from '@/lib/searchUtils';
 import { useFeedbackModal } from '@/lib/feedbackModalContext';
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 interface TrackerTableProps {
   detailedView: boolean;
@@ -1299,6 +1300,26 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
     setDragOverColumn(null);
   };
 
+  // Virtual scrolling setup
+  const parentRef = useRef<HTMLDivElement>(null);
+  
+  // Calculate row height based on table density
+  const getRowHeight = () => {
+    switch (tableDensity) {
+      case 'compact': return 48;
+      case 'comfortable': return 56;
+      case 'spacious': return 64;
+      default: return 56;
+    }
+  };
+
+  const rowVirtualizer = useVirtualizer({
+    count: trackerRows.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => getRowHeight(),
+    overscan: 10, // Render 10 extra rows above/below viewport
+  });
+
   if (trackerRows.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow-sm p-8 text-center">
@@ -1630,7 +1651,7 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
           }
         }}
       >
-        <div className="overflow-x-auto max-h-[calc(100vh-280px)] relative">
+        <div ref={parentRef} className="overflow-x-auto max-h-[calc(100vh-280px)] relative">
           <table className="w-full border-collapse">
             <thead className="sticky top-0 z-30">
               <tr className="bg-gray-100 border-b border-gray-200">
@@ -1928,9 +1949,23 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
             </tr>
           </thead>
           <tbody>
-            {trackerRows.map((row, idx) => (
+            <tr style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
+              <td></td>
+            </tr>
+            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+              const row = trackerRows[virtualRow.index];
+              const idx = virtualRow.index;
+              return (
               <tr
                 key={row.shotId}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: `${virtualRow.size}px`,
+                  transform: `translateY(${virtualRow.start}px)`,
+                }}
                 className={`
                   border-b border-gray-200 hover:bg-gray-50 transition-colors
                   ${selectionMode 
@@ -2188,7 +2223,8 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
                 </td>
                 )}
               </tr>
-            ))}
+            );
+            })}
           </tbody>
         </table>
       </div>
