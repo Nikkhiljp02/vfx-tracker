@@ -24,6 +24,13 @@ export async function GET(req: NextRequest) {
 
     // Exchange code for tokens
     const tokens = await getTokensFromCode(code);
+    console.log('[Google Sheets Callback] Received tokens:', {
+      hasAccessToken: !!tokens.access_token,
+      hasRefreshToken: !!tokens.refresh_token,
+      tokenType: tokens.token_type,
+      scope: tokens.scope,
+      expiryDate: tokens.expiry_date
+    });
 
     // Get current user session
     const session = await getAuth();
@@ -47,6 +54,7 @@ export async function GET(req: NextRequest) {
 
     // Store Google tokens in preferences
     const googleTokens = JSON.stringify(tokens);
+    console.log('[Google Sheets Callback] Storing tokens for user:', user.username);
     
     if (user.preferences) {
       await prisma.userPreferences.update({
@@ -55,6 +63,7 @@ export async function GET(req: NextRequest) {
           filterState: googleTokens, // Temporary storage, should use separate field
         },
       });
+      console.log('[Google Sheets Callback] Tokens updated in preferences');
     } else {
       await prisma.userPreferences.create({
         data: {
@@ -62,6 +71,7 @@ export async function GET(req: NextRequest) {
           filterState: googleTokens,
         },
       });
+      console.log('[Google Sheets Callback] Tokens created in preferences');
     }
 
     // Redirect back to app with success

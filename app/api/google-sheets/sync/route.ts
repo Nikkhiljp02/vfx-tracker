@@ -34,10 +34,17 @@ export async function POST(req: NextRequest) {
 
     // Parse tokens
     const tokens = JSON.parse(user.preferences.filterState);
+    console.log('[Google Sheets Sync] Parsed tokens:', {
+      hasAccessToken: !!tokens.access_token,
+      hasRefreshToken: !!tokens.refresh_token,
+      tokenType: tokens.token_type,
+      scope: tokens.scope
+    });
     console.log('[Google Sheets Sync] Setting credentials...');
     
-    const auth = setCredentials(getGoogleAuth(), tokens);
-    console.log('[Google Sheets Sync] Credentials set');
+    const auth = getGoogleAuth();
+    auth.setCredentials(tokens);
+    console.log('[Google Sheets Sync] Credentials set, auth has tokens:', !!auth.credentials);
 
     // Get body data
     const { spreadsheetId, shows } = await req.json();
