@@ -88,52 +88,52 @@ export default function DashboardView() {
   }, [shows, shots, tasks]);
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Global Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div key="global-shows" className="bg-white p-6 rounded-lg shadow border border-gray-200">
+    <div className="p-3 md:p-6 space-y-4 md:space-y-6">
+      {/* Global Stats - Mobile Optimized */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        <div key="global-shows" className="bg-white p-4 md:p-6 rounded-lg shadow border border-gray-200 touch-manipulation active:shadow-xl transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Shows</p>
-              <p className="text-3xl font-bold text-gray-900">{globalStats.totalShows}</p>
+              <p className="text-xs md:text-sm text-gray-600">Total Shows</p>
+              <p className="text-2xl md:text-3xl font-bold text-gray-900">{globalStats.totalShows}</p>
             </div>
-            <BarChart3 className="text-blue-600" size={32} />
+            <BarChart3 className="text-blue-600" size={28} />
           </div>
         </div>
 
-        <div key="global-shots" className="bg-white p-6 rounded-lg shadow border border-gray-200">
+        <div key="global-shots" className="bg-white p-4 md:p-6 rounded-lg shadow border border-gray-200 touch-manipulation active:shadow-xl transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Shots</p>
-              <p className="text-3xl font-bold text-gray-900">{globalStats.totalShots}</p>
+              <p className="text-xs md:text-sm text-gray-600">Total Shots</p>
+              <p className="text-2xl md:text-3xl font-bold text-gray-900">{globalStats.totalShots}</p>
             </div>
-            <TrendingUp className="text-purple-600" size={32} />
+            <TrendingUp className="text-purple-600" size={28} />
           </div>
         </div>
 
-        <div key="global-tasks" className="bg-white p-6 rounded-lg shadow border border-gray-200">
+        <div key="global-tasks" className="bg-white p-4 md:p-6 rounded-lg shadow border border-gray-200 touch-manipulation active:shadow-xl transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Tasks</p>
-              <p className="text-3xl font-bold text-gray-900">{globalStats.totalTasks}</p>
+              <p className="text-xs md:text-sm text-gray-600">Total Tasks</p>
+              <p className="text-2xl md:text-3xl font-bold text-gray-900">{globalStats.totalTasks}</p>
               <p className="text-xs text-gray-500 mt-1">
                 WIP: {globalStats.wipTasks} | AWF: {globalStats.awfTasks}
               </p>
             </div>
-            <Clock className="text-orange-600" size={32} />
+            <Clock className="text-orange-600" size={28} />
           </div>
         </div>
 
-        <div key="global-completion" className="bg-white p-6 rounded-lg shadow border border-gray-200">
+        <div key="global-completion" className="bg-white p-4 md:p-6 rounded-lg shadow border border-gray-200 touch-manipulation active:shadow-xl transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Completion</p>
-              <p className="text-3xl font-bold text-green-600">{globalStats.overallCompletion}%</p>
+              <p className="text-xs md:text-sm text-gray-600">Completion</p>
+              <p className="text-2xl md:text-3xl font-bold text-green-600">{globalStats.overallCompletion}%</p>
               <p className="text-xs text-gray-500 mt-1">
                 {globalStats.completedTasks} / {globalStats.totalTasks}
               </p>
             </div>
-            <CheckCircle2 className="text-green-600" size={32} />
+            <CheckCircle2 className="text-green-600" size={28} />
           </div>
         </div>
       </div>
@@ -164,34 +164,34 @@ export default function DashboardView() {
               </div>
             </div>
 
-            {/* Show Stats */}
-            <div className="p-4 bg-gray-50 border-b border-gray-200">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {/* Show Stats - Mobile Optimized */}
+            <div className="p-3 md:p-4 bg-gray-50 border-b border-gray-200">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                 <div key="total-shots">
                   <p className="text-xs text-gray-600">Total Shots</p>
-                  <p className="text-lg font-semibold">{showData.totalShots}</p>
+                  <p className="text-base md:text-lg font-semibold">{showData.totalShots}</p>
                 </div>
                 <div key="fresh-shots">
                   <p className="text-xs text-gray-600">Fresh Shots</p>
-                  <p className="text-lg font-semibold text-green-600">{showData.freshShots}</p>
+                  <p className="text-base md:text-lg font-semibold text-green-600">{showData.freshShots}</p>
                 </div>
                 <div key="additional-shots">
                   <p className="text-xs text-gray-600">Additional Shots</p>
-                  <p className="text-lg font-semibold text-orange-600">{showData.additionalShots}</p>
+                  <p className="text-base md:text-lg font-semibold text-orange-600">{showData.additionalShots}</p>
                 </div>
                 <div key="tasks-completed">
                   <p className="text-xs text-gray-600">Tasks Completed</p>
-                  <p className="text-lg font-semibold text-blue-600">
+                  <p className="text-base md:text-lg font-semibold text-blue-600">
                     {showData.completedTasks} / {showData.totalTasks}
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Department Stats */}
-            <div className="p-4">
-              <h4 className="font-semibold mb-3 text-gray-700">Department Progress</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Department Stats - Mobile Optimized */}
+            <div className="p-3 md:p-4">
+              <h4 className="font-semibold mb-3 text-sm md:text-base text-gray-700">Department Progress</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                 {showData.departmentStats.map((dept) => (
                   <div
                     key={dept.department}
