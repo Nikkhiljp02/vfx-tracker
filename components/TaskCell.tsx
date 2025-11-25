@@ -20,11 +20,22 @@ export default function TaskCell({ task }: TaskCellProps) {
   const canEdit = useMemo(() => {
     const shot = task.shot;
     if (!shot) {
+      console.log('❌ TaskCell: No shot for task', task.id);
       return false;
     }
     
     const show = shows.find(s => s.id === shot.showId);
-    return show?.canEdit ?? false;
+    const hasPermission = show?.canEdit ?? false;
+    
+    console.log('🔐 TaskCell Permission Check:', {
+      taskId: task.id,
+      showId: shot.showId,
+      showName: show?.showName,
+      canEdit: show?.canEdit,
+      result: hasPermission
+    });
+    
+    return hasPermission;
   }, [shows, task.shot, task.id]);
 
   const statusOption = statusOptions.find(s => s.statusName === task.status);
