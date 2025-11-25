@@ -26,6 +26,12 @@ SMTP_PORT="587"
 SMTP_USER="nikhil.patil@digikore.com"
 SMTP_PASSWORD="qqqkstqpsgjfnjkw"
 SMTP_FROM="VFX Tracker <nikhil.patil@digikore.com>"
+
+# Google Sheets API (Optional - for live sync feature)
+# Get from: https://console.cloud.google.com
+# See GOOGLE_SHEETS_SYNC.md for setup instructions
+GOOGLE_CLIENT_ID="your-client-id.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="your-client-secret"
 ```
 
 #### Important Notes:
