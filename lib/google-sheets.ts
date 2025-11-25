@@ -173,12 +173,16 @@ export async function syncToGoogleSheets(
 
 // Format the Google Sheet (styling, column widths, etc.)
 async function formatSheet(sheets: any, spreadsheetId: string) {
+  // Get the actual sheet ID
+  const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
+  const sheetId = spreadsheet.data.sheets?.[0]?.properties?.sheetId || 0;
+
   const requests = [
     // Header row formatting (bold, background color)
     {
       repeatCell: {
         range: {
-          sheetId: 0,
+          sheetId: sheetId,
           startRowIndex: 0,
           endRowIndex: 1,
         },
@@ -199,7 +203,7 @@ async function formatSheet(sheets: any, spreadsheetId: string) {
     {
       autoResizeDimensions: {
         dimensions: {
-          sheetId: 0,
+          sheetId: sheetId,
           dimension: 'COLUMNS',
           startIndex: 0,
           endIndex: 14,
@@ -210,7 +214,7 @@ async function formatSheet(sheets: any, spreadsheetId: string) {
     {
       updateDimensionProperties: {
         range: {
-          sheetId: 0,
+          sheetId: sheetId,
           dimension: 'COLUMNS',
           startIndex: 14,
           endIndex: 16,
@@ -225,7 +229,7 @@ async function formatSheet(sheets: any, spreadsheetId: string) {
     {
       updateSheetProperties: {
         properties: {
-          sheetId: 0,
+          sheetId: sheetId,
           gridProperties: {
             frozenRowCount: 1,
           },
@@ -237,7 +241,7 @@ async function formatSheet(sheets: any, spreadsheetId: string) {
     {
       setDataValidation: {
         range: {
-          sheetId: 0,
+          sheetId: sheetId,
           startRowIndex: 1,
           startColumnIndex: 7,
           endColumnIndex: 8,
