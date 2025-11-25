@@ -1,24 +1,25 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   
-  const session = await auth();
+  // Check for auth session cookie (lightweight check)
+  const sessionCookie = request.cookies.get("authjs.session-token") || 
+                       request.cookies.get("__Secure-authjs.session-token");
 
   // If user is authenticated and on login page, redirect to home
-  if (session && pathname === "/login") {
+  if (sessionCookie && pathname === "/login") {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
   // If user is not authenticated and trying to access protected route
-  if (!session) {
+  if (!sessionCookie) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Note: Session validation is handled by client-side polling (useSessionValidator hook)
-  // Middleware can't check database sessions because Prisma doesn't run in Edge runtime
+  // Note: Full session validation is handled by client-side polling (useSessionValidator hook)
+  // Middleware only does basic cookie check to avoid large bundle size
   
   return NextResponse.next();
 }
@@ -30,6 +31,7 @@ export const config = {
      * Match all request paths except:
      * - /login (login page)
      * - /api/auth (NextAuth API routes)
+     * - /api/google-sheets (Google Sheets API - has own auth)
      * - /api/setup (one-time setup endpoint)
      * - /api/migrate (database migration endpoint)
      * - /api/db-test (database test endpoint)
@@ -39,6 +41,6 @@ export const config = {
      * - /favicon.ico, /robots.txt (static files)
      * - /manifest.json, /sw.js (PWA files)
      */
-    "/((?!login|test-session|api/auth|api/setup|api/migrate|api/db-test|api/check-env|api/test-login|api/seed-permissions|api/resource|_next|favicon.ico|robots.txt|manifest.json|sw.js|workbox-.*.js|icon-.*\\.png|.well-known).*)",
+    "/((?!login|test-session|api/auth|api/google-sheets|api/setup|api/migrate|api/db-test|api/check-env|api/test-login|api/seed-permissions|api/resource|_next|favicon.ico|robots.txt|manifest.json|sw.js|workbox-.*.js|icon-.*\\.png|.well-known).*)",
   ],
 };
