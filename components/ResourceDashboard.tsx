@@ -307,63 +307,65 @@ export default function ResourceDashboard() {
 
   return (
     <div className="h-full flex flex-col bg-[#0a0a0a] overflow-hidden">
-      {/* Header with Week Navigation */}
-      <div className="flex-none bg-gradient-to-r from-gray-900 to-gray-800 border-b border-gray-700/50 p-6 shadow-xl">
-        <div className="flex items-center justify-between mb-2">
+      {/* Header with Week Navigation - Mobile Optimized */}
+      <div className="flex-none bg-gradient-to-r from-gray-900 to-gray-800 border-b border-gray-700/50 p-3 md:p-6 shadow-xl">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-2">
           <div>
-            <h1 className="text-3xl font-bold text-white tracking-tight">Resource Analytics</h1>
-            <p className="text-gray-400 text-sm mt-1">Comprehensive workforce intelligence & utilization metrics</p>
+            <h1 className="text-xl md:text-3xl font-bold text-white tracking-tight">Resource Analytics</h1>
+            <p className="text-gray-400 text-xs md:text-sm mt-1 hidden sm:block">Comprehensive workforce intelligence & utilization metrics</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-3">
             <button
               onClick={handlePreviousWeek}
-              className="px-4 py-2 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 transition-all text-sm font-medium border border-gray-700"
+              className="flex-1 sm:flex-none px-3 md:px-4 py-2 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 active:bg-gray-600 transition-all text-xs md:text-sm font-medium border border-gray-700 touch-manipulation"
             >
-              ← Previous
+              <span className="hidden sm:inline">← </span>Prev
             </button>
             <button
               onClick={handleCurrentWeek}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all text-sm font-semibold shadow-lg"
+              className="flex-1 sm:flex-none px-3 md:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-all text-xs md:text-sm font-semibold shadow-lg touch-manipulation"
             >
-              Current Week
+              <span className="hidden sm:inline">Current </span>Week
             </button>
             <button
               onClick={handleNextWeek}
-              className="px-4 py-2 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 transition-all text-sm font-medium border border-gray-700"
+              className="flex-1 sm:flex-none px-3 md:px-4 py-2 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 active:bg-gray-600 transition-all text-xs md:text-sm font-medium border border-gray-700 touch-manipulation"
             >
-              Next →
+              Next<span className="hidden sm:inline"> →</span>
             </button>
           </div>
         </div>
-        <div className="flex items-center gap-2 mt-3">
-          <Calendar className="text-blue-400" size={18} />
-          <span className="text-gray-300 font-medium">
-            {format(currentWeekStart, 'MMM dd')} - {format(endOfWeek(currentWeekStart, { weekStartsOn: 1 }), 'MMM dd, yyyy')}
-          </span>
-          <span className="ml-4 px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-xs font-semibold">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-3">
+          <div className="flex items-center gap-2">
+            <Calendar className="text-blue-400 flex-shrink-0" size={16} />
+            <span className="text-gray-300 font-medium text-xs md:text-sm">
+              {format(currentWeekStart, 'MMM dd')} - {format(endOfWeek(currentWeekStart, { weekStartsOn: 1 }), 'MMM dd, yyyy')}
+            </span>
+          </div>
+          <span className="px-2 md:px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-xs font-semibold w-fit">
             {overallStats.workingDays} Working Days
           </span>
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-6 space-y-6">
+      <div className="flex-1 overflow-auto p-3 md:p-6 space-y-4 md:space-y-6">
         {loading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="text-gray-400">Loading analytics data...</div>
+            <div className="text-gray-400 text-sm md:text-base">Loading analytics data...</div>
           </div>
         ) : (
           <>
-            {/* Key Performance Indicators */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Key Performance Indicators - Mobile Optimized */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
               {/* Active Resources */}
-              <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700/50 rounded-xl p-5 shadow-lg hover:shadow-xl transition-all">
-                <div className="flex items-start justify-between mb-3">
+              <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700/50 rounded-xl p-4 md:p-5 shadow-lg hover:shadow-xl active:shadow-2xl transition-all touch-manipulation">
+                <div className="flex items-start justify-between mb-2 md:mb-3">
                   <div className="p-2 bg-blue-500/20 rounded-lg">
-                    <Users className="text-blue-400" size={24} />
+                    <Users className="text-blue-400" size={20} />
                   </div>
                   <div className="text-right">
                     <div className="text-xs text-gray-400 uppercase font-semibold tracking-wider">Active Resources</div>
-                    <div className="text-3xl font-bold text-white mt-1">{overallStats.activeMembers}</div>
+                    <div className="text-2xl md:text-3xl font-bold text-white mt-1">{overallStats.activeMembers}</div>
                   </div>
                 </div>
                 <div className="text-xs text-gray-500">
@@ -372,14 +374,14 @@ export default function ResourceDashboard() {
               </div>
 
               {/* Total Capacity */}
-              <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700/50 rounded-xl p-5 shadow-lg hover:shadow-xl transition-all">
-                <div className="flex items-start justify-between mb-3">
+              <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700/50 rounded-xl p-4 md:p-5 shadow-lg hover:shadow-xl active:shadow-2xl transition-all touch-manipulation">
+                <div className="flex items-start justify-between mb-2 md:mb-3">
                   <div className="p-2 bg-purple-500/20 rounded-lg">
-                    <Clock className="text-purple-400" size={24} />
+                    <Clock className="text-purple-400" size={20} />
                   </div>
                   <div className="text-right">
                     <div className="text-xs text-gray-400 uppercase font-semibold tracking-wider">Week Capacity</div>
-                    <div className="text-3xl font-bold text-white mt-1">{overallStats.adjustedCapacity.toFixed(0)}</div>
+                    <div className="text-2xl md:text-3xl font-bold text-white mt-1">{overallStats.adjustedCapacity.toFixed(0)}</div>
                   </div>
                 </div>
                 <div className="text-xs text-gray-500">
@@ -388,14 +390,14 @@ export default function ResourceDashboard() {
               </div>
 
               {/* Allocated Man-Days */}
-              <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700/50 rounded-xl p-5 shadow-lg hover:shadow-xl transition-all">
-                <div className="flex items-start justify-between mb-3">
+              <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700/50 rounded-xl p-4 md:p-5 shadow-lg hover:shadow-xl active:shadow-2xl transition-all touch-manipulation">
+                <div className="flex items-start justify-between mb-2 md:mb-3">
                   <div className="p-2 bg-emerald-500/20 rounded-lg">
-                    <Activity className="text-emerald-400" size={24} />
+                    <Activity className="text-emerald-400" size={20} />
                   </div>
                   <div className="text-right">
                     <div className="text-xs text-gray-400 uppercase font-semibold tracking-wider">Allocated</div>
-                    <div className="text-3xl font-bold text-emerald-400 mt-1">{overallStats.allocatedManDays.toFixed(1)}</div>
+                    <div className="text-2xl md:text-3xl font-bold text-emerald-400 mt-1">{overallStats.allocatedManDays.toFixed(1)}</div>
                   </div>
                 </div>
                 <div className="text-xs text-gray-500">
@@ -404,14 +406,14 @@ export default function ResourceDashboard() {
               </div>
 
               {/* Available Man-Days */}
-              <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700/50 rounded-xl p-5 shadow-lg hover:shadow-xl transition-all">
-                <div className="flex items-start justify-between mb-3">
+              <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700/50 rounded-xl p-4 md:p-5 shadow-lg hover:shadow-xl active:shadow-2xl transition-all touch-manipulation">
+                <div className="flex items-start justify-between mb-2 md:mb-3">
                   <div className="p-2 bg-amber-500/20 rounded-lg">
-                    <TrendingUp className="text-amber-400" size={24} />
+                    <TrendingUp className="text-amber-400" size={20} />
                   </div>
                   <div className="text-right">
                     <div className="text-xs text-gray-400 uppercase font-semibold tracking-wider">Available</div>
-                    <div className="text-3xl font-bold text-amber-400 mt-1">{overallStats.availableManDays.toFixed(1)}</div>
+                    <div className="text-2xl md:text-3xl font-bold text-amber-400 mt-1">{overallStats.availableManDays.toFixed(1)}</div>
                   </div>
                 </div>
                 <div className="text-xs text-gray-500">
@@ -420,23 +422,23 @@ export default function ResourceDashboard() {
               </div>
             </div>
 
-            {/* Occupancy Rate Visualization */}
-            <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700/50 rounded-xl p-6 shadow-lg">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <BarChart3 className="text-blue-400" size={20} />
-                  <h2 className="text-lg font-bold text-white">Resource Occupancy Rate</h2>
+            {/* Occupancy Rate Visualization - Mobile Optimized */}
+            <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-gray-700/50 rounded-xl p-4 md:p-6 shadow-lg">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <div className="flex items-center gap-2 md:gap-3">
+                  <BarChart3 className="text-blue-400 flex-shrink-0" size={18} />
+                  <h2 className="text-base md:text-lg font-bold text-white">Resource Occupancy Rate</h2>
                 </div>
-                <div className="text-right">
-                  <div className="text-3xl font-bold text-white">{overallStats.occupancyRate.toFixed(1)}%</div>
+                <div className="text-left sm:text-right">
+                  <div className="text-2xl md:text-3xl font-bold text-white">{overallStats.occupancyRate.toFixed(1)}%</div>
                   <div className="text-xs text-gray-400 mt-1">
                     {overallStats.occupancyRate >= 90 ? 'High Load' : overallStats.occupancyRate >= 70 ? 'Optimal' : 'Available'}
                   </div>
                 </div>
               </div>
-              <div className="w-full bg-gray-700/50 rounded-full h-8 overflow-hidden relative">
+              <div className="w-full bg-gray-700/50 rounded-full h-6 md:h-8 overflow-hidden relative touch-manipulation">
                 <div
-                  className={`h-full flex items-center justify-center text-sm font-bold text-white transition-all duration-500 ${
+                  className={`h-full flex items-center justify-center text-xs md:text-sm font-bold text-white transition-all duration-500 ${
                     overallStats.occupancyRate >= 90 ? 'bg-gradient-to-r from-red-500 to-red-600' :
                     overallStats.occupancyRate >= 70 ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' : 
                     'bg-gradient-to-r from-blue-500 to-blue-600'

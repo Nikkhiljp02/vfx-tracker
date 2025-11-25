@@ -119,34 +119,34 @@ export default function ResourceCapacityView() {
 
   return (
     <div className="h-full flex flex-col bg-gray-900">
-      {/* Header */}
-      <div className="bg-gray-800 border-b border-gray-700 p-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <Users className="text-blue-400" size={24} />
-            <h2 className="text-xl font-semibold text-white">Resource Capacity</h2>
+      {/* Header - Mobile Optimized */}
+      <div className="bg-gray-800 border-b border-gray-700 p-3 md:p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2 md:gap-3">
+            <Users className="text-blue-400 flex-shrink-0" size={20} />
+            <h2 className="text-lg md:text-xl font-semibold text-white">Resource Capacity</h2>
           </div>
 
           {/* Date Navigation */}
           <div className="flex items-center gap-2">
             <button
               onClick={previousWeek}
-              className="p-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-colors"
+              className="flex-1 sm:flex-none p-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 active:bg-gray-500 transition-colors touch-manipulation"
               title="Previous week"
             >
-              <ChevronLeft size={20} />
+              <ChevronLeft size={18} />
             </button>
             
             <button
               onClick={today}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              className="flex-1 sm:flex-none px-3 md:px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors font-medium touch-manipulation"
             >
               Today
             </button>
             
             <button
               onClick={nextWeek}
-              className="p-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-colors"
+              className="flex-1 sm:flex-none p-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 active:bg-gray-500 transition-colors touch-manipulation"
               title="Next week"
             >
               <ChevronRight size={20} />

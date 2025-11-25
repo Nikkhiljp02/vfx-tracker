@@ -1074,46 +1074,46 @@ export default function ResourceForecastView() {
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex-none p-4 border-b border-gray-700">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold text-white">Resource Forecast</h1>
+      {/* Header - Mobile Optimized */}
+      <div className="flex-none p-3 md:p-4 border-b border-gray-700">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <h1 className="text-xl md:text-2xl font-bold text-white">Resource Forecast</h1>
             {selectedCells.size > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-400">{selectedCells.size} cells selected</span>
-                <button onClick={handleCopy} className="px-2 py-1 bg-gray-700 text-white text-xs rounded hover:bg-gray-600" title="Copy (Ctrl+C)">Copy</button>
-                <button onClick={handlePaste} disabled={copiedCells.size === 0} className="px-2 py-1 bg-gray-700 text-white text-xs rounded hover:bg-gray-600 disabled:opacity-50" title="Paste (Ctrl+V)">Paste</button>
-                <button onClick={handleMarkLeave} className="px-2 py-1 bg-yellow-600 text-white text-xs rounded hover:bg-yellow-700" title="Mark Leave">Leave</button>
-                <button onClick={handleDeleteSelected} className="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700" title="Delete">Delete</button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs md:text-sm text-gray-400">{selectedCells.size} cells</span>
+                <button onClick={handleCopy} className="px-2 py-1 bg-gray-700 text-white text-xs rounded hover:bg-gray-600 active:bg-gray-500 touch-manipulation" title="Copy">Copy</button>
+                <button onClick={handlePaste} disabled={copiedCells.size === 0} className="px-2 py-1 bg-gray-700 text-white text-xs rounded hover:bg-gray-600 disabled:opacity-50 touch-manipulation" title="Paste">Paste</button>
+                <button onClick={handleMarkLeave} className="px-2 py-1 bg-yellow-600 text-white text-xs rounded hover:bg-yellow-700 active:bg-yellow-800 touch-manipulation" title="Leave">Leave</button>
+                <button onClick={handleDeleteSelected} className="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 active:bg-red-800 touch-manipulation" title="Delete">Del</button>
               </div>
             )}
           </div>
-          <div className="flex gap-2">
-            <button onClick={handleUndo} disabled={historyIndex <= 0} className="px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50" title="Undo (Ctrl+Z)">↶ Undo</button>
-            <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50" title="Redo (Ctrl+Y)">↷ Redo</button>
-            <button onClick={exportToExcel} className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">📊 Export CSV</button>
-            <button onClick={() => { setImportType('members'); setShowImportModal(true); }} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">Import Members</button>
-            <button onClick={() => { setImportType('allocations'); setShowImportModal(true); }} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">Import Allocations</button>
-            <button onClick={() => setShowAddMemberModal(true)} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">Add Member</button>
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={handleUndo} disabled={historyIndex <= 0} className="px-2 md:px-3 py-2 bg-gray-700 text-white text-xs md:text-sm rounded-lg hover:bg-gray-600 active:bg-gray-500 transition-colors disabled:opacity-50 touch-manipulation" title="Undo">↶</button>
+            <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="px-2 md:px-3 py-2 bg-gray-700 text-white text-xs md:text-sm rounded-lg hover:bg-gray-600 active:bg-gray-500 transition-colors disabled:opacity-50 touch-manipulation" title="Redo">↷</button>
+            <button onClick={exportToExcel} className="px-2 md:px-3 py-2 bg-green-600 text-white text-xs md:text-sm rounded-lg hover:bg-green-700 active:bg-green-800 transition-colors touch-manipulation">📊<span className="hidden sm:inline ml-1">CSV</span></button>
+            <button onClick={() => { setImportType('members'); setShowImportModal(true); }} className="px-2 md:px-4 py-2 bg-blue-600 text-white text-xs md:text-sm rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors touch-manipulation"><span className="hidden sm:inline">Import </span>Members</button>
+            <button onClick={() => { setImportType('allocations'); setShowImportModal(true); }} className="px-2 md:px-4 py-2 bg-purple-600 text-white text-xs md:text-sm rounded-lg hover:bg-purple-700 active:bg-purple-800 transition-colors touch-manipulation"><span className="hidden sm:inline">Import </span>Alloc</button>
+            <button onClick={() => setShowAddMemberModal(true)} className="px-2 md:px-4 py-2 bg-green-600 text-white text-xs md:text-sm rounded-lg hover:bg-green-700 active:bg-green-800 transition-colors touch-manipulation">+ Member</button>
             
             {/* Bulk Operations Dropdown */}
             <div className="relative group">
-              <button className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors">
-                Bulk Operations ▾
+              <button className="px-2 md:px-4 py-2 bg-orange-600 text-white text-xs md:text-sm rounded-lg hover:bg-orange-700 active:bg-orange-800 transition-colors touch-manipulation">
+                Bulk ▾
               </button>
-              <div className="absolute right-0 mt-1 w-56 bg-gray-800 border border-gray-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+              <div className="absolute right-0 mt-1 w-48 md:w-56 bg-gray-800 border border-gray-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
                 <button
                   onClick={() => setBulkMode('reassign')}
-                  className="w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 transition-colors rounded-t-lg"
+                  className="w-full text-left px-3 md:px-4 py-2 text-xs md:text-sm text-white hover:bg-gray-700 active:bg-gray-600 transition-colors rounded-t-lg touch-manipulation"
                 >
-                  🔄 Bulk Reassign Allocations
+                  🔄 Bulk Reassign
                 </button>
                 <button
                   onClick={() => setBulkMode('copy')}
-                  className="w-full text-left px-4 py-2 text-sm text-white hover:bg-gray-700 transition-colors rounded-b-lg"
+                  className="w-full text-left px-3 md:px-4 py-2 text-xs md:text-sm text-white hover:bg-gray-700 active:bg-gray-600 transition-colors rounded-b-lg touch-manipulation"
                 >
-                  📋 Copy Week Pattern
+                  📋 Copy Week
                 </button>
               </div>
             </div>
@@ -1171,70 +1171,70 @@ export default function ResourceForecastView() {
           </div>
         )}
 
-        <div className="flex gap-4 items-center flex-wrap">
+        <div className="flex gap-2 md:gap-4 items-start md:items-center flex-wrap">
           <input
             type="text"
-            placeholder="🔍 Search employee or shot..."
+            placeholder="🔍 Search..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[250px]"
+            className="flex-1 min-w-[140px] sm:min-w-[200px] px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 touch-manipulation"
           />
           
-          <select value={selectedDepartment} onChange={(e) => setSelectedDepartment(e.target.value)} className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-            {departments.map((dept: string) => <option key={dept} value={dept}>{dept === 'all' ? 'All Departments' : dept}</option>)}
+          <select value={selectedDepartment} onChange={(e) => setSelectedDepartment(e.target.value)} className="px-2 md:px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 touch-manipulation">
+            {departments.map((dept: string) => <option key={dept} value={dept}>{dept === 'all' ? 'All Depts' : dept}</option>)}
           </select>
           
-          <select value={selectedShift} onChange={(e) => setSelectedShift(e.target.value)} className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <select value={selectedShift} onChange={(e) => setSelectedShift(e.target.value)} className="px-2 md:px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 touch-manipulation">
             <option value="all">All Shifts</option>
             <option value="Day">Day</option>
             <option value="Night">Night</option>
             <option value="General">General</option>
           </select>
 
-          <select value={selectedShow} onChange={(e) => setSelectedShow(e.target.value)} className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <select value={selectedShow} onChange={(e) => setSelectedShow(e.target.value)} className="px-2 md:px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 touch-manipulation">
             <option value="all">All Shows</option>
             {availableShows.map((show: string) => <option key={show} value={show}>{show}</option>)}
           </select>
 
-          <select value={utilizationFilter} onChange={(e) => setUtilizationFilter(e.target.value as any)} className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="all">All Utilization</option>
-            <option value="overallocated">⚠️ Overallocated (&gt;1 MD/day)</option>
-            <option value="available">✅ Available (0 MD)</option>
-            <option value="partial">🟡 Partial (&lt;1 MD/day)</option>
+          <select value={utilizationFilter} onChange={(e) => setUtilizationFilter(e.target.value as any)} className="px-2 md:px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 touch-manipulation">
+            <option value="all">All Status</option>
+            <option value="overallocated">⚠️ Overallocated</option>
+            <option value="available">✅ Available</option>
+            <option value="partial">🟡 Partial</option>
           </select>
 
           <button 
             onClick={() => setShowSaveViewModal(true)}
-            className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
-            title="Save current filter as view"
+            className="px-2 md:px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 active:bg-purple-800 transition-colors text-xs md:text-sm touch-manipulation"
+            title="Save view"
           >
-            💾 Save View
+            💾<span className="hidden sm:inline ml-1">Save</span>
           </button>
 
           {activeViewId && (
             <button 
               onClick={() => { setActiveViewId(null); setSelectedDepartment('all'); setSelectedShift('all'); setSelectedShow('all'); setUtilizationFilter('all'); setSearchQuery(''); }}
-              className="px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
+              className="px-2 md:px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 active:bg-gray-500 transition-colors text-xs md:text-sm touch-manipulation"
             >
-              ✕ Clear View
+              ✕<span className="hidden sm:inline ml-1">Clear</span>
             </button>
           )}
 
-          <div className="flex items-center gap-2">
-            <button onClick={() => navigateDates(-7)} className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 text-white text-sm transition-colors">&lt; Week</button>
-            <button onClick={() => setStartDate(new Date())} className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 text-white text-sm transition-colors">Today</button>
-            <button onClick={() => navigateDates(7)} className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 text-white text-sm transition-colors">Week &gt;</button>
+          <div className="flex items-center gap-1 md:gap-2">
+            <button onClick={() => navigateDates(-7)} className="px-2 md:px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 active:bg-gray-600 text-white text-xs md:text-sm transition-colors touch-manipulation">&lt;</button>
+            <button onClick={() => setStartDate(new Date())} className="px-2 md:px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 active:bg-gray-600 text-white text-xs md:text-sm transition-colors touch-manipulation">Today</button>
+            <button onClick={() => navigateDates(7)} className="px-2 md:px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 active:bg-gray-600 text-white text-xs md:text-sm transition-colors touch-manipulation">&gt;</button>
           </div>
 
-          <select value={dateRange} onChange={(e) => setDateRange(Number(e.target.value))} className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <select value={dateRange} onChange={(e) => setDateRange(Number(e.target.value))} className="px-2 md:px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 touch-manipulation">
             <option value={14}>14 Days</option>
             <option value={30}>30 Days</option>
             <option value={60}>60 Days</option>
             <option value={90}>90 Days</option>
           </select>
 
-          <div className="ml-auto text-xs text-gray-400">
-            <span className="font-medium">Tips:</span> Click+Drag to select | Right-click bulk edit | Delete to clear | Ctrl+C/V copy/paste | Ctrl+Z/Y undo/redo | Dbl-click weekend to toggle | Search filters
+          <div className="hidden xl:block ml-auto text-xs text-gray-400">
+            <span className="font-medium">Tips:</span> Click+Drag | Right-click | Del | Ctrl+C/V | Ctrl+Z/Y
           </div>
         </div>
       </div>

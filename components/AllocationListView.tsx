@@ -144,51 +144,51 @@ export default function AllocationListView() {
 
   return (
     <div className="h-full flex flex-col bg-gray-900">
-      <div className="bg-gray-800 border-b border-gray-700 p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold text-white">Resource Allocations</h1>
+      <div className="bg-gray-800 border-b border-gray-700 p-3 md:p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <h1 className="text-xl md:text-2xl font-bold text-white">Resource Allocations</h1>
           
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <button 
               onClick={handleExport}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
-              title="Export filtered allocations to CSV"
+              className="flex-1 sm:flex-none px-3 md:px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 active:bg-green-800 flex items-center justify-center gap-2 touch-manipulation"
+              title="Export CSV"
             >
-              <Download size={18} />
-              Export CSV
+              <Download size={16} />
+              <span className="hidden sm:inline">Export </span>CSV
             </button>
 
             <button 
               onClick={() => setShowImportModal(true)}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
-              title="Import allocations with conflict resolution"
+              className="flex-1 sm:flex-none px-3 md:px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 active:bg-purple-800 flex items-center justify-center gap-2 touch-manipulation"
+              title="Import CSV"
             >
-              <Upload size={18} />
-              Import CSV
+              <Upload size={16} />
+              <span className="hidden sm:inline">Import </span>CSV
             </button>
           </div>
         </div>
 
-        <div className="flex gap-4 items-center flex-wrap">
+        <div className="flex gap-2 md:gap-4 items-center flex-wrap">
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by name, emp ID, or shot..."
-            className="px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg w-64 placeholder-gray-400"
+            placeholder="Search..."
+            className="flex-1 min-w-[140px] px-3 py-2 bg-gray-700 border border-gray-600 text-white text-sm rounded-lg placeholder-gray-400 touch-manipulation"
           />
 
-          <select value={selectedDepartment} onChange={(e) => setSelectedDepartment(e.target.value)} className="px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg">
-            <option value="all">All Departments</option>
+          <select value={selectedDepartment} onChange={(e) => setSelectedDepartment(e.target.value)} className="px-2 md:px-3 py-2 bg-gray-700 border border-gray-600 text-white text-xs md:text-sm rounded-lg touch-manipulation">
+            <option value="all">All Depts</option>
             {departments.map(dept => <option key={dept} value={dept}>{dept}</option>)}
           </select>
 
-          <select value={selectedShift} onChange={(e) => setSelectedShift(e.target.value)} className="px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg">
+          <select value={selectedShift} onChange={(e) => setSelectedShift(e.target.value)} className="px-2 md:px-3 py-2 bg-gray-700 border border-gray-600 text-white text-xs md:text-sm rounded-lg touch-manipulation">
             <option value="all">All Shifts</option>
             {shifts.map(shift => <option key={shift} value={shift}>{shift}</option>)}
           </select>
 
-          <select value={selectedShow} onChange={(e) => setSelectedShow(e.target.value)} className="px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg">
+          <select value={selectedShow} onChange={(e) => setSelectedShow(e.target.value)} className="px-2 md:px-3 py-2 bg-gray-700 border border-gray-600 text-white text-xs md:text-sm rounded-lg touch-manipulation">
             <option value="all">All Shows</option>
             {shows.map(show => <option key={show} value={show}>{show}</option>)}
           </select>
