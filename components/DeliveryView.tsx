@@ -45,8 +45,13 @@ export default function DeliveryView() {
     const role = (session.user as any).role;
     const permissions = (session.user as any).permissions || [];
     
-    // Check role-based permission
-    if (role === 'ADMIN' || role === 'COORDINATOR') return true;
+    // Check role-based permission - Admin, Coordinator, Production Coordinator, or any coordinator role
+    if (role === 'ADMIN' || 
+        role === 'COORDINATOR' || 
+        role === 'PRODUCTION COORDINATOR' ||
+        role?.toUpperCase().includes('COORDINATOR')) {
+      return true;
+    }
     
     // Check custom permission
     return permissions.includes('deliveries.send');

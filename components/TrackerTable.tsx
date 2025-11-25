@@ -47,7 +47,13 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
   const hasEditPermission = useMemo(() => {
     if (!session?.user) return false;
     const role = (session.user as any).role;
-    if (role === 'ADMIN' || role === 'COORDINATOR') return true;
+    // Admin, Coordinator, Production Coordinator, or any role with COORDINATOR in name has full edit access
+    if (role === 'ADMIN' || 
+        role === 'COORDINATOR' || 
+        role === 'PRODUCTION COORDINATOR' ||
+        role?.toUpperCase().includes('COORDINATOR')) {
+      return true;
+    }
     // Check if user has edit permission on any show
     return shows.some(show => show.canEdit === true);
   }, [session, shows]);
