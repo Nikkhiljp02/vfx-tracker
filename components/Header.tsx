@@ -354,6 +354,8 @@ export default function Header() {
       setGoogleSheetsConnected(true);
       toast.success('Synced to Google Sheets successfully!');
       
+      console.log('[Google Sheets] Synced successfully, spreadsheet ID:', data.spreadsheetId);
+      
       // Open the sheet in a new tab
       window.open(data.url, '_blank');
     } catch (error: any) {

@@ -164,15 +164,13 @@ function updateVFXTracker() {
     const result = JSON.parse(response.getContentText());
     
     if (result.success) {
-      ui.alert('✅ Success', 
-        \`Updated \${result.changes.length} tasks in VFX Tracker!\`, 
-        ui.ButtonSet.OK);
+      ui.alert('✅ Updated ' + result.changes.length + ' tasks in VFX Tracker!');
     } else {
-      ui.alert('❌ Error', result.error || 'Failed to update tracker', ui.ButtonSet.OK);
+      ui.alert('❌ Error: ' + (result.error || 'Failed to update tracker'));
     }
     
   } catch (error) {
-    ui.alert('❌ Error', 'Failed to connect to VFX Tracker: ' + error.message, ui.ButtonSet.OK);
+    ui.alert('❌ Failed to connect: ' + error.message);
   }
 }
 
@@ -207,14 +205,14 @@ function refreshFromTracker() {
     const result = JSON.parse(response.getContentText());
     
     if (result.success) {
-      ui.alert('✅ Success', 'Sheet refreshed with latest tracker data!', ui.ButtonSet.OK);
+      ui.alert('✅ Sheet refreshed with latest tracker data!');
       SpreadsheetApp.flush(); // Force refresh
     } else {
-      ui.alert('❌ Error', result.error || 'Failed to refresh', ui.ButtonSet.OK);
+      ui.alert('❌ Error: ' + (result.error || 'Failed to refresh'));
     }
     
   } catch (error) {
-    ui.alert('❌ Error', 'Failed to connect to VFX Tracker: ' + error.message, ui.ButtonSet.OK);
+    ui.alert('❌ Failed to connect: ' + error.message);
   }
 }
 

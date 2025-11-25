@@ -6,16 +6,23 @@ import { auth as getAuth } from '@/lib/auth';
 // Read changes from Google Sheets and apply to tracker
 export async function POST(req: NextRequest) {
   try {
+    console.log('[Google Sheets Import] Starting import...');
+    
     const session = await getAuth();
     if (!session?.user) {
+      console.log('[Google Sheets Import] Not authenticated');
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
+
+    console.log('[Google Sheets Import] User:', (session.user as any).username);
 
     // Get user and their Google tokens
     const user = await prisma.user.findUnique({
       where: { username: (session.user as any).username || '' },
       include: { preferences: true },
     });
+
+    console.log('[Google Sheets Import] User found:', !!user, 'Has tokens:', !!user?.preferences?.filterState);
 
     if (!user?.preferences?.filterState) {
       return NextResponse.json(
@@ -24,23 +31,32 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!user?.preferences?.sortState) {
+    // Get request body
+    const body = await req.json();
+    const { shows, spreadsheetId: requestSpreadsheetId } = body;
+
+    // Get spreadsheet ID from request or user preferences
+    const spreadsheetId = requestSpreadsheetId || user.preferences.sortState;
+    console.log('[Google Sheets Import] Spreadsheet ID from request:', requestSpreadsheetId);
+    console.log('[Google Sheets Import] Spreadsheet ID from preferences:', user.preferences.sortState);
+    console.log('[Google Sheets Import] Using spreadsheet ID:', spreadsheetId);
+
+    if (!spreadsheetId) {
+      console.log('[Google Sheets Import] No spreadsheet ID found');
       return NextResponse.json(
-        { error: 'No spreadsheet ID found' },
+        { error: 'No spreadsheet ID found. Please sync to sheets first.' },
         { status: 400 }
       );
     }
 
-    // Parse tokens and spreadsheet ID
+    // Parse tokens
     const tokens = JSON.parse(user.preferences.filterState);
-    const spreadsheetId = user.preferences.sortState;
     const auth = setCredentials(getGoogleAuth(), tokens);
 
-    // Get current shows data
-    const { shows } = await req.json();
-
+    console.log('[Google Sheets Import] Detecting changes from sheet...');
     // Detect changes from Google Sheets
     const changes = await detectSheetChanges(auth, spreadsheetId, shows);
+    console.log('[Google Sheets Import] Detected', changes.length, 'changes');
 
     if (changes.length === 0) {
       return NextResponse.json({
