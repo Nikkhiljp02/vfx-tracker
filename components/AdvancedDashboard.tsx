@@ -208,25 +208,25 @@ export default function AdvancedDashboard() {
   };
 
   return (
-    <div ref={dashboardRef} className="p-6 space-y-6 bg-gray-50 min-h-screen">
-      {/* Header with Controls */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <div className="flex items-center justify-between">
+    <div ref={dashboardRef} className="p-3 md:p-6 space-y-4 md:space-y-6 bg-gray-50 min-h-screen">
+      {/* Header with Controls - Mobile Optimized */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 md:p-4">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-sm text-gray-600" suppressHydrationWarning>
-              Real-time analytics and insights • Last updated: {lastRefresh.toLocaleTimeString()}
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900">Dashboard</h1>
+            <p className="text-xs md:text-sm text-gray-600" suppressHydrationWarning>
+              Real-time analytics • {lastRefresh.toLocaleTimeString()}
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-3 flex-wrap">
             {/* Auto-refresh Toggle */}
-            <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
-              <Activity size={16} className={autoRefresh ? 'text-green-600' : 'text-gray-400'} />
-              <span className="text-sm font-medium">Auto-refresh</span>
+            <div className="flex items-center gap-2 px-2 md:px-3 py-2 bg-gray-50 rounded-lg touch-manipulation">
+              <Activity size={14} className={autoRefresh ? 'text-green-600' : 'text-gray-400'} />
+              <span className="text-xs md:text-sm font-medium hidden sm:inline">Auto-refresh</span>
               <button
                 onClick={() => setAutoRefresh(!autoRefresh)}
-                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors touch-manipulation ${
                   autoRefresh ? 'bg-green-600' : 'bg-gray-300'
                 }`}
               >
@@ -241,10 +241,10 @@ export default function AdvancedDashboard() {
             {/* Manual Refresh */}
             <button
               onClick={handleManualRefresh}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center gap-2 px-3 md:px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors touch-manipulation"
             >
-              <RefreshCw size={16} />
-              Refresh
+              <RefreshCw size={14} />
+              <span className="hidden sm:inline">Refresh</span>
             </button>
 
             {/* Settings */}
@@ -273,20 +273,20 @@ export default function AdvancedDashboard() {
         </div>
       </div>
 
-      {/* Widget Settings Panel */}
+      {/* Widget Settings Panel - Mobile Optimized */}
       {showSettings && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-gray-900">Customize Dashboard</h2>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <h2 className="text-base md:text-lg font-bold text-gray-900">Customize Dashboard</h2>
             <button
               onClick={resetWidgets}
-              className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+              className="px-3 py-1.5 text-xs md:text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 active:bg-gray-300 touch-manipulation"
             >
               Reset to Default
             </button>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 md:gap-3">
             {widgets.map(widget => (
               <button
                 key={widget.id}
@@ -322,7 +322,7 @@ export default function AdvancedDashboard() {
       )}
 
       {/* Widgets Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {enabledWidgets.map(widget => {
           const isFullWidth = widget.size === 'full' || widget.size === 'large';
           return (
@@ -418,26 +418,26 @@ function OverviewWidget({ title }: { title: string }) {
   }, [shows]);
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <h3 className="text-lg font-bold text-gray-900 mb-4" suppressHydrationWarning>{title}</h3>
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
+      <h3 className="text-base md:text-lg font-bold text-gray-900 mb-3 md:mb-4" suppressHydrationWarning>{title}</h3>
       
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         <StatCard
           label="Shows"
           value={stats.totalShows}
-          icon={<BarChart3 size={24} className="text-blue-600" />}
+          icon={<BarChart3 size={20} className="text-blue-600" />}
           color="blue"
         />
         <StatCard
           label="Shots"
           value={stats.totalShots}
-          icon={<Target size={24} className="text-purple-600" />}
+          icon={<Target size={20} className="text-purple-600" />}
           color="purple"
         />
         <StatCard
           label="Tasks"
           value={stats.totalTasks}
-          icon={<Activity size={24} className="text-indigo-600" />}
+          icon={<Activity size={20} className="text-indigo-600" />}
           color="indigo"
         />
         <StatCard
@@ -448,7 +448,7 @@ function OverviewWidget({ title }: { title: string }) {
         />
       </div>
 
-      <div className="mt-6 grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="mt-4 md:mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-3">
         <MiniStatCard label="Completed" value={stats.completed} color="green" />
         <MiniStatCard label="AWF" value={stats.awf} color="orange" />
         <MiniStatCard label="WIP" value={stats.wip} color="blue" />
@@ -461,12 +461,12 @@ function OverviewWidget({ title }: { title: string }) {
 
 function StatCard({ label, value, icon, color }: any) {
   return (
-    <div className={`bg-${color}-50 rounded-lg p-4 border border-${color}-100`}>
+    <div className={`bg-${color}-50 rounded-lg p-3 md:p-4 border border-${color}-100 touch-manipulation active:shadow-lg transition-shadow`}>
       <div className="flex items-center justify-between mb-2">
         {icon}
       </div>
-      <div className="text-3xl font-bold text-gray-900">{value}</div>
-      <div className="text-sm text-gray-600">{label}</div>
+      <div className="text-2xl md:text-3xl font-bold text-gray-900">{value}</div>
+      <div className="text-xs md:text-sm text-gray-600">{label}</div>
     </div>
   );
 }
@@ -1012,7 +1012,7 @@ function ShowProgressWidget({ title }: { title: string }) {
               </div>
               
               {/* Quick Stats */}
-              <div className="grid grid-cols-4 gap-3 mb-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3 mb-4">
                 <div className="text-center p-3 bg-white rounded-lg shadow-sm border border-gray-100">
                   <div className="text-xl font-bold text-gray-900">{shots.length}</div>
                   <div className="text-xs text-gray-600 mt-1">Total Shots</div>
@@ -1037,7 +1037,7 @@ function ShowProgressWidget({ title }: { title: string }) {
                   <Users size={16} />
                   Department-wise Progress
                 </h5>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3">
                   {Object.entries(deptStats)
                     .sort((a, b) => b[1].total - a[1].total)
                     .map(([dept, stats]) => {

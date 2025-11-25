@@ -157,20 +157,20 @@ export default function ShowsManagementPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+      {/* Header - Mobile Optimized */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="max-w-7xl mx-auto px-3 md:px-4 lg:px-8 py-4 md:py-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Link href="/admin" className="text-gray-600 hover:text-gray-900">
+            <div className="flex items-center space-x-2 md:space-x-3">
+              <Link href="/admin" className="text-gray-600 hover:text-gray-900 active:text-gray-950 touch-manipulation p-1">
                 <ChevronLeft className="w-5 h-5" />
               </Link>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-                  <Folder className="w-8 h-8 mr-3" />
-                  Shows & Configuration
+                <h1 className="text-lg md:text-3xl font-bold text-gray-900 flex items-center">
+                  <Folder className="w-6 h-6 md:w-8 md:h-8 mr-2 md:mr-3" />
+                  Shows & Config
                 </h1>
-                <p className="text-gray-600 mt-1">
+                <p className="text-xs md:text-base text-gray-600 mt-1 hidden sm:block">
                   Manage shows, departments, and status options
                 </p>
               </div>
@@ -179,17 +179,17 @@ export default function ShowsManagementPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Tabs */}
-        <div className="bg-white rounded-lg shadow mb-6">
+      <div className="max-w-7xl mx-auto px-3 md:px-4 lg:px-8 py-4 md:py-8">
+        {/* Tabs - Mobile Optimized */}
+        <div className="bg-white rounded-lg shadow mb-4 md:mb-6">
           <div className="border-b border-gray-200">
-            <div className="flex">
+            <div className="flex overflow-x-auto hide-scrollbar">
               <button
                 onClick={() => setActiveTab("shows")}
-                className={`px-6 py-4 text-sm font-medium transition-colors ${
+                className={`flex-shrink-0 px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium transition-colors touch-manipulation ${
                   activeTab === "shows"
                     ? "border-b-2 border-blue-500 text-blue-600"
-                    : "text-gray-600 hover:text-gray-900"
+                    : "text-gray-600 hover:text-gray-900 active:text-gray-950"
                 }`}
               >
                 <Folder className="w-4 h-4 inline mr-2" />
@@ -197,7 +197,7 @@ export default function ShowsManagementPage() {
               </button>
               <button
                 onClick={() => setActiveTab("departments")}
-                className={`px-6 py-4 text-sm font-medium transition-colors ${
+                className={`flex-shrink-0 px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium transition-colors touch-manipulation ${
                   activeTab === "departments"
                     ? "border-b-2 border-blue-500 text-blue-600"
                     : "text-gray-600 hover:text-gray-900"
@@ -321,7 +321,7 @@ export default function ShowsManagementPage() {
                     Manage department options. Inactive departments won't appear in dropdowns.
                   </p>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
                   {departments.map((dept) => (
                     <div
                       key={dept.id}
