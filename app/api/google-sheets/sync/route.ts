@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
 
     // Get user and their Google tokens
     const user = await prisma.user.findUnique({
-      where: { username: session.user.name || '' },
+      where: { username: (session.user as any).username || '' },
       include: { preferences: true },
     });
 

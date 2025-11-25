@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
 
     // Get user and their Google tokens
     const user = await prisma.user.findUnique({
-      where: { username: session.user.name || '' },
+      where: { username: (session.user as any).username || '' },
       include: { preferences: true },
     });
 
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
             fieldName: field,
             oldValue: '', // Would need to fetch old value
             newValue: JSON.stringify(change.changes[field]),
-            userName: session.user.name || 'Google Sheets Sync',
+            userName: (session.user as any).username || 'Google Sheets Sync',
             userId: user.id,
           },
         });

@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
 
     // Store tokens in user preferences (encrypted in production)
     const user = await prisma.user.findUnique({
-      where: { username: session.user.name || '' },
+      where: { username: (session.user as any).username || '' },
       include: { preferences: true },
     });
 
