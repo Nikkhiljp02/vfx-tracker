@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, Download, Upload, FileSpreadsheet, RefreshCw, Settings, History, ChevronRight, ChevronLeft, User, LogOut, Users } from 'lucide-react';
+import { Plus, Download, Upload, FileSpreadsheet, RefreshCw, Settings, History, ChevronRight, ChevronLeft, User, LogOut, Users, Sheet } from 'lucide-react';
 import { useState, useRef } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -13,6 +13,7 @@ import StatusManagementModal from './StatusManagementModal';
 import ImportPreviewModal from './ImportPreviewModal';
 import ActivityLogModal from './ActivityLogModal';
 import NotificationBell from './NotificationBell';
+import toast from 'react-hot-toast';
 
 export default function Header() {
   const { data: session } = useSession();
@@ -33,6 +34,12 @@ export default function Header() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const updateInputRef = useRef<HTMLInputElement>(null);
   const ingestInputRef = useRef<HTMLInputElement>(null);
+  
+  // Google Sheets state
+  const [googleSheetsConnected, setGoogleSheetsConnected] = useState(false);
+  const [googleSheetUrl, setGoogleSheetUrl] = useState<string | null>(null);
+  const [syncingToSheets, setSyncingToSheets] = useState(false);
+  const [importingFromSheets, setImportingFromSheets] = useState(false);
 
   const user = session?.user as any;
   const userPermissions = user?.permissions || [];
@@ -259,6 +266,90 @@ export default function Header() {
 
   const handleExport = () => {
     exportToExcel(shows);
+  };
+
+  // Google Sheets handlers
+  const handleConnectGoogleSheets = async () => {
+    try {
+      const response = await fetch('/api/google-sheets/auth');
+      const { authUrl } = await response.json();
+      window.location.href = authUrl;
+    } catch (error) {
+      console.error('Error connecting to Google Sheets:', error);
+      toast.error('Failed to connect to Google Sheets');
+    }
+  };
+
+  const handleSyncToGoogleSheets = async () => {
+    setSyncingToSheets(true);
+    try {
+      const response = await fetch('/api/google-sheets/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          spreadsheetId: null, // Will create new or use stored
+          shows,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          toast.error('Google authorization expired. Please reconnect.');
+          setGoogleSheetsConnected(false);
+          return;
+        }
+        throw new Error(data.error || 'Failed to sync');
+      }
+
+      setGoogleSheetUrl(data.url);
+      setGoogleSheetsConnected(true);
+      toast.success('Synced to Google Sheets successfully!');
+      
+      // Open the sheet in a new tab
+      window.open(data.url, '_blank');
+    } catch (error: any) {
+      console.error('Error syncing to Google Sheets:', error);
+      toast.error(error.message || 'Failed to sync to Google Sheets');
+    } finally {
+      setSyncingToSheets(false);
+    }
+  };
+
+  const handleImportFromGoogleSheets = async () => {
+    setImportingFromSheets(true);
+    try {
+      const response = await fetch('/api/google-sheets/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shows }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          toast.error('Google authorization expired. Please reconnect.');
+          setGoogleSheetsConnected(false);
+          return;
+        }
+        throw new Error(data.error || 'Failed to import');
+      }
+
+      if (data.changes.length === 0) {
+        toast.success('No changes detected in Google Sheets');
+      } else {
+        toast.success(`Applied ${data.changes.length} changes from Google Sheets`);
+        // Refresh data
+        window.location.reload();
+      }
+    } catch (error: any) {
+      console.error('Error importing from Google Sheets:', error);
+      toast.error(error.message || 'Failed to import from Google Sheets');
+    } finally {
+      setImportingFromSheets(false);
+    }
   };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -651,6 +742,63 @@ export default function Header() {
                     Export to Excel (Ctrl+E)
                   </span>
                 </button>
+
+                {/* Google Sheets Integration */}
+                {!googleSheetsConnected ? (
+                  <button
+                    onClick={handleConnectGoogleSheets}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all whitespace-nowrap animate-slideInFromLeft"
+                    style={{ animationDelay: '100ms' }}
+                    title="Connect Google Sheets"
+                  >
+                    <Sheet size={18} />
+                    Connect Sheets
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={handleSyncToGoogleSheets}
+                      disabled={shows.length === 0 || syncingToSheets}
+                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all disabled:opacity-50 group relative whitespace-nowrap animate-slideInFromLeft"
+                      style={{ animationDelay: '100ms' }}
+                      title="Sync to Google Sheets (Live)"
+                    >
+                      <Sheet size={18} />
+                      {syncingToSheets ? 'Syncing...' : 'Sync to Sheets'}
+                      <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
+                        Push data to Google Sheets
+                      </span>
+                    </button>
+
+                    {canImport && (
+                      <button
+                        onClick={handleImportFromGoogleSheets}
+                        disabled={importingFromSheets}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 group relative whitespace-nowrap animate-slideInFromLeft"
+                        style={{ animationDelay: '150ms' }}
+                        title="Import changes from Google Sheets"
+                      >
+                        <RefreshCw size={18} className={importingFromSheets ? 'animate-spin' : ''} />
+                        {importingFromSheets ? 'Updating...' : 'Update from Sheets'}
+                        <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
+                          Pull changes from Google Sheets
+                        </span>
+                      </button>
+                    )}
+
+                    {googleSheetUrl && (
+                      <button
+                        onClick={() => window.open(googleSheetUrl, '_blank')}
+                        className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all whitespace-nowrap animate-slideInFromLeft"
+                        style={{ animationDelay: '200ms' }}
+                        title="Open Google Sheet"
+                      >
+                        <FileSpreadsheet size={18} />
+                        Open Sheet
+                      </button>
+                    )}
+                  </>
+                )}
 
                 {/* Edit-only buttons - Hidden for view-only users */}
                 {canImport && (
