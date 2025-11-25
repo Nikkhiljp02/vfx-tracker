@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// Cache for 5 minutes (departments rarely change)
+export const revalidate = 300;
+
 // GET all departments
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +16,11 @@ export async function GET(request: NextRequest) {
         deptName: 'asc',
       },
     });
-    return NextResponse.json(departments);
+    return NextResponse.json(departments, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+      },
+    });
   } catch (error) {
     console.error('Error fetching departments:', error);
     return NextResponse.json({ error: 'Failed to fetch departments' }, { status: 500 });

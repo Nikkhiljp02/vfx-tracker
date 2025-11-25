@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useVFXStore } from '@/lib/store';
 import { useSession } from 'next-auth/react';
+import { useRealtimeUpdates } from '@/lib/useRealtimeUpdates';
 import TrackerTable from '@/components/TrackerTable';
 import DepartmentView from '@/components/DepartmentView';
 import DeliveryView from '@/components/DeliveryView';
@@ -24,6 +25,9 @@ import { LayoutGrid, Layers, Truck, Filter, Users, Activity, X } from 'lucide-re
 export default function Home() {
   const { data: session } = useSession();
   const { fetchAllData, loadPreferences, loading, error } = useVFXStore();
+  
+  // Enable real-time updates via Supabase broadcasts
+  useRealtimeUpdates();
   // Default to non-detailed view (false) for first-time users
   const [detailedView, setDetailedView] = useState(() => {
     if (typeof window !== 'undefined') {

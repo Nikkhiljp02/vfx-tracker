@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
+
+// Cache for 60 seconds
+export const revalidate = 60;
 
 // GET all shows (filtered by user access)
 export async function GET() {
@@ -50,7 +54,11 @@ export async function GET() {
         canEdit: true,
       }));
       
-      return NextResponse.json(showsWithPermissions);
+      return NextResponse.json(showsWithPermissions, {
+        headers: {
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+        },
+      });
     }
 
     // Non-admin users only see shows they have access to
@@ -89,7 +97,11 @@ export async function GET() {
       new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime()
     );
 
-    return NextResponse.json(showsWithPermissions);
+    return NextResponse.json(showsWithPermissions, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+      },
+    });
   } catch (error) {
     console.error('Error fetching shows:', error);
     return NextResponse.json({ error: 'Failed to fetch shows' }, { status: 500 });
@@ -134,6 +146,17 @@ export async function POST(request: NextRequest) {
         notes: notes || '',
       },
     });
+
+    // Broadcast show creation to all connected clients
+    try {
+      await supabase.channel('db-changes').send({
+        type: 'broadcast',
+        event: 'show-created',
+        payload: { showId: show.id, showName: show.showName }
+      });
+    } catch (broadcastError) {
+      console.error('Broadcast error:', broadcastError);
+    }
 
     return NextResponse.json(show, { status: 201 });
   } catch (error) {

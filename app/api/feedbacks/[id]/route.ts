@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 
 // GET single feedback
 export async function GET(
@@ -163,6 +164,22 @@ export async function PUT(
       }
     }
 
+    // Broadcast feedback update to all connected clients
+    try {
+      await supabase.channel('db-changes').send({
+        type: 'broadcast',
+        event: 'feedback-updated',
+        payload: { 
+          feedbackId: feedback.id,
+          showName: feedback.showName,
+          shotName: feedback.shotName,
+          taskId: feedback.taskId
+        }
+      });
+    } catch (broadcastError) {
+      console.error('Broadcast error:', broadcastError);
+    }
+
     return NextResponse.json(feedback);
   } catch (error) {
     console.error('Error updating feedback:', error);
@@ -216,6 +233,21 @@ export async function DELETE(
     await prisma.feedback.delete({
       where: { id },
     });
+
+    // Broadcast feedback deletion to all connected clients
+    try {
+      await supabase.channel('db-changes').send({
+        type: 'broadcast',
+        event: 'feedback-deleted',
+        payload: { 
+          feedbackId: id,
+          showName: feedbackToDelete.showName,
+          shotName: feedbackToDelete.shotName
+        }
+      });
+    } catch (broadcastError) {
+      console.error('Broadcast error:', broadcastError);
+    }
 
     return NextResponse.json({ message: 'Feedback deleted successfully' });
   } catch (error) {

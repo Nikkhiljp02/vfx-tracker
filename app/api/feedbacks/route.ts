@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
+
+// Cache for 30 seconds
+export const revalidate = 30;
 
 // GET all feedbacks
 export async function GET() {
@@ -17,7 +21,11 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json(feedbacks);
+    return NextResponse.json(feedbacks, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+      },
+    });
   } catch (error) {
     console.error('Error fetching feedbacks:', error);
     return NextResponse.json({ error: 'Failed to fetch feedbacks' }, { status: 500 });
@@ -169,6 +177,22 @@ export async function POST(request: NextRequest) {
           console.error('Failed to log task status change:', logError);
         }
       }
+    }
+
+    // Broadcast feedback creation to all connected clients
+    try {
+      await supabase.channel('db-changes').send({
+        type: 'broadcast',
+        event: 'feedback-created',
+        payload: { 
+          feedbackId: feedback.id, 
+          showName: feedback.showName,
+          shotName: feedback.shotName,
+          taskId: taskId 
+        }
+      });
+    } catch (broadcastError) {
+      console.error('Broadcast error:', broadcastError);
     }
 
     return NextResponse.json(feedback, { status: 201 });

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// Cache for 5 minutes (status options rarely change)
+export const revalidate = 300;
+
 // GET all status options
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +16,11 @@ export async function GET(request: NextRequest) {
         statusOrder: 'asc',
       },
     });
-    return NextResponse.json(statuses);
+    return NextResponse.json(statuses, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+      },
+    });
   } catch (error) {
     console.error('Error fetching status options:', error);
     return NextResponse.json({ error: 'Failed to fetch status options' }, { status: 500 });

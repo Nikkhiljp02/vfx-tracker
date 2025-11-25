@@ -230,8 +230,10 @@ model Task {
   @@index([isInternal])
   @@index([internalEta])
   @@index([clientEta])
+  @@index([deliveredDate(sort: Desc)])
   @@index([shotId, department])
   @@index([status, department])
+  @@index([updatedDate(sort: Desc)])
   @@map("tasks")
 }
 
@@ -276,8 +278,10 @@ model ActivityLog {
 
   @@map("activity_logs")
   @@index([entityType, entityId])
-  @@index([timestamp])
+  @@index([timestamp(sort: Desc)])
   @@index([userId])
+  @@index([actionType])
+  @@index([isReversed])
 }
 
 // Shot Notes/Comments Table (Communication & Collaboration)
@@ -483,7 +487,9 @@ model Feedback {
   @@index([department])
   @@index([status])
   @@index([leadName])
-  @@index([feedbackDate])
+  @@index([feedbackDate(sort: Desc)])
   @@index([shotTag])
+  @@index([taskId])
+  @@index([showName, shotName])
   @@map("feedbacks")
 }
