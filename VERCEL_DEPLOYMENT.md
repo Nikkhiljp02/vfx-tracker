@@ -30,8 +30,8 @@ SMTP_FROM="VFX Tracker <nikhil.patil@digikore.com>"
 # Google Sheets API (Optional - for live sync feature)
 # Get from: https://console.cloud.google.com
 # See GOOGLE_SHEETS_SYNC.md for setup instructions
-GOOGLE_CLIENT_ID="your-client-id.apps.googleusercontent.com"
-GOOGLE_CLIENT_SECRET="your-client-secret"
+GOOGLE_CLIENT_ID="532895507648-liuotjkm431tjk1dhnl8cnkc09i5n5gg.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="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"
 ```
 
 #### Important Notes:
