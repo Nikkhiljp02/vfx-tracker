@@ -298,6 +298,7 @@ export default function ActivityLogModal({ isOpen, onClose }: ActivityLogModalPr
                 className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">All Changes</option>
+                <option value="Feedback">Feedback</option>
                 <option value="Shot">Shots</option>
                 <option value="Task">Tasks</option>
                 <option value="Show">Shows</option>
@@ -372,7 +373,7 @@ export default function ActivityLogModal({ isOpen, onClose }: ActivityLogModalPr
                 >
                   <div className="flex items-start justify-between">
                     {/* Checkbox for bulk selection */}
-                    {canUndo && !log.isReversed && (log.actionType === 'UPDATE' || log.actionType === 'DELETE') && (
+                    {canUndo && !log.isReversed && (log.actionType === 'CREATE' || log.actionType === 'UPDATE' || log.actionType === 'DELETE') && (
                       <div className="mr-3 pt-1">
                         <input
                           type="checkbox"
@@ -475,7 +476,7 @@ export default function ActivityLogModal({ isOpen, onClose }: ActivityLogModalPr
                       </div>
                     </div>
 
-                    {canUndo && !log.isReversed && (log.actionType === 'UPDATE' || log.actionType === 'DELETE') && (
+                    {canUndo && !log.isReversed && !log.fieldName?.startsWith('undo_') && (log.actionType === 'CREATE' || log.actionType === 'UPDATE' || log.actionType === 'DELETE') && (
                       <button
                         onClick={() => handleUndo(log.id)}
                         disabled={undoing === log.id}
