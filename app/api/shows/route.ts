@@ -46,6 +46,7 @@ export async function GET() {
               tasks: {
                 select: {
                   id: true,
+                  shotId: true, // Need this to link back to show for permissions
                   department: true,
                   status: true,
                   leadName: true,
@@ -100,6 +101,7 @@ export async function GET() {
               tasks: {
                 select: {
                   id: true,
+                  shotId: true, // Need this to link back to show for permissions
                   department: true,
                   status: true,
                   leadName: true,

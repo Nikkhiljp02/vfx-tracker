@@ -18,16 +18,37 @@ export default function TaskCell({ task }: TaskCellProps) {
 
   // Find the show this task belongs to and check if user can edit
   const canEdit = useMemo(() => {
+    // First try to use shotId directly (optimized API response)
+    if (task.shotId) {
+      // Find which show contains this shot
+      const show = shows.find(s => 
+        s.shots?.some(shot => shot.id === task.shotId)
+      );
+      
+      const hasPermission = show?.canEdit ?? false;
+      
+      console.log('🔐 TaskCell Permission Check (via shotId):', {
+        taskId: task.id,
+        shotId: task.shotId,
+        showName: show?.showName,
+        canEdit: show?.canEdit,
+        result: hasPermission
+      });
+      
+      return hasPermission;
+    }
+    
+    // Fallback: try using task.shot relationship (if loaded)
     const shot = task.shot;
     if (!shot) {
-      console.log('❌ TaskCell: No shot for task', task.id);
+      console.log('❌ TaskCell: No shot or shotId for task', task.id);
       return false;
     }
     
     const show = shows.find(s => s.id === shot.showId);
     const hasPermission = show?.canEdit ?? false;
     
-    console.log('🔐 TaskCell Permission Check:', {
+    console.log('🔐 TaskCell Permission Check (via shot):', {
       taskId: task.id,
       showId: shot.showId,
       showName: show?.showName,
@@ -36,7 +57,7 @@ export default function TaskCell({ task }: TaskCellProps) {
     });
     
     return hasPermission;
-  }, [shows, task.shot, task.id]);
+  }, [shows, task.shotId, task.shot, task.id]);
 
   const statusOption = statusOptions.find(s => s.statusName === task.status);
   const statusColor = statusOption?.colorCode || '#6B7280';
