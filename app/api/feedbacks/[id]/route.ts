@@ -150,6 +150,8 @@ export async function PUT(
                 showName: currentTask.shot.show.showName,
                 shotName: currentTask.shot.shotName,
                 department: currentTask.department,
+                previousStatus: currentTask.status,
+                newStatus: status,
               }),
               userName: user.username || user.email || 'System',
               userId: user.id,

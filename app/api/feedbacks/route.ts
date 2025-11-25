@@ -105,6 +105,7 @@ export async function POST(request: NextRequest) {
 
     // Log feedback creation with full entity data for undo
     try {
+      const notePreview = feedback.feedbackNotes ? ` | Notes: ${feedback.feedbackNotes.substring(0, 50)}${feedback.feedbackNotes.length > 50 ? '...' : ''}` : '';
       await prisma.activityLog.create({
         data: {
           entityType: 'Feedback',
@@ -112,7 +113,7 @@ export async function POST(request: NextRequest) {
           actionType: 'CREATE',
           fieldName: null,
           oldValue: null,
-          newValue: `Show: ${feedback.showName} | Shot: ${feedback.shotName} (${feedback.shotTag}) | Version: ${feedback.version} | Dept: ${feedback.department} | Status: ${feedback.status}`,
+          newValue: `Show: ${feedback.showName} | Shot: ${feedback.shotName} (${feedback.shotTag}) | Version: ${feedback.version} | Dept: ${feedback.department} | Status: ${feedback.status}${notePreview}`,
           fullEntityData: JSON.stringify(feedback),
           userName: user.username || user.email || 'System',
           userId: user.id,
@@ -157,6 +158,8 @@ export async function POST(request: NextRequest) {
                 showName: currentTask.shot.show.showName,
                 shotName: currentTask.shot.shotName,
                 department: currentTask.department,
+                previousStatus: currentTask.status,
+                newStatus: status,
               }),
               userName: user.username || user.email || 'System',
               userId: user.id,

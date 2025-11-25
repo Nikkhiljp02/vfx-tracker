@@ -428,15 +428,17 @@ export default function ActivityLogsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                         {!log.isReversed && !log.fieldName?.startsWith('undo_') && (
-                          <button
-                            onClick={() => handleUndo(log.id)}
-                            disabled={undoingId === log.id}
-                            className="inline-flex items-center px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Undo this action"
-                          >
-                            <Undo2 className="w-4 h-4 mr-1" />
-                            {undoingId === log.id ? 'Undoing...' : 'Undo'}
-                          </button>
+                          log.actionType === 'CREATE' || log.actionType === 'UPDATE' || log.actionType === 'DELETE' ? (
+                            <button
+                              onClick={() => handleUndo(log.id)}
+                              disabled={undoingId === log.id}
+                              className="inline-flex items-center px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="Undo this action"
+                            >
+                              <Undo2 className="w-4 h-4 mr-1" />
+                              {undoingId === log.id ? 'Undoing...' : 'Undo'}
+                            </button>
+                          ) : null
                         )}
                         {log.isReversed && (
                           <span className="text-xs text-gray-400 italic">Undone</span>
