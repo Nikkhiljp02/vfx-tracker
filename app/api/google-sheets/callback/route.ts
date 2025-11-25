@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTokensFromCode } from '@/lib/google-sheets';
-import prisma from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
+import { prisma } from '@/lib/prisma';
+import { auth } from '@/lib/auth';
 
 // Handle OAuth callback and store tokens
 export async function GET(req: NextRequest) {
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     const tokens = await getTokensFromCode(code);
 
     // Get current user session
-    const session = await getServerSession();
+    const session = await auth();
     if (!session?.user) {
       return NextResponse.redirect(
         new URL(`/?error=${encodeURIComponent('Not authenticated')}`, req.url)
