@@ -15,6 +15,7 @@ import {
   Calendar,
   User,
   FileText,
+  Undo2,
 } from "lucide-react";
 
 interface ActivityLog {
@@ -45,6 +46,7 @@ export default function ActivityLogsPage() {
     startDate: "",
     endDate: "",
   });
+  const [undoingId, setUndoingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -86,6 +88,35 @@ export default function ActivityLogsPage() {
   const handleSearch = () => {
     setPage(1);
     fetchLogs();
+  };
+
+  const handleUndo = async (logId: string) => {
+    if (!confirm('Are you sure you want to undo this action? This will reverse the change.')) {
+      return;
+    }
+
+    setUndoingId(logId);
+    try {
+      const response = await fetch('/api/activity-logs/undo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ activityLogId: logId }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert(`✅ ${result.message}`);
+        fetchLogs(); // Refresh logs
+      } else {
+        const error = await response.json();
+        alert(`❌ Failed to undo: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error undoing action:', error);
+      alert('❌ Failed to undo action');
+    } finally {
+      setUndoingId(null);
+    }
   };
 
   const handleExport = async () => {
@@ -335,6 +366,9 @@ export default function ActivityLogsPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Details
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -379,18 +413,40 @@ export default function ActivityLogsPage() {
                               <span className="text-green-600">{log.newValue}</span>
                             </div>
                           )}
+                          {log.oldValue && !log.newValue && log.actionType === 'DELETE' && (
+                            <div className="text-xs text-gray-500">{log.oldValue}</div>
+                          )}
+                          {log.newValue && !log.oldValue && log.actionType === 'CREATE' && (
+                            <div className="text-xs text-gray-500">{log.newValue}</div>
+                          )}
                           {log.isReversed && (
-                            <span className="text-xs text-orange-600 font-medium">
+                            <span className="text-xs text-orange-600 font-medium ml-2">
                               (Undone)
                             </span>
                           )}
                         </div>
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                        {!log.isReversed && !log.fieldName?.startsWith('undo_') && (
+                          <button
+                            onClick={() => handleUndo(log.id)}
+                            disabled={undoingId === log.id}
+                            className="inline-flex items-center px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Undo this action"
+                          >
+                            <Undo2 className="w-4 h-4 mr-1" />
+                            {undoingId === log.id ? 'Undoing...' : 'Undo'}
+                          </button>
+                        )}
+                        {log.isReversed && (
+                          <span className="text-xs text-gray-400 italic">Undone</span>
+                        )}
+                      </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center">
+                    <td colSpan={6} className="px-6 py-12 text-center">
                       <Activity className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                       <p className="text-gray-500">No activity logs found</p>
                     </td>

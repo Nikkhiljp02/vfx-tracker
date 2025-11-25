@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Log feedback creation
+    // Log feedback creation with full entity data for undo
     try {
       await prisma.activityLog.create({
         data: {
@@ -112,17 +112,8 @@ export async function POST(request: NextRequest) {
           actionType: 'CREATE',
           fieldName: null,
           oldValue: null,
-          newValue: JSON.stringify({
-            showName: feedback.showName,
-            shotName: feedback.shotName,
-            shotTag: feedback.shotTag,
-            version: feedback.version,
-            department: feedback.department,
-            leadName: feedback.leadName,
-            status: feedback.status,
-            feedbackNotes: feedback.feedbackNotes,
-            feedbackDate: feedback.feedbackDate.toISOString(),
-          }),
+          newValue: `Show: ${feedback.showName} | Shot: ${feedback.shotName} (${feedback.shotTag}) | Version: ${feedback.version} | Dept: ${feedback.department} | Status: ${feedback.status}`,
+          fullEntityData: JSON.stringify(feedback),
           userName: user.username || user.email || 'System',
           userId: user.id,
         },
@@ -131,12 +122,50 @@ export async function POST(request: NextRequest) {
       console.error('Failed to create activity log:', logError);
     }
 
-    // Update task status if task exists
-    if (taskId) {
-      await prisma.task.update({
+    // Update task status if task exists and log the change
+    if (taskId && status) {
+      const currentTask = await prisma.task.findUnique({
         where: { id: taskId },
-        data: { status },
+        include: {
+          shot: {
+            include: {
+              show: true,
+            },
+          },
+        },
       });
+
+      if (currentTask && currentTask.status !== status) {
+        await prisma.task.update({
+          where: { id: taskId },
+          data: { status },
+        });
+
+        // Log task status change caused by feedback
+        try {
+          await prisma.activityLog.create({
+            data: {
+              entityType: 'Task',
+              entityId: taskId,
+              actionType: 'UPDATE',
+              fieldName: 'status',
+              oldValue: currentTask.status,
+              newValue: status,
+              fullEntityData: JSON.stringify({
+                reason: 'Changed by Feedback',
+                feedbackId: feedback.id,
+                showName: currentTask.shot.show.showName,
+                shotName: currentTask.shot.shotName,
+                department: currentTask.department,
+              }),
+              userName: user.username || user.email || 'System',
+              userId: user.id,
+            },
+          });
+        } catch (logError) {
+          console.error('Failed to log task status change:', logError);
+        }
+      }
     }
 
     return NextResponse.json(feedback, { status: 201 });

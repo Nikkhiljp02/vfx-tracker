@@ -83,7 +83,7 @@ export async function PUT(
       { field: 'feedbackDate', oldValue: currentFeedback.feedbackDate?.toISOString(), newValue: feedback.feedbackDate?.toISOString() },
     ];
 
-    // Create activity logs for changed fields
+    // Create activity logs for changed fields with context
     for (const { field, oldValue, newValue } of fieldsToLog) {
       if (oldValue !== newValue) {
         try {
@@ -95,6 +95,15 @@ export async function PUT(
               fieldName: field,
               oldValue: oldValue != null ? String(oldValue) : null,
               newValue: newValue != null ? String(newValue) : null,
+              fullEntityData: JSON.stringify({
+                showName: feedback.showName,
+                shotName: feedback.shotName,
+                shotTag: feedback.shotTag,
+                department: feedback.department,
+                version: feedback.version,
+                field: field,
+                context: `Show: ${feedback.showName} | Shot: ${feedback.shotName} (${feedback.shotTag}) | ${field}: ${oldValue} → ${newValue}`,
+              }),
               userName: user.username || user.email || 'System',
               userId: user.id,
             },
@@ -106,12 +115,50 @@ export async function PUT(
       }
     }
 
-    // Update task status if task is linked
-    if (feedback.taskId && status) {
-      await prisma.task.update({
+    // Update task status if task is linked and log the change
+    if (feedback.taskId && status && currentFeedback.status !== status) {
+      const currentTask = await prisma.task.findUnique({
         where: { id: feedback.taskId },
-        data: { status },
+        include: {
+          shot: {
+            include: {
+              show: true,
+            },
+          },
+        },
       });
+
+      if (currentTask && currentTask.status !== status) {
+        await prisma.task.update({
+          where: { id: feedback.taskId },
+          data: { status },
+        });
+
+        // Log task status change caused by feedback
+        try {
+          await prisma.activityLog.create({
+            data: {
+              entityType: 'Task',
+              entityId: feedback.taskId,
+              actionType: 'UPDATE',
+              fieldName: 'status',
+              oldValue: currentTask.status,
+              newValue: status,
+              fullEntityData: JSON.stringify({
+                reason: 'Changed by Feedback Update',
+                feedbackId: feedback.id,
+                showName: currentTask.shot.show.showName,
+                shotName: currentTask.shot.shotName,
+                department: currentTask.department,
+              }),
+              userName: user.username || user.email || 'System',
+              userId: user.id,
+            },
+          });
+        } catch (logError) {
+          console.error('Failed to log task status change:', logError);
+        }
+      }
     }
 
     return NextResponse.json(feedback);
@@ -145,7 +192,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Feedback not found' }, { status: 404 });
     }
 
-    // Log deletion before actually deleting
+    // Log deletion before actually deleting with context
     try {
       await prisma.activityLog.create({
         data: {
@@ -153,7 +200,7 @@ export async function DELETE(
           entityId: id,
           actionType: 'DELETE',
           fieldName: null,
-          oldValue: null,
+          oldValue: `Show: ${feedbackToDelete.showName} | Shot: ${feedbackToDelete.shotName} (${feedbackToDelete.shotTag}) | Version: ${feedbackToDelete.version} | Dept: ${feedbackToDelete.department}`,
           newValue: null,
           fullEntityData: JSON.stringify(feedbackToDelete),
           userName: user.username || user.email || 'System',
