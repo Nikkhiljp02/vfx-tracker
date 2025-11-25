@@ -1,7 +1,7 @@
 'use client';
 
 import { Plus, Download, Upload, FileSpreadsheet, RefreshCw, Settings, History, ChevronRight, ChevronLeft, User, LogOut, Users, Sheet, MoreVertical } from 'lucide-react';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useVFXStore } from '@/lib/store';
@@ -55,6 +55,52 @@ export default function Header() {
   const canCreateShot = hasEditPermission || userPermissions.includes('shots.create');
   const canCreateShow = user?.role === 'ADMIN' || user?.role === 'COORDINATOR' || userPermissions.includes('shows.create');
   const canManageStatuses = user?.role === 'ADMIN' || user?.role === 'COORDINATOR' || userPermissions.includes('admin.statuses');
+
+  // Check Google Sheets connection status on mount and after OAuth
+  useEffect(() => {
+    const checkGoogleSheetsConnection = async () => {
+      try {
+        const response = await fetch('/api/google-sheets/status');
+        const data = await response.json();
+        if (data.connected) {
+          setGoogleSheetsConnected(true);
+          if (data.spreadsheetUrl) {
+            setGoogleSheetUrl(data.spreadsheetUrl);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking Google Sheets connection:', error);
+      }
+    };
+
+    // Check on mount
+    checkGoogleSheetsConnection();
+
+    // Check if redirected from OAuth with success (client-side only)
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const googleSheetsParam = urlParams.get('google_sheets');
+      
+      if (googleSheetsParam === 'connected') {
+        setGoogleSheetsConnected(true);
+        toast.success('Google Sheets connected successfully!');
+        // Clean up URL
+        const url = new URL(window.location.href);
+        url.searchParams.delete('google_sheets');
+        window.history.replaceState({}, '', url);
+      }
+
+      // Check for errors
+      const errorParam = urlParams.get('error');
+      if (errorParam) {
+        toast.error(decodeURIComponent(errorParam));
+        // Clean up URL
+        const url = new URL(window.location.href);
+        url.searchParams.delete('error');
+        window.history.replaceState({}, '', url);
+      }
+    }
+  }, []);
 
   // Keyboard shortcuts
   useKeyboardShortcut('n', () => setShowNewShot(true), true); // Ctrl+N for new shot
