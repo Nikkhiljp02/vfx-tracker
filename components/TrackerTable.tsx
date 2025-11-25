@@ -48,29 +48,15 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
     if (!session?.user) return false;
     const role = (session.user as any).role;
     
-    // Debug logging
-    console.log('🔍 Permission Check:', {
-      role,
-      isAdmin: role === 'ADMIN',
-      isCoordinator: role === 'COORDINATOR',
-      isProdCoordinator: role === 'PRODUCTION COORDINATOR',
-      hasCoordinatorInName: role?.toUpperCase().includes('COORDINATOR'),
-      showsWithCanEdit: shows.filter(s => s.canEdit).length,
-      totalShows: shows.length
-    });
-    
     // Admin, Coordinator, Production Coordinator, or any role with COORDINATOR in name has full edit access
     if (role === 'ADMIN' || 
         role === 'COORDINATOR' || 
         role === 'PRODUCTION COORDINATOR' ||
         role?.toUpperCase().includes('COORDINATOR')) {
-      console.log('✅ Has full edit permission via role:', role);
       return true;
     }
     // Check if user has edit permission on any show
-    const hasShowPermission = shows.some(show => show.canEdit === true);
-    console.log('📊 Show-based permission:', hasShowPermission);
-    return hasShowPermission;
+    return shows.some(show => show.canEdit === true);
   }, [session, shows]);
   
   const [selectedShotId, setSelectedShotId] = useState<string | null>(null);

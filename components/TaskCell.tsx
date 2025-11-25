@@ -25,38 +25,17 @@ export default function TaskCell({ task }: TaskCellProps) {
         s.shots?.some(shot => shot.id === task.shotId)
       );
       
-      const hasPermission = show?.canEdit ?? false;
-      
-      console.log('🔐 TaskCell Permission Check (via shotId):', {
-        taskId: task.id,
-        shotId: task.shotId,
-        showName: show?.showName,
-        canEdit: show?.canEdit,
-        result: hasPermission
-      });
-      
-      return hasPermission;
+      return show?.canEdit ?? false;
     }
     
     // Fallback: try using task.shot relationship (if loaded)
     const shot = task.shot;
     if (!shot) {
-      console.log('❌ TaskCell: No shot or shotId for task', task.id);
       return false;
     }
     
     const show = shows.find(s => s.id === shot.showId);
-    const hasPermission = show?.canEdit ?? false;
-    
-    console.log('🔐 TaskCell Permission Check (via shot):', {
-      taskId: task.id,
-      showId: shot.showId,
-      showName: show?.showName,
-      canEdit: show?.canEdit,
-      result: hasPermission
-    });
-    
-    return hasPermission;
+    return show?.canEdit ?? false;
   }, [shows, task.shotId, task.shot, task.id]);
 
   const statusOption = statusOptions.find(s => s.statusName === task.status);
