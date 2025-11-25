@@ -519,28 +519,28 @@ export default function FeedbackView({ prefilledData }: FeedbackViewProps) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold text-gray-900">Client Feedback</h1>
-          <div className="flex gap-2">
+      {/* Header - Mobile Optimized */}
+      <div className="bg-white border-b border-gray-200 p-3 md:p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900">Client Feedback</h1>
+          <div className="flex gap-2 flex-wrap">
             <button
               onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors touch-manipulation"
             >
-              <Plus size={20} />
-              Add Feedback
+              <Plus size={18} />
+              <span className="hidden sm:inline">Add </span>Feedback
             </button>
             <button
               onClick={handleExport}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              className="flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 active:bg-green-800 transition-colors touch-manipulation"
             >
-              <Download size={20} />
-              Export
+              <Download size={18} />
+              <span className="hidden sm:inline">Export</span>
             </button>
-            <label className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors cursor-pointer">
-              <Upload size={20} />
-              Import
+            <label className="flex items-center justify-center gap-2 px-3 md:px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 active:bg-purple-800 transition-colors cursor-pointer touch-manipulation">
+              <Upload size={18} />
+              <span className="hidden sm:inline">Import</span>
               <input
                 type="file"
                 accept=".xlsx,.xls"
@@ -551,36 +551,36 @@ export default function FeedbackView({ prefilledData }: FeedbackViewProps) {
           </div>
         </div>
 
-        {/* Search and Filter Bar */}
+        {/* Search and Filter Bar - Mobile Optimized */}
         <div className="flex gap-2">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by show, shot, department, lead, version, tag, or status..."
-              className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Search feedback..."
+              className="w-full pl-10 pr-10 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent touch-manipulation"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 active:text-gray-800 touch-manipulation"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             )}
           </div>
           <button
             onClick={() => setShowFilterPanel(!showFilterPanel)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
+            className={`flex items-center gap-2 px-3 md:px-4 py-2 text-sm rounded-lg border transition-colors touch-manipulation ${
               showFilterPanel || activeFiltersCount > 0
                 ? 'bg-blue-50 border-blue-500 text-blue-700'
-                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 active:bg-gray-100'
             }`}
           >
-            <Filter size={20} />
-            Filters
+            <Filter size={18} />
+            <span className="hidden sm:inline">Filters</span>
             {activeFiltersCount > 0 && (
               <span className="bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">
                 {activeFiltersCount}
@@ -589,10 +589,10 @@ export default function FeedbackView({ prefilledData }: FeedbackViewProps) {
           </button>
         </div>
 
-        {/* Filter Panel */}
+        {/* Filter Panel - Mobile Optimized */}
         {showFilterPanel && (
-          <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="mt-4 p-3 md:p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
               {/* Show Filter */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Show</label>
@@ -857,13 +857,13 @@ export default function FeedbackView({ prefilledData }: FeedbackViewProps) {
         </div>
       </div>
 
-      {/* Add Feedback Modal */}
+      {/* Add Feedback Modal - Mobile Optimized */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[95vh] md:max-h-[90vh] overflow-y-auto">
+            <div className="p-4 md:p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-900">Add Feedback</h2>
+                <h2 className="text-lg md:text-xl font-bold text-gray-900">Add Feedback</h2>
                 <button 
                   onClick={() => {
                     setShowAddModal(false);
@@ -872,14 +872,14 @@ export default function FeedbackView({ prefilledData }: FeedbackViewProps) {
                     setShowShotDropdown(false);
                     setShowShowDropdown(false);
                   }} 
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 active:text-gray-800 touch-manipulation p-2"
                 >
-                  <X size={24} />
+                  <X size={22} />
                 </button>
               </div>
 
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-3 md:space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
                   {/* Show Name with Autocomplete Dropdown */}
                   <div className="relative">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Show Name *</label>
@@ -952,13 +952,13 @@ export default function FeedbackView({ prefilledData }: FeedbackViewProps) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Tag *</label>
                     <select
                       value={newFeedback.shotTag}
                       onChange={(e) => setNewFeedback({ ...newFeedback, shotTag: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 touch-manipulation"
                     >
                       <option value="Fresh">Fresh</option>
                       <option value="Additional">Additional</option>
@@ -970,7 +970,7 @@ export default function FeedbackView({ prefilledData }: FeedbackViewProps) {
                       type="text"
                       value={newFeedback.version}
                       onChange={(e) => setNewFeedback({ ...newFeedback, version: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 touch-manipulation"
                       placeholder="e.g., v001"
                     />
                   </div>
@@ -980,19 +980,19 @@ export default function FeedbackView({ prefilledData }: FeedbackViewProps) {
                       type="text"
                       value={newFeedback.department}
                       onChange={(e) => setNewFeedback({ ...newFeedback, department: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 touch-manipulation"
                       placeholder="e.g., Comp"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Status *</label>
                     <select
                       value={newFeedback.status}
                       onChange={(e) => setNewFeedback({ ...newFeedback, status: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 touch-manipulation"
                     >
                       <option value="C KB">C KB</option>
                       <option value="AWF">AWF</option>
@@ -1005,7 +1005,7 @@ export default function FeedbackView({ prefilledData }: FeedbackViewProps) {
                       type="date"
                       value={newFeedback.feedbackDate}
                       onChange={(e) => setNewFeedback({ ...newFeedback, feedbackDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 touch-manipulation"
                     />
                   </div>
                 </div>
@@ -1015,7 +1015,7 @@ export default function FeedbackView({ prefilledData }: FeedbackViewProps) {
                   <textarea
                     value={newFeedback.feedbackNotes}
                     onChange={(e) => setNewFeedback({ ...newFeedback, feedbackNotes: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 touch-manipulation"
                     rows={4}
                     placeholder="Enter feedback details..."
                   />
@@ -1071,10 +1071,10 @@ export default function FeedbackView({ prefilledData }: FeedbackViewProps) {
                 </div>
               </div>
 
-              <div className="flex gap-3 mt-6">
+              <div className="flex gap-2 md:gap-3 mt-6">
                 <button
                   onClick={handleAddFeedback}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="flex-1 px-4 py-2.5 md:py-2 bg-blue-600 text-white text-sm md:text-base rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors font-medium touch-manipulation"
                 >
                   Add Feedback
                 </button>
@@ -1088,7 +1088,7 @@ export default function FeedbackView({ prefilledData }: FeedbackViewProps) {
                     setSelectedShots(new Set());
                     setMultiSelectMode(false);
                   }}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                  className="px-4 py-2.5 md:py-2 bg-gray-200 text-gray-700 text-sm md:text-base rounded-lg hover:bg-gray-300 active:bg-gray-400 transition-colors touch-manipulation"
                 >
                   Cancel
                 </button>
