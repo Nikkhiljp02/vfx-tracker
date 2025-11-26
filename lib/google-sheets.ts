@@ -132,7 +132,11 @@ export async function syncToGoogleSheets(
   spreadsheetId: string | null,
   shows: Show[]
 ) {
-  console.log('[Google Sheets] === SYNC V3 CODE RUNNING ===');
+  console.log('[Google Sheets] === SYNC V4 CODE RUNNING ===');
+  // Fix: Handle string "null" from database
+  if (spreadsheetId === 'null' || spreadsheetId === '') {
+    spreadsheetId = null;
+  }
   console.log('[Google Sheets] Received spreadsheetId:', spreadsheetId, 'Type:', typeof spreadsheetId);
   console.log('[Google Sheets] Is spreadsheetId falsy?', !spreadsheetId);
   

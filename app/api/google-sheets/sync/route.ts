@@ -73,10 +73,13 @@ export async function POST(req: NextRequest) {
     const { spreadsheetId: requestSpreadsheetId, shows } = await req.json();
     
     // Use spreadsheet ID from request OR fallback to stored ID in preferences
-    const spreadsheetId = requestSpreadsheetId || user.preferences.sortState;
+    // Handle string "null" from database or request
+    const rawSpreadsheetId = requestSpreadsheetId || user.preferences.sortState;
+    const spreadsheetId = (rawSpreadsheetId && rawSpreadsheetId !== 'null') ? rawSpreadsheetId : null;
     console.log('[Google Sheets Sync] Request spreadsheet ID:', requestSpreadsheetId);
     console.log('[Google Sheets Sync] Stored spreadsheet ID:', user.preferences.sortState);
-    console.log('[Google Sheets Sync] Using spreadsheet ID:', spreadsheetId);
+    console.log('[Google Sheets Sync] Raw spreadsheet ID:', rawSpreadsheetId);
+    console.log('[Google Sheets Sync] Final spreadsheet ID:', spreadsheetId, 'Type:', typeof spreadsheetId);
     console.log('[Google Sheets Sync] Shows count:', shows?.length);
 
     // Sync to Google Sheets
