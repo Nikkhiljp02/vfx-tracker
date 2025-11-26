@@ -86,11 +86,14 @@ export async function POST(req: NextRequest) {
         // Log the change
         await prisma.activityLog.create({
           data: {
-            action: 'TASK_UPDATED',
-            entityType: 'TASK',
+            actionType: 'UPDATE',
+            entityType: 'Task',
             entityId: change.taskId,
             userId: user.id,
-            details: JSON.stringify({
+            userName: username,
+            fieldName: 'multiple',
+            oldValue: null,
+            newValue: JSON.stringify({
               source: 'Google Sheets Import',
               changes: change.updates,
             }),
