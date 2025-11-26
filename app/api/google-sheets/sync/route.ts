@@ -33,18 +33,41 @@ export async function POST(req: NextRequest) {
     console.log('[Google Sheets Sync] Tokens found, parsing...');
 
     // Parse tokens
-    const tokens = JSON.parse(user.preferences.filterState);
+    let tokens;
+    try {
+      tokens = JSON.parse(user.preferences.filterState);
+    } catch (e) {
+      console.error('[Google Sheets Sync] Failed to parse tokens:', e);
+      return NextResponse.json(
+        { error: 'Invalid token format. Please reconnect Google Sheets.' },
+        { status: 400 }
+      );
+    }
+
     console.log('[Google Sheets Sync] Parsed tokens:', {
       hasAccessToken: !!tokens.access_token,
       hasRefreshToken: !!tokens.refresh_token,
       tokenType: tokens.token_type,
-      scope: tokens.scope
+      scope: tokens.scope,
+      expiryDate: tokens.expiry_date
     });
-    console.log('[Google Sheets Sync] Setting credentials...');
-    
+
+    if (!tokens.access_token && !tokens.refresh_token) {
+      console.error('[Google Sheets Sync] No valid tokens found');
+      return NextResponse.json(
+        { error: 'No valid Google tokens found. Please reconnect Google Sheets.' },
+        { status: 401 }
+      );
+    }
+
+    console.log('[Google Sheets Sync] Creating OAuth client...');
     const auth = getGoogleAuth();
+    console.log('[Google Sheets Sync] Setting credentials...');
     auth.setCredentials(tokens);
-    console.log('[Google Sheets Sync] Credentials set, auth has tokens:', !!auth.credentials);
+    console.log('[Google Sheets Sync] Credentials set. Auth state:', {
+      hasCredentials: !!auth.credentials,
+      credentialsKeys: auth.credentials ? Object.keys(auth.credentials) : []
+    });
 
     // Get body data
     const { spreadsheetId, shows } = await req.json();

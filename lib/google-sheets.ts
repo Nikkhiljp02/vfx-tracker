@@ -12,6 +12,15 @@ export function getGoogleAuth() {
     redirect_uris: [process.env.NEXTAUTH_URL + '/api/google-sheets/callback'],
   };
 
+  if (!credentials.client_id || !credentials.client_secret) {
+    console.error('[Google Auth] Missing credentials:', {
+      hasClientId: !!credentials.client_id,
+      hasClientSecret: !!credentials.client_secret,
+      redirectUri: credentials.redirect_uris[0]
+    });
+    throw new Error('Google OAuth credentials not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.');
+  }
+
   const { client_id, client_secret, redirect_uris } = credentials;
   const oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
 
