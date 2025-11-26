@@ -189,11 +189,25 @@ export async function syncToGoogleSheets(
     }
   } else {
     console.log('[Google Sheets] Updating EXISTING spreadsheet:', spreadsheetId);
+    
+    // Get the actual first sheet name
+    try {
+      const spreadsheetInfo = await sheets.spreadsheets.get({
+        spreadsheetId,
+        fields: 'sheets.properties.title'
+      });
+      sheetName = spreadsheetInfo.data.sheets?.[0]?.properties?.title || 'Sheet1';
+      console.log('[Google Sheets] Using sheet name:', sheetName);
+    } catch (e) {
+      console.log('[Google Sheets] Could not get sheet name, using default');
+      sheetName = 'Sheet1';
+    }
+    
     // For existing spreadsheets, clear and update
     try {
       await sheets.spreadsheets.values.clear({
         spreadsheetId,
-        range: `${sheetName}!A1:P`,
+        range: `'${sheetName}'!A1:P`,
       });
     } catch (error: any) {
       console.log('[Google Sheets] Clear failed, will overwrite:', error.message);
@@ -202,7 +216,7 @@ export async function syncToGoogleSheets(
     // Update with new data
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `${sheetName}!A1`,
+      range: `'${sheetName}'!A1`,
       valueInputOption: 'USER_ENTERED',
       requestBody: {
         values: data,
@@ -230,13 +244,24 @@ const statusColors: Record<string, { red: number; green: number; blue: number }>
 
 // Format the Google Sheet (styling, column widths, borders, status colors)
 async function formatSheet(sheets: any, spreadsheetId: string, dataRowCount: number) {
-  // Get the actual sheet ID and data
+  console.log('[Google Sheets Format] Starting formatting for', dataRowCount, 'rows');
+  
+  // Get the actual sheet ID and name first
+  const spreadsheetMeta = await sheets.spreadsheets.get({ 
+    spreadsheetId,
+    fields: 'sheets.properties'
+  });
+  const firstSheet = spreadsheetMeta.data.sheets?.[0]?.properties;
+  const sheetId = firstSheet?.sheetId || 0;
+  const sheetName = firstSheet?.title || 'Sheet1';
+  console.log('[Google Sheets Format] Sheet ID:', sheetId, 'Name:', sheetName);
+  
+  // Now get the grid data with proper sheet name
   const spreadsheet = await sheets.spreadsheets.get({ 
     spreadsheetId,
     includeGridData: true,
-    ranges: ['A1:P']
+    ranges: [`'${sheetName}'!A1:P${dataRowCount}`]
   });
-  const sheetId = spreadsheet.data.sheets?.[0]?.properties?.sheetId || 0;
   const gridData = spreadsheet.data.sheets?.[0]?.data?.[0]?.rowData || [];
 
   // Border style
@@ -353,6 +378,7 @@ async function formatSheet(sheets: any, spreadsheetId: string, dataRowCount: num
         range: {
           sheetId: sheetId,
           startRowIndex: 1,
+          endRowIndex: dataRowCount, // Apply to all data rows
           startColumnIndex: 7,
           endColumnIndex: 8,
         },
@@ -415,11 +441,19 @@ async function formatSheet(sheets: any, spreadsheetId: string, dataRowCount: num
     }
   }
 
+  console.log('[Google Sheets Format] Applying', requests.length, 'formatting requests');
+  
   // Execute formatting
-  await sheets.spreadsheets.batchUpdate({
-    spreadsheetId,
-    requestBody: { requests },
-  });
+  try {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: { requests },
+    });
+    console.log('[Google Sheets Format] Formatting applied successfully');
+  } catch (formatError: any) {
+    console.error('[Google Sheets Format] Error applying formatting:', formatError.message);
+    // Don't throw - formatting errors shouldn't break the sync
+  }
 }
 
 // Read changes from Google Sheets

@@ -385,8 +385,11 @@ export default function Header() {
         toast.success('No changes detected in Google Sheets');
       } else {
         toast.success(`Applied ${data.changes.length} changes from Google Sheets`);
-        // Refresh data in background without page reload
-        await fetchAllData();
+        // Force refresh data from server (bypass cache)
+        await Promise.all([
+          fetchShows(true),
+          fetchAllData(),
+        ]);
       }
     } catch (error: any) {
       console.error('Error importing from Google Sheets:', error);
