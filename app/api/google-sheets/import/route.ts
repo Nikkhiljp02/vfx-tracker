@@ -24,9 +24,12 @@ export async function POST(req: NextRequest) {
 
     console.log('[Google Sheets Import] User found:', !!user, 'Has tokens:', !!user?.preferences?.filterState);
 
-    if (!user?.preferences?.filterState) {
+    // Check if filterState is string "null"
+    const rawFilterState = user?.preferences?.filterState;
+    if (!rawFilterState || rawFilterState === 'null') {
+      console.log('[Google Sheets Import] No tokens stored or string null');
       return NextResponse.json(
-        { error: 'Google Sheets not connected' },
+        { error: 'Google Sheets not connected. Please connect first.' },
         { status: 400 }
       );
     }
@@ -52,8 +55,30 @@ export async function POST(req: NextRequest) {
     }
 
     // Parse tokens
-    const tokens = JSON.parse(user.preferences.filterState);
-    const auth = setCredentials(getGoogleAuth(), tokens);
+    let tokens;
+    try {
+      console.log('[Google Sheets Import] Raw filterState:', rawFilterState?.substring(0, 100));
+      tokens = JSON.parse(rawFilterState);
+      console.log('[Google Sheets Import] Tokens parsed, keys:', Object.keys(tokens || {}));
+      console.log('[Google Sheets Import] has access_token:', !!tokens?.access_token, 'has refresh_token:', !!tokens?.refresh_token);
+    } catch (parseError) {
+      console.error('[Google Sheets Import] Failed to parse tokens:', parseError);
+      return NextResponse.json(
+        { error: 'Invalid Google credentials. Please reconnect to Google Sheets.' },
+        { status: 400 }
+      );
+    }
+
+    if (!tokens?.access_token && !tokens?.refresh_token) {
+      console.log('[Google Sheets Import] No valid tokens found');
+      return NextResponse.json(
+        { error: 'Google authorization expired. Please reconnect to Google Sheets.' },
+        { status: 400 }
+      );
+    }
+
+    const auth = getGoogleAuth();
+    auth.setCredentials(tokens);
 
     console.log('[Google Sheets Import] Detecting changes from sheet...');
     // Detect changes from Google Sheets
