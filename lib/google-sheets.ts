@@ -136,6 +136,7 @@ export async function syncToGoogleSheets(
   const data = formatDataForSheets(shows);
 
   let isNewSpreadsheet = false;
+  let sheetName = 'Tracker Data';
   
   // Create new spreadsheet if none exists
   if (!spreadsheetId) {
@@ -159,6 +160,13 @@ export async function syncToGoogleSheets(
     });
 
     spreadsheetId = response.data.spreadsheetId!;
+    
+    // Verify the sheet name from the response
+    const createdSheetName = response.data.sheets?.[0]?.properties?.title;
+    if (createdSheetName) {
+      sheetName = createdSheetName;
+      console.log('[Google Sheets] Created sheet with name:', sheetName);
+    }
   }
 
   // Clear existing data (only if updating existing sheet)
@@ -166,7 +174,7 @@ export async function syncToGoogleSheets(
     try {
       await sheets.spreadsheets.values.clear({
         spreadsheetId,
-        range: 'Tracker Data!A1:P',
+        range: `${sheetName}!A1:P`,
       });
     } catch (error: any) {
       // If sheet doesn't exist or range is invalid, we'll just overwrite
@@ -177,7 +185,7 @@ export async function syncToGoogleSheets(
   // Update with new data
   await sheets.spreadsheets.values.update({
     spreadsheetId,
-    range: 'Tracker Data!A1',
+    range: `${sheetName}!A1`,
     valueInputOption: 'USER_ENTERED',
     requestBody: {
       values: data,
