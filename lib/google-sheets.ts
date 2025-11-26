@@ -141,6 +141,7 @@ export async function syncToGoogleSheets(
   // Create new spreadsheet if none exists
   if (!spreadsheetId) {
     isNewSpreadsheet = true;
+    console.log('[Google Sheets] Creating NEW spreadsheet with embedded data...');
     const response = await sheets.spreadsheets.create({
       requestBody: {
         properties: {
