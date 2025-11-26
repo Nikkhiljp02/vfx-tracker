@@ -147,8 +147,8 @@ async function handleImportFromSheets(auth: any, spreadsheetId: string, user: an
       }
     });
 
-    // Detect changes from Google Sheets
-    const changes = await detectSheetChanges(auth, spreadsheetId, shows);
+    // Detect changes from Google Sheets (cast to any to avoid type issues with Prisma results)
+    const changes = await detectSheetChanges(auth, spreadsheetId, shows as any);
     console.log('[Webhook Import] Detected', changes.length, 'changes');
 
     if (changes.length === 0) {
