@@ -262,8 +262,8 @@ async function handleSyncToSheets(auth: any, spreadsheetId: string, user: any, t
       }
     });
 
-    // Format data for sheets
-    const rows = formatDataForSheets(shows);
+    // Format data for sheets (cast to any to avoid type issues with Prisma results)
+    const rows = formatDataForSheets(shows as any);
     console.log('[Webhook Sync] Formatted rows:', rows.length);
 
     // Create sheets client
