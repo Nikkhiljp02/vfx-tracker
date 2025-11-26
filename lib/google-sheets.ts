@@ -135,8 +135,11 @@ export async function syncToGoogleSheets(
   const sheets = google.sheets({ version: 'v4', auth });
   const data = formatDataForSheets(shows);
 
+  let isNewSpreadsheet = false;
+  
   // Create new spreadsheet if none exists
   if (!spreadsheetId) {
+    isNewSpreadsheet = true;
     const response = await sheets.spreadsheets.create({
       requestBody: {
         properties: {
@@ -158,11 +161,18 @@ export async function syncToGoogleSheets(
     spreadsheetId = response.data.spreadsheetId!;
   }
 
-  // Clear existing data
-  await sheets.spreadsheets.values.clear({
-    spreadsheetId,
-    range: 'Tracker Data!A1:P',
-  });
+  // Clear existing data (only if updating existing sheet)
+  if (!isNewSpreadsheet) {
+    try {
+      await sheets.spreadsheets.values.clear({
+        spreadsheetId,
+        range: 'Tracker Data!A1:P',
+      });
+    } catch (error: any) {
+      // If sheet doesn't exist or range is invalid, we'll just overwrite
+      console.log('[Google Sheets] Clear failed, will overwrite:', error.message);
+    }
+  }
 
   // Update with new data
   await sheets.spreadsheets.values.update({
