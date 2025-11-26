@@ -152,25 +152,31 @@ export async function syncToGoogleSheets(
               title: 'Tracker Data',
               gridProperties: {
                 frozenRowCount: 1, // Freeze header row
+                rowCount: Math.max(1000, data.length + 10), // Ensure enough rows
+                columnCount: 16, // A-P columns
               },
             },
+            data: [
+              {
+                startRow: 0,
+                startColumn: 0,
+                rowData: data.map(row => ({
+                  values: row.map(cell => ({
+                    userEnteredValue: { stringValue: String(cell || '') }
+                  }))
+                }))
+              }
+            ]
           },
         ],
       },
     });
 
     spreadsheetId = response.data.spreadsheetId!;
-    
-    // Verify the sheet name from the response
-    const createdSheetName = response.data.sheets?.[0]?.properties?.title;
-    if (createdSheetName) {
-      sheetName = createdSheetName;
-      console.log('[Google Sheets] Created sheet with name:', sheetName);
-    }
-  }
-
-  // Clear existing data (only if updating existing sheet)
-  if (!isNewSpreadsheet) {
+    sheetName = response.data.sheets?.[0]?.properties?.title || 'Tracker Data';
+    console.log('[Google Sheets] Created new spreadsheet:', spreadsheetId, 'with sheet:', sheetName);
+  } else {
+    // For existing spreadsheets, clear and update
     try {
       await sheets.spreadsheets.values.clear({
         spreadsheetId,
@@ -180,17 +186,17 @@ export async function syncToGoogleSheets(
       // If sheet doesn't exist or range is invalid, we'll just overwrite
       console.log('[Google Sheets] Clear failed, will overwrite:', error.message);
     }
-  }
 
-  // Update with new data
-  await sheets.spreadsheets.values.update({
-    spreadsheetId,
-    range: `${sheetName}!A1`,
-    valueInputOption: 'USER_ENTERED',
-    requestBody: {
-      values: data,
-    },
-  });
+    // Update with new data
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${sheetName}!A1`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: data,
+      },
+    });
+  }
 
   // Format the sheet
   await formatSheet(sheets, spreadsheetId);
