@@ -27,14 +27,19 @@ export async function GET(req: NextRequest) {
       const hasTokens = tokens.access_token || tokens.refresh_token;
       
       // Get spreadsheet ID from sortState (stored after first sync)
-      const spreadsheetId = user.preferences.sortState;
+      // Handle string "null" from database
+      const rawSpreadsheetId = user.preferences.sortState;
+      const spreadsheetId = (rawSpreadsheetId && rawSpreadsheetId !== 'null') ? rawSpreadsheetId : null;
       const spreadsheetUrl = spreadsheetId 
         ? `https://docs.google.com/spreadsheets/d/${spreadsheetId}`
         : null;
       
+      console.log('[Google Sheets Status] Raw sortState:', rawSpreadsheetId, 'Clean spreadsheetId:', spreadsheetId);
+      
       return NextResponse.json({ 
         connected: !!hasTokens,
-        spreadsheetUrl
+        spreadsheetUrl,
+        spreadsheetId
       });
     } catch (error) {
       return NextResponse.json({ connected: false });

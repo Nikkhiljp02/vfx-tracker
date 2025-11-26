@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
       refreshedCredentials.access_token !== tokens.access_token ||
       refreshedCredentials.refresh_token !== tokens.refresh_token
     )) {
-      console.log('[Google Sheets Sync] Tokens were refreshed, saving...');
+      console.log('[Google Sheets Sync] Tokens were refreshed, saving with spreadsheet ID:', newSpreadsheetId);
       await prisma.userPreferences.update({
         where: { userId: user.id },
         data: {
@@ -102,7 +102,8 @@ export async function POST(req: NextRequest) {
         },
       });
     } else {
-      // Just store spreadsheet ID
+      // Always store spreadsheet ID
+      console.log('[Google Sheets Sync] Saving spreadsheet ID to database:', newSpreadsheetId);
       await prisma.userPreferences.update({
         where: { userId: user.id },
         data: {
@@ -110,6 +111,7 @@ export async function POST(req: NextRequest) {
         },
       });
     }
+    console.log('[Google Sheets Sync] Spreadsheet ID saved successfully');
 
     return NextResponse.json({
       success: true,
