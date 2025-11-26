@@ -322,12 +322,20 @@ async function formatSheet(sheets: any, spreadsheetId: string) {
 export async function readFromGoogleSheets(auth: any, spreadsheetId: string) {
   const sheets = google.sheets({ version: 'v4', auth });
 
+  // Try to read from the first sheet (whatever it's named)
+  // First, get the sheet name
+  const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
+  const firstSheetName = spreadsheet.data.sheets?.[0]?.properties?.title || 'Sheet1';
+  
+  console.log('[Google Sheets Read] Reading from sheet:', firstSheetName);
+
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: 'Tracker Data!A2:P', // Skip header row
+    range: `'${firstSheetName}'!A2:P`, // Skip header row, use actual sheet name
   });
 
   const rows = response.data.values || [];
+  console.log('[Google Sheets Read] Found', rows.length, 'rows');
   
   // Parse rows into changes
   const updates: any[] = [];
@@ -379,7 +387,9 @@ export async function detectSheetChanges(
   spreadsheetId: string,
   currentShows: Show[]
 ) {
+  console.log('[Google Sheets Detect] Starting change detection...');
   const sheetUpdates = await readFromGoogleSheets(auth, spreadsheetId);
+  console.log('[Google Sheets Detect] Sheet updates count:', sheetUpdates.length);
   const changes: any[] = [];
 
   // Create a map of current tasks for quick lookup
@@ -391,14 +401,25 @@ export async function detectSheetChanges(
       });
     });
   });
+  console.log('[Google Sheets Detect] Tasks in tracker:', taskMap.size);
 
   // Compare sheet data with current data
-  sheetUpdates.forEach(update => {
+  sheetUpdates.forEach((update, index) => {
     const currentTask = taskMap.get(update.taskId);
-    if (!currentTask) return;
+    if (!currentTask) {
+      console.log('[Google Sheets Detect] Task not found:', update.taskId);
+      return;
+    }
 
     const taskChanges: any = {};
     let hasChanges = false;
+
+    // Check each field for changes - with detailed logging for first few
+    if (index < 3) {
+      console.log('[Google Sheets Detect] Comparing task:', update.taskId);
+      console.log('[Google Sheets Detect] Sheet status:', update.updates.status, 'vs Tracker:', currentTask.status);
+      console.log('[Google Sheets Detect] Sheet leadName:', update.updates.leadName, 'vs Tracker:', currentTask.leadName);
+    }
 
     // Check each field for changes
     if (update.updates.status !== currentTask.status) {
