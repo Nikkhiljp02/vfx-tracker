@@ -330,11 +330,18 @@ export default function Header() {
   const handleSyncToGoogleSheets = async () => {
     setSyncingToSheets(true);
     try {
+      // Extract spreadsheet ID from URL if we have one
+      let spreadsheetId = null;
+      if (googleSheetUrl) {
+        const match = googleSheetUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+        spreadsheetId = match ? match[1] : null;
+      }
+
       const response = await fetch('/api/google-sheets/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          spreadsheetId: null, // Will create new or use stored
+          spreadsheetId, // Reuse existing sheet if available
           shows,
         }),
       });
@@ -369,10 +376,20 @@ export default function Header() {
   const handleImportFromGoogleSheets = async () => {
     setImportingFromSheets(true);
     try {
+      // Extract spreadsheet ID from URL if we have one
+      let spreadsheetId = null;
+      if (googleSheetUrl) {
+        const match = googleSheetUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+        spreadsheetId = match ? match[1] : null;
+      }
+
       const response = await fetch('/api/google-sheets/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ shows }),
+        body: JSON.stringify({ 
+          shows,
+          spreadsheetId // Pass the spreadsheet ID from URL
+        }),
       });
 
       const data = await response.json();
