@@ -132,6 +132,7 @@ export async function syncToGoogleSheets(
   spreadsheetId: string | null,
   shows: Show[]
 ) {
+  console.log('[Google Sheets] === SYNC V3 CODE RUNNING ===');
   const sheets = google.sheets({ version: 'v4', auth });
   const data = formatDataForSheets(shows);
 
