@@ -70,8 +70,14 @@ export async function POST(req: NextRequest) {
     });
 
     // Get body data
-    const { spreadsheetId, shows } = await req.json();
-    console.log('[Google Sheets Sync] Request data - spreadsheetId:', spreadsheetId, 'shows count:', shows?.length);
+    const { spreadsheetId: requestSpreadsheetId, shows } = await req.json();
+    
+    // Use spreadsheet ID from request OR fallback to stored ID in preferences
+    const spreadsheetId = requestSpreadsheetId || user.preferences.sortState;
+    console.log('[Google Sheets Sync] Request spreadsheet ID:', requestSpreadsheetId);
+    console.log('[Google Sheets Sync] Stored spreadsheet ID:', user.preferences.sortState);
+    console.log('[Google Sheets Sync] Using spreadsheet ID:', spreadsheetId);
+    console.log('[Google Sheets Sync] Shows count:', shows?.length);
 
     // Sync to Google Sheets
     console.log('[Google Sheets Sync] Calling syncToGoogleSheets...');
