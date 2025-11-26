@@ -89,29 +89,40 @@ export async function POST(req: NextRequest) {
 
     // Save refreshed tokens if they were updated
     const refreshedCredentials = auth.credentials;
-    if (refreshedCredentials && (
-      refreshedCredentials.access_token !== tokens.access_token ||
-      refreshedCredentials.refresh_token !== tokens.refresh_token
-    )) {
-      console.log('[Google Sheets Sync] Tokens were refreshed, saving with spreadsheet ID:', newSpreadsheetId);
-      await prisma.userPreferences.update({
-        where: { userId: user.id },
-        data: {
-          googleTokens: JSON.stringify(refreshedCredentials),
-          sortState: newSpreadsheetId, // Store spreadsheet ID
-        },
+    
+    // ALWAYS save the spreadsheet ID to database
+    try {
+      const updateData: any = { sortState: newSpreadsheetId };
+      
+      // Also save refreshed tokens if they changed
+      if (refreshedCredentials && (
+        refreshedCredentials.access_token !== tokens.access_token ||
+        refreshedCredentials.refresh_token !== tokens.refresh_token
+      )) {
+        console.log('[Google Sheets Sync] Tokens were refreshed, including in save');
+        updateData.googleTokens = JSON.stringify(refreshedCredentials);
+      }
+      
+      console.log('[Google Sheets Sync] Saving to database:', { 
+        userId: user.id, 
+        spreadsheetId: newSpreadsheetId,
+        hasTokenUpdate: !!updateData.googleTokens 
       });
-    } else {
-      // Always store spreadsheet ID
-      console.log('[Google Sheets Sync] Saving spreadsheet ID to database:', newSpreadsheetId);
-      await prisma.userPreferences.update({
+      
+      const updated = await prisma.userPreferences.update({
         where: { userId: user.id },
-        data: {
-          sortState: newSpreadsheetId,
-        },
+        data: updateData,
       });
+      
+      console.log('[Google Sheets Sync] Database save result:', {
+        id: updated.id,
+        sortState: updated.sortState,
+        hasGoogleTokens: !!updated.googleTokens
+      });
+    } catch (saveError: any) {
+      console.error('[Google Sheets Sync] ERROR saving to database:', saveError);
+      // Don't fail the whole request, just log the error
     }
-    console.log('[Google Sheets Sync] Spreadsheet ID saved successfully');
 
     return NextResponse.json({
       success: true,

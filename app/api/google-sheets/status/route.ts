@@ -17,6 +17,13 @@ export async function GET(req: NextRequest) {
       include: { preferences: true },
     });
 
+    console.log('[Google Sheets Status] User preferences:', {
+      hasPreferences: !!user?.preferences,
+      hasGoogleTokens: !!user?.preferences?.googleTokens,
+      sortState: user?.preferences?.sortState,
+      sortStateType: typeof user?.preferences?.sortState
+    });
+
     if (!user || !user.preferences?.googleTokens) {
       return NextResponse.json({ connected: false });
     }
