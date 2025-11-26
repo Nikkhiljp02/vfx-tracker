@@ -26,9 +26,15 @@ export async function GET(req: NextRequest) {
       const tokens = JSON.parse(user.preferences.filterState);
       const hasTokens = tokens.access_token || tokens.refresh_token;
       
+      // Get spreadsheet ID from sortState (stored after first sync)
+      const spreadsheetId = user.preferences.sortState;
+      const spreadsheetUrl = spreadsheetId 
+        ? `https://docs.google.com/spreadsheets/d/${spreadsheetId}`
+        : null;
+      
       return NextResponse.json({ 
         connected: !!hasTokens,
-        spreadsheetUrl: null // Could be stored separately if needed
+        spreadsheetUrl
       });
     } catch (error) {
       return NextResponse.json({ connected: false });
