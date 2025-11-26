@@ -168,6 +168,12 @@ export function invalidateEntityCache(entityType: 'show' | 'shot' | 'task', enti
   }
 }
 
+// Clear ALL caches - use after bulk operations like Google Sheets import
+export function clearAllCaches() {
+  memoryCache.clear();
+  console.log('[Cache] All caches cleared');
+}
+
 // Cache configuration presets
 export const cacheConfigs = {
   // Quick-changing data

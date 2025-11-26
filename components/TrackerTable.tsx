@@ -2376,6 +2376,21 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
               <span className="text-gray-300">Clear Selection</span>
               <kbd className="bg-gray-700 px-1.5 py-0.5 rounded">Esc</kbd>
             </div>
+            <div className="border-t border-gray-700 my-2 pt-2">
+              <div className="text-gray-400 text-[10px] uppercase tracking-wide mb-1">Google Sheets</div>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-300">Sync to Sheets</span>
+              <kbd className="bg-gray-700 px-1.5 py-0.5 rounded">Ctrl+G</kbd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-300">Update from Sheets</span>
+              <kbd className="bg-gray-700 px-1.5 py-0.5 rounded">Ctrl+Shift+I</kbd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-300">Open Sheet</span>
+              <kbd className="bg-gray-700 px-1.5 py-0.5 rounded">Ctrl+Shift+O</kbd>
+            </div>
           </div>
         </div>
       </div>

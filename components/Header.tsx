@@ -1,11 +1,12 @@
 'use client';
 
-import { Plus, Download, Upload, FileSpreadsheet, RefreshCw, Settings, History, ChevronRight, ChevronLeft, User, LogOut, Users, Sheet, MoreVertical } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { Plus, Download, Upload, FileSpreadsheet, RefreshCw, Settings, History, ChevronRight, ChevronLeft, User, LogOut, Users, Sheet, MoreVertical, ExternalLink } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useVFXStore } from '@/lib/store';
 import { useKeyboardShortcut } from '@/lib/hooks';
+import { clearAllCaches } from '@/lib/cache';
 import { exportToExcel, downloadTemplate, parseExcelFile, validateImportData, validateUpdateData } from '@/lib/excel';
 import NewShowModal from './NewShowModal';
 import NewShotModal from './NewShotModal';
@@ -107,6 +108,34 @@ export default function Header() {
   useKeyboardShortcut('e', () => handleExport(), true); // Ctrl+E for export
   useKeyboardShortcut('i', () => setShowImportModal(true), true); // Ctrl+I for import modal
   useKeyboardShortcut('l', () => setShowActivityLog(true), true); // Ctrl+L for activity log
+
+  // Google Sheets keyboard shortcuts - using stable refs
+  const syncToSheetsRef = useRef<() => void>(() => {});
+  const importFromSheetsRef = useRef<() => void>(() => {});
+  const openSheetRef = useRef<() => void>(() => {});
+
+  // Update refs when handlers change
+  useEffect(() => {
+    syncToSheetsRef.current = () => {
+      if (googleSheetsConnected && !syncingToSheets) {
+        handleSyncToGoogleSheets();
+      }
+    };
+    importFromSheetsRef.current = () => {
+      if (googleSheetsConnected && !importingFromSheets) {
+        handleImportFromGoogleSheets();
+      }
+    };
+    openSheetRef.current = () => {
+      if (googleSheetUrl) {
+        window.open(googleSheetUrl, '_blank');
+      }
+    };
+  });
+
+  useKeyboardShortcut('g', () => syncToSheetsRef.current(), true); // Ctrl+G for sync to sheets
+  useKeyboardShortcut('i', () => importFromSheetsRef.current(), true, true); // Ctrl+Shift+I for update from sheets
+  useKeyboardShortcut('o', () => openSheetRef.current(), true, true); // Ctrl+Shift+O for open sheet
 
   const handleDownloadIngestTemplate = () => {
     // Create template for shot ingest
@@ -385,11 +414,18 @@ export default function Header() {
         toast.success('No changes detected in Google Sheets');
       } else {
         toast.success(`Applied ${data.changes.length} changes from Google Sheets`);
-        // Force refresh data from server (bypass cache)
-        await Promise.all([
-          fetchShows(true),
-          fetchAllData(),
-        ]);
+        // Clear ALL caches to ensure fresh data
+        clearAllCaches();
+        // Small delay to ensure state updates
+        await new Promise(resolve => setTimeout(resolve, 100));
+        // Force hard refresh of data from API
+        await fetchShows(true);
+        // Trigger a re-render by updating shows in store
+        const freshResponse = await fetch('/api/shows');
+        if (freshResponse.ok) {
+          const freshShows = await freshResponse.json();
+          setShows(freshShows);
+        }
       }
     } catch (error: any) {
       console.error('Error importing from Google Sheets:', error);
