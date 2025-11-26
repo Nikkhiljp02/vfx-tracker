@@ -211,37 +211,102 @@ export async function syncToGoogleSheets(
   }
 
   // Format the sheet
-  await formatSheet(sheets, spreadsheetId);
+  await formatSheet(sheets, spreadsheetId, data.length);
 
   return spreadsheetId;
 }
 
-// Format the Google Sheet (styling, column widths, etc.)
-async function formatSheet(sheets: any, spreadsheetId: string) {
-  // Get the actual sheet ID
-  const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
-  const sheetId = spreadsheet.data.sheets?.[0]?.properties?.sheetId || 0;
+// Status color mapping
+const statusColors: Record<string, { red: number; green: number; blue: number }> = {
+  'YTS': { red: 0.8, green: 0.8, blue: 0.8 },       // Gray
+  'WIP': { red: 1.0, green: 0.85, blue: 0.4 },     // Yellow/Orange
+  'Int App': { red: 0.6, green: 0.8, blue: 1.0 },  // Light Blue
+  'AWF': { red: 0.6, green: 0.4, blue: 0.8 },      // Purple
+  'C APP': { red: 0.4, green: 0.8, blue: 0.4 },    // Green
+  'C KB': { red: 1.0, green: 0.6, blue: 0.6 },     // Red/Pink
+  'OMIT': { red: 0.5, green: 0.5, blue: 0.5 },     // Dark Gray
+  'HOLD': { red: 1.0, green: 0.8, blue: 0.6 },     // Orange/Peach
+};
 
-  const requests = [
-    // Header row formatting (bold, background color)
+// Format the Google Sheet (styling, column widths, borders, status colors)
+async function formatSheet(sheets: any, spreadsheetId: string, dataRowCount: number) {
+  // Get the actual sheet ID and data
+  const spreadsheet = await sheets.spreadsheets.get({ 
+    spreadsheetId,
+    includeGridData: true,
+    ranges: ['A1:P']
+  });
+  const sheetId = spreadsheet.data.sheets?.[0]?.properties?.sheetId || 0;
+  const gridData = spreadsheet.data.sheets?.[0]?.data?.[0]?.rowData || [];
+
+  // Border style
+  const borderStyle = {
+    style: 'SOLID',
+    width: 1,
+    color: { red: 0.7, green: 0.7, blue: 0.7 },
+  };
+
+  const requests: any[] = [
+    // Header row formatting (bold, background color, centered)
     {
       repeatCell: {
         range: {
           sheetId: sheetId,
           startRowIndex: 0,
           endRowIndex: 1,
+          startColumnIndex: 0,
+          endColumnIndex: 16,
         },
         cell: {
           userEnteredFormat: {
-            backgroundColor: { red: 0.2, green: 0.4, blue: 0.6 },
+            backgroundColor: { red: 0.15, green: 0.3, blue: 0.5 },
             textFormat: {
               foregroundColor: { red: 1, green: 1, blue: 1 },
               bold: true,
+              fontSize: 10,
             },
             horizontalAlignment: 'CENTER',
+            verticalAlignment: 'MIDDLE',
           },
         },
-        fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)',
+        fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)',
+      },
+    },
+    // Center align ALL data cells
+    {
+      repeatCell: {
+        range: {
+          sheetId: sheetId,
+          startRowIndex: 1,
+          endRowIndex: dataRowCount,
+          startColumnIndex: 0,
+          endColumnIndex: 16,
+        },
+        cell: {
+          userEnteredFormat: {
+            horizontalAlignment: 'CENTER',
+            verticalAlignment: 'MIDDLE',
+          },
+        },
+        fields: 'userEnteredFormat(horizontalAlignment,verticalAlignment)',
+      },
+    },
+    // Add borders to all cells
+    {
+      updateBorders: {
+        range: {
+          sheetId: sheetId,
+          startRowIndex: 0,
+          endRowIndex: dataRowCount,
+          startColumnIndex: 0,
+          endColumnIndex: 14, // Only visible columns
+        },
+        top: borderStyle,
+        bottom: borderStyle,
+        left: borderStyle,
+        right: borderStyle,
+        innerHorizontal: borderStyle,
+        innerVertical: borderStyle,
       },
     },
     // Auto-resize columns
@@ -312,6 +377,45 @@ async function formatSheet(sheets: any, spreadsheetId: string) {
     },
   ];
 
+  // Add status color coding for each row
+  // Column H (index 7) is Status
+  for (let rowIndex = 1; rowIndex < gridData.length; rowIndex++) {
+    const row = gridData[rowIndex];
+    const statusCell = row?.values?.[7];
+    const statusValue = statusCell?.effectiveValue?.stringValue || statusCell?.userEnteredValue?.stringValue;
+    
+    if (statusValue && statusColors[statusValue]) {
+      const bgColor = statusColors[statusValue];
+      requests.push({
+        repeatCell: {
+          range: {
+            sheetId: sheetId,
+            startRowIndex: rowIndex,
+            endRowIndex: rowIndex + 1,
+            startColumnIndex: 7,
+            endColumnIndex: 8,
+          },
+          cell: {
+            userEnteredFormat: {
+              backgroundColor: bgColor,
+              textFormat: {
+                bold: true,
+                foregroundColor: 
+                  statusValue === 'YTS' || statusValue === 'OMIT' 
+                    ? { red: 0.2, green: 0.2, blue: 0.2 } 
+                    : { red: 0, green: 0, blue: 0 },
+              },
+              horizontalAlignment: 'CENTER',
+              verticalAlignment: 'MIDDLE',
+            },
+          },
+          fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)',
+        },
+      });
+    }
+  }
+
+  // Execute formatting
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId,
     requestBody: { requests },

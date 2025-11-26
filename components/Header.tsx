@@ -18,7 +18,7 @@ import toast from 'react-hot-toast';
 export default function Header() {
   const { data: session } = useSession();
   const router = useRouter();
-  const { shows, shots, tasks, setShows } = useVFXStore();
+  const { shows, shots, tasks, setShows, fetchShows, fetchAllData } = useVFXStore();
   const [showNewShow, setShowNewShow] = useState(false);
   const [showNewShot, setShowNewShot] = useState(false);
   const [showStatusManagement, setShowStatusManagement] = useState(false);
@@ -385,8 +385,8 @@ export default function Header() {
         toast.success('No changes detected in Google Sheets');
       } else {
         toast.success(`Applied ${data.changes.length} changes from Google Sheets`);
-        // Refresh data
-        window.location.reload();
+        // Refresh data in background without page reload
+        await fetchAllData();
       }
     } catch (error: any) {
       console.error('Error importing from Google Sheets:', error);

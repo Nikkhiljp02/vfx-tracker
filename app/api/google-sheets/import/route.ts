@@ -3,6 +3,18 @@ import { getGoogleAuth, readFromGoogleSheets, detectSheetChanges } from '@/lib/g
 import { prisma } from '@/lib/prisma';
 import { auth as getAuth } from '@/lib/auth';
 
+// Helper function to increment version
+function incrementVersion(currentVersion: string | null): string {
+  if (!currentVersion) return 'v001';
+  
+  const match = currentVersion.match(/v(\d+)/i);
+  if (match) {
+    const num = parseInt(match[1], 10) + 1;
+    return `v${num.toString().padStart(3, '0')}`;
+  }
+  return 'v001';
+}
+
 // Import changes from Google Sheets back to tracker
 export async function POST(req: NextRequest) {
   try {
@@ -77,10 +89,33 @@ export async function POST(req: NextRequest) {
     
     for (const change of changes) {
       try {
+        // Get current task to check for AWF status change logic
+        const currentTask = await prisma.task.findUnique({
+          where: { id: change.taskId },
+        });
+
+        if (!currentTask) {
+          console.log('[Google Sheets Import] Task not found:', change.taskId);
+          continue;
+        }
+
+        const updateData = { ...change.updates };
+
+        // Handle AWF version increment logic
+        // If status is changing TO AWF and current status is NOT AWF
+        if (updateData.status === 'AWF' && currentTask.status !== 'AWF') {
+          console.log('[Google Sheets Import] AWF status change detected for task:', change.taskId);
+          // Auto-increment version
+          updateData.deliveredVersion = incrementVersion(currentTask.deliveredVersion);
+          // Auto-set delivered date
+          updateData.deliveredDate = new Date();
+          console.log('[Google Sheets Import] Auto-set version:', updateData.deliveredVersion, 'date:', updateData.deliveredDate);
+        }
+
         // Update task in database
         const updatedTask = await prisma.task.update({
           where: { id: change.taskId },
-          data: change.updates,
+          data: updateData,
         });
 
         // Log the change
@@ -92,10 +127,14 @@ export async function POST(req: NextRequest) {
             userId: user.id,
             userName: username,
             fieldName: 'multiple',
-            oldValue: null,
+            oldValue: JSON.stringify({
+              status: currentTask.status,
+              deliveredVersion: currentTask.deliveredVersion,
+              deliveredDate: currentTask.deliveredDate,
+            }),
             newValue: JSON.stringify({
               source: 'Google Sheets Import',
-              changes: change.updates,
+              changes: updateData,
             }),
           },
         });
