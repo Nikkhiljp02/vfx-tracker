@@ -52,15 +52,15 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Store Google tokens in preferences
-    const googleTokens = JSON.stringify(tokens);
+    // Store Google tokens in preferences (using dedicated googleTokens field)
+    const googleTokensJson = JSON.stringify(tokens);
     console.log('[Google Sheets Callback] Storing tokens for user:', user.username);
     
     if (user.preferences) {
       await prisma.userPreferences.update({
         where: { userId: user.id },
         data: {
-          filterState: googleTokens, // Temporary storage, should use separate field
+          googleTokens: googleTokensJson,
         },
       });
       console.log('[Google Sheets Callback] Tokens updated in preferences');
@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
       await prisma.userPreferences.create({
         data: {
           userId: user.id,
-          filterState: googleTokens,
+          googleTokens: googleTokensJson,
         },
       });
       console.log('[Google Sheets Callback] Tokens created in preferences');

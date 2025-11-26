@@ -22,11 +22,11 @@ export async function POST(req: NextRequest) {
       include: { preferences: true },
     });
 
-    console.log('[Google Sheets Import] User found:', !!user, 'Has tokens:', !!user?.preferences?.filterState);
+    console.log('[Google Sheets Import] User found:', !!user, 'Has tokens:', !!user?.preferences?.googleTokens);
 
-    // Check if filterState is string "null"
-    const rawFilterState = user?.preferences?.filterState;
-    if (!rawFilterState || rawFilterState === 'null') {
+    // Check if googleTokens is string "null" or missing
+    const rawGoogleTokens = user?.preferences?.googleTokens;
+    if (!rawGoogleTokens || rawGoogleTokens === 'null') {
       console.log('[Google Sheets Import] No tokens stored or string null');
       return NextResponse.json(
         { error: 'Google Sheets not connected. Please connect first.' },
@@ -57,8 +57,8 @@ export async function POST(req: NextRequest) {
     // Parse tokens
     let tokens;
     try {
-      console.log('[Google Sheets Import] Raw filterState:', rawFilterState?.substring(0, 100));
-      tokens = JSON.parse(rawFilterState);
+      console.log('[Google Sheets Import] Raw googleTokens:', rawGoogleTokens?.substring(0, 100));
+      tokens = JSON.parse(rawGoogleTokens);
       console.log('[Google Sheets Import] Tokens parsed, keys:', Object.keys(tokens || {}));
       console.log('[Google Sheets Import] has access_token:', !!tokens?.access_token, 'has refresh_token:', !!tokens?.refresh_token);
     } catch (parseError) {
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
       await prisma.userPreferences.update({
         where: { userId: user.id },
         data: {
-          filterState: JSON.stringify(refreshedCredentials),
+          googleTokens: JSON.stringify(refreshedCredentials),
         },
       });
     }

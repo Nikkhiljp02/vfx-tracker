@@ -17,13 +17,13 @@ export async function GET(req: NextRequest) {
       include: { preferences: true },
     });
 
-    if (!user || !user.preferences?.filterState) {
+    if (!user || !user.preferences?.googleTokens) {
       return NextResponse.json({ connected: false });
     }
 
     // Check if Google tokens exist
     try {
-      const tokens = JSON.parse(user.preferences.filterState);
+      const tokens = JSON.parse(user.preferences.googleTokens);
       const hasTokens = tokens.access_token || tokens.refresh_token;
       
       // Get spreadsheet ID from sortState (stored after first sync)

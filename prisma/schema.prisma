@@ -5,11 +5,10 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// PostgreSQL for production
+// SQLite for local development
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 // ============================================
@@ -87,7 +86,8 @@ model UserPreferences {
   // Saved view states (stored as JSON)
   tableColumns  String?   // Which columns to show in tracker
   filterState   String?   // Saved filter preferences
-  sortState     String?   // Saved sort preferences
+  sortState     String?   // Saved sort preferences (also stores spreadsheet ID)
+  googleTokens  String?   // Google OAuth tokens (stored as JSON)
   theme         String?   @default("light")
   
   updatedAt     DateTime  @updatedAt
@@ -428,7 +428,7 @@ model AwardSheet {
   id            String   @id @default(cuid())
   showName      String   // Show name
   shotName      String   // Shot name
-  customFields  String   @default("{}") // Dynamic columns as JSON string
+  customFields  String   @default("{}") // Dynamic columns as JSON string (for SQLite compatibility)
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

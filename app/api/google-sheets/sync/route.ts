@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       include: { preferences: true },
     });
 
-    if (!user?.preferences?.filterState) {
+    if (!user?.preferences?.googleTokens) {
       console.log('[Google Sheets Sync] No tokens found');
       return NextResponse.json(
         { error: 'Google Sheets not connected. Please authorize first.' },
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     // Parse tokens
     let tokens;
     try {
-      tokens = JSON.parse(user.preferences.filterState);
+      tokens = JSON.parse(user.preferences.googleTokens);
     } catch (e) {
       console.error('[Google Sheets Sync] Failed to parse tokens:', e);
       return NextResponse.json(
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
       await prisma.userPreferences.update({
         where: { userId: user.id },
         data: {
-          filterState: JSON.stringify(refreshedCredentials),
+          googleTokens: JSON.stringify(refreshedCredentials),
           sortState: newSpreadsheetId, // Store spreadsheet ID
         },
       });
