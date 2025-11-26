@@ -230,206 +230,47 @@ export async function syncToGoogleSheets(
   return spreadsheetId;
 }
 
-// Status color mapping
-const statusColors: Record<string, { red: number; green: number; blue: number }> = {
-  'YTS': { red: 0.8, green: 0.8, blue: 0.8 },       // Gray
-  'WIP': { red: 1.0, green: 0.85, blue: 0.4 },     // Yellow/Orange
-  'Int App': { red: 0.6, green: 0.8, blue: 1.0 },  // Light Blue
-  'AWF': { red: 0.6, green: 0.4, blue: 0.8 },      // Purple
-  'C APP': { red: 0.4, green: 0.8, blue: 0.4 },    // Green
-  'C KB': { red: 1.0, green: 0.6, blue: 0.6 },     // Red/Pink
-  'OMIT': { red: 0.5, green: 0.5, blue: 0.5 },     // Dark Gray
-  'HOLD': { red: 1.0, green: 0.8, blue: 0.6 },     // Orange/Peach
-};
-
 // Format the Google Sheet (styling, column widths, borders, status colors)
 async function formatSheet(sheets: any, spreadsheetId: string, dataRowCount: number) {
   console.log('[Google Sheets Format] Starting formatting for', dataRowCount, 'rows');
   
-  // Get the actual sheet ID and name first
-  const spreadsheetMeta = await sheets.spreadsheets.get({ 
-    spreadsheetId,
-    fields: 'sheets.properties'
-  });
-  const firstSheet = spreadsheetMeta.data.sheets?.[0]?.properties;
-  const sheetId = firstSheet?.sheetId || 0;
-  const sheetName = firstSheet?.title || 'Sheet1';
-  console.log('[Google Sheets Format] Sheet ID:', sheetId, 'Name:', sheetName);
-  
-  // Now get the grid data with proper sheet name
-  const spreadsheet = await sheets.spreadsheets.get({ 
-    spreadsheetId,
-    includeGridData: true,
-    ranges: [`'${sheetName}'!A1:P${dataRowCount}`]
-  });
-  const gridData = spreadsheet.data.sheets?.[0]?.data?.[0]?.rowData || [];
+  try {
+    // Get the actual sheet ID first
+    const spreadsheetMeta = await sheets.spreadsheets.get({ 
+      spreadsheetId,
+      fields: 'sheets.properties'
+    });
+    const firstSheet = spreadsheetMeta.data.sheets?.[0]?.properties;
+    const sheetId = firstSheet?.sheetId || 0;
+    const sheetName = firstSheet?.title || 'Sheet1';
+    console.log('[Google Sheets Format] Sheet ID:', sheetId, 'Name:', sheetName);
 
-  // Border style
-  const borderStyle = {
-    style: 'SOLID',
-    width: 1,
-    color: { red: 0.7, green: 0.7, blue: 0.7 },
-  };
+    // Border style
+    const borderStyle = {
+      style: 'SOLID',
+      width: 1,
+      color: { red: 0.7, green: 0.7, blue: 0.7 },
+    };
 
-  const requests: any[] = [
-    // Header row formatting (bold, background color, centered)
-    {
-      repeatCell: {
-        range: {
-          sheetId: sheetId,
-          startRowIndex: 0,
-          endRowIndex: 1,
-          startColumnIndex: 0,
-          endColumnIndex: 16,
-        },
-        cell: {
-          userEnteredFormat: {
-            backgroundColor: { red: 0.15, green: 0.3, blue: 0.5 },
-            textFormat: {
-              foregroundColor: { red: 1, green: 1, blue: 1 },
-              bold: true,
-              fontSize: 10,
-            },
-            horizontalAlignment: 'CENTER',
-            verticalAlignment: 'MIDDLE',
-          },
-        },
-        fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)',
-      },
-    },
-    // Center align ALL data cells
-    {
-      repeatCell: {
-        range: {
-          sheetId: sheetId,
-          startRowIndex: 1,
-          endRowIndex: dataRowCount,
-          startColumnIndex: 0,
-          endColumnIndex: 16,
-        },
-        cell: {
-          userEnteredFormat: {
-            horizontalAlignment: 'CENTER',
-            verticalAlignment: 'MIDDLE',
-          },
-        },
-        fields: 'userEnteredFormat(horizontalAlignment,verticalAlignment)',
-      },
-    },
-    // Add borders to all cells
-    {
-      updateBorders: {
-        range: {
-          sheetId: sheetId,
-          startRowIndex: 0,
-          endRowIndex: dataRowCount,
-          startColumnIndex: 0,
-          endColumnIndex: 14, // Only visible columns
-        },
-        top: borderStyle,
-        bottom: borderStyle,
-        left: borderStyle,
-        right: borderStyle,
-        innerHorizontal: borderStyle,
-        innerVertical: borderStyle,
-      },
-    },
-    // Auto-resize columns
-    {
-      autoResizeDimensions: {
-        dimensions: {
-          sheetId: sheetId,
-          dimension: 'COLUMNS',
-          startIndex: 0,
-          endIndex: 14,
-        },
-      },
-    },
-    // Hide ID columns (O and P)
-    {
-      updateDimensionProperties: {
-        range: {
-          sheetId: sheetId,
-          dimension: 'COLUMNS',
-          startIndex: 14,
-          endIndex: 16,
-        },
-        properties: {
-          hiddenByUser: true,
-        },
-        fields: 'hiddenByUser',
-      },
-    },
-    // Freeze first row
-    {
-      updateSheetProperties: {
-        properties: {
-          sheetId: sheetId,
-          gridProperties: {
-            frozenRowCount: 1,
-          },
-        },
-        fields: 'gridProperties.frozenRowCount',
-      },
-    },
-    // Add data validation for Status column (column H, index 7)
-    {
-      setDataValidation: {
-        range: {
-          sheetId: sheetId,
-          startRowIndex: 1,
-          endRowIndex: dataRowCount, // Apply to all data rows
-          startColumnIndex: 7,
-          endColumnIndex: 8,
-        },
-        rule: {
-          condition: {
-            type: 'ONE_OF_LIST',
-            values: [
-              { userEnteredValue: 'YTS' },
-              { userEnteredValue: 'WIP' },
-              { userEnteredValue: 'Int App' },
-              { userEnteredValue: 'AWF' },
-              { userEnteredValue: 'C APP' },
-              { userEnteredValue: 'C KB' },
-              { userEnteredValue: 'OMIT' },
-              { userEnteredValue: 'HOLD' },
-            ],
-          },
-          showCustomUi: true,
-          strict: true,
-        },
-      },
-    },
-  ];
-
-  // Add status color coding for each row
-  // Column H (index 7) is Status
-  for (let rowIndex = 1; rowIndex < gridData.length; rowIndex++) {
-    const row = gridData[rowIndex];
-    const statusCell = row?.values?.[7];
-    const statusValue = statusCell?.effectiveValue?.stringValue || statusCell?.userEnteredValue?.stringValue;
-    
-    if (statusValue && statusColors[statusValue]) {
-      const bgColor = statusColors[statusValue];
-      requests.push({
+    // Build formatting requests
+    const requests: any[] = [
+      // Header row formatting (bold, background color, centered)
+      {
         repeatCell: {
           range: {
             sheetId: sheetId,
-            startRowIndex: rowIndex,
-            endRowIndex: rowIndex + 1,
-            startColumnIndex: 7,
-            endColumnIndex: 8,
+            startRowIndex: 0,
+            endRowIndex: 1,
+            startColumnIndex: 0,
+            endColumnIndex: 14,
           },
           cell: {
             userEnteredFormat: {
-              backgroundColor: bgColor,
+              backgroundColor: { red: 0.15, green: 0.3, blue: 0.5 },
               textFormat: {
+                foregroundColor: { red: 1, green: 1, blue: 1 },
                 bold: true,
-                foregroundColor: 
-                  statusValue === 'YTS' || statusValue === 'OMIT' 
-                    ? { red: 0.2, green: 0.2, blue: 0.2 } 
-                    : { red: 0, green: 0, blue: 0 },
+                fontSize: 10,
               },
               horizontalAlignment: 'CENTER',
               verticalAlignment: 'MIDDLE',
@@ -437,22 +278,184 @@ async function formatSheet(sheets: any, spreadsheetId: string, dataRowCount: num
           },
           fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)',
         },
-      });
-    }
-  }
+      },
+      // Center align ALL data cells
+      {
+        repeatCell: {
+          range: {
+            sheetId: sheetId,
+            startRowIndex: 1,
+            endRowIndex: dataRowCount,
+            startColumnIndex: 0,
+            endColumnIndex: 14,
+          },
+          cell: {
+            userEnteredFormat: {
+              horizontalAlignment: 'CENTER',
+              verticalAlignment: 'MIDDLE',
+            },
+          },
+          fields: 'userEnteredFormat(horizontalAlignment,verticalAlignment)',
+        },
+      },
+      // Add borders to all cells
+      {
+        updateBorders: {
+          range: {
+            sheetId: sheetId,
+            startRowIndex: 0,
+            endRowIndex: dataRowCount,
+            startColumnIndex: 0,
+            endColumnIndex: 14,
+          },
+          top: borderStyle,
+          bottom: borderStyle,
+          left: borderStyle,
+          right: borderStyle,
+          innerHorizontal: borderStyle,
+          innerVertical: borderStyle,
+        },
+      },
+      // Auto-resize columns
+      {
+        autoResizeDimensions: {
+          dimensions: {
+            sheetId: sheetId,
+            dimension: 'COLUMNS',
+            startIndex: 0,
+            endIndex: 14,
+          },
+        },
+      },
+      // Hide ID columns (O and P - columns 14 and 15)
+      {
+        updateDimensionProperties: {
+          range: {
+            sheetId: sheetId,
+            dimension: 'COLUMNS',
+            startIndex: 14,
+            endIndex: 16,
+          },
+          properties: {
+            hiddenByUser: true,
+          },
+          fields: 'hiddenByUser',
+        },
+      },
+      // Freeze first row
+      {
+        updateSheetProperties: {
+          properties: {
+            sheetId: sheetId,
+            gridProperties: {
+              frozenRowCount: 1,
+            },
+          },
+          fields: 'gridProperties.frozenRowCount',
+        },
+      },
+      // Add data validation for Status column (column H, index 7)
+      {
+        setDataValidation: {
+          range: {
+            sheetId: sheetId,
+            startRowIndex: 1,
+            endRowIndex: dataRowCount,
+            startColumnIndex: 7,
+            endColumnIndex: 8,
+          },
+          rule: {
+            condition: {
+              type: 'ONE_OF_LIST',
+              values: [
+                { userEnteredValue: 'YTS' },
+                { userEnteredValue: 'WIP' },
+                { userEnteredValue: 'Int App' },
+                { userEnteredValue: 'AWF' },
+                { userEnteredValue: 'C APP' },
+                { userEnteredValue: 'C KB' },
+                { userEnteredValue: 'OMIT' },
+                { userEnteredValue: 'HOLD' },
+              ],
+            },
+            showCustomUi: true,
+            strict: false,
+          },
+        },
+      },
+    ];
 
-  console.log('[Google Sheets Format] Applying', requests.length, 'formatting requests');
-  
-  // Execute formatting
-  try {
+    // Status color mapping
+    const statusColorMap: Record<string, { red: number; green: number; blue: number }> = {
+      'YTS': { red: 0.85, green: 0.85, blue: 0.85 },
+      'WIP': { red: 1.0, green: 0.9, blue: 0.6 },
+      'Int App': { red: 0.7, green: 0.85, blue: 1.0 },
+      'AWF': { red: 0.8, green: 0.7, blue: 0.95 },
+      'C APP': { red: 0.6, green: 0.9, blue: 0.6 },
+      'C KB': { red: 1.0, green: 0.7, blue: 0.7 },
+      'OMIT': { red: 0.6, green: 0.6, blue: 0.6 },
+      'HOLD': { red: 1.0, green: 0.85, blue: 0.7 },
+    };
+
+    // First apply basic formatting
+    console.log('[Google Sheets Format] Applying basic formatting requests:', requests.length);
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId,
       requestBody: { requests },
     });
-    console.log('[Google Sheets Format] Formatting applied successfully');
+    console.log('[Google Sheets Format] Basic formatting applied');
+
+    // Now read the data to get status values for color coding
+    const dataResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `'${sheetName}'!H2:H${dataRowCount}`,
+    });
+    const statusValues = dataResponse.data.values || [];
+    console.log('[Google Sheets Format] Found', statusValues.length, 'status values for coloring');
+
+    // Build color requests for each status cell
+    const colorRequests: any[] = [];
+    statusValues.forEach((row: string[], index: number) => {
+      const status = row[0];
+      if (status && statusColorMap[status]) {
+        colorRequests.push({
+          repeatCell: {
+            range: {
+              sheetId: sheetId,
+              startRowIndex: index + 1, // +1 for header
+              endRowIndex: index + 2,
+              startColumnIndex: 7,
+              endColumnIndex: 8,
+            },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: statusColorMap[status],
+                textFormat: {
+                  bold: true,
+                },
+                horizontalAlignment: 'CENTER',
+                verticalAlignment: 'MIDDLE',
+              },
+            },
+            fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)',
+          },
+        });
+      }
+    });
+
+    if (colorRequests.length > 0) {
+      console.log('[Google Sheets Format] Applying', colorRequests.length, 'status color requests');
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: { requests: colorRequests },
+      });
+      console.log('[Google Sheets Format] Status colors applied');
+    }
+
+    console.log('[Google Sheets Format] All formatting completed successfully');
   } catch (formatError: any) {
-    console.error('[Google Sheets Format] Error applying formatting:', formatError.message);
-    // Don't throw - formatting errors shouldn't break the sync
+    console.error('[Google Sheets Format] Error:', formatError.message);
+    console.error('[Google Sheets Format] Full error:', JSON.stringify(formatError.response?.data || formatError, null, 2));
   }
 }
 
