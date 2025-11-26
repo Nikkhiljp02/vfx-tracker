@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth as getAuth } from '@/lib/auth';
 
-// Check if user has Google Sheets connected
+// Check Google Sheets connection status
 export async function GET(req: NextRequest) {
   try {
-    // Get current user session
     const session = await getAuth();
     if (!session?.user) {
       return NextResponse.json({ connected: false }, { status: 401 });
@@ -17,42 +16,46 @@ export async function GET(req: NextRequest) {
       include: { preferences: true },
     });
 
-    console.log('[Google Sheets Status] User preferences:', {
-      hasPreferences: !!user?.preferences,
-      hasGoogleTokens: !!user?.preferences?.googleTokens,
-      sortState: user?.preferences?.sortState,
-      sortStateType: typeof user?.preferences?.sortState
-    });
-
-    if (!user || !user.preferences?.googleTokens) {
+    if (!user?.preferences?.googleTokens) {
       return NextResponse.json({ connected: false });
     }
 
-    // Check if Google tokens exist
+    // Check if Google tokens exist and are valid
     try {
       const tokens = JSON.parse(user.preferences.googleTokens);
       const hasTokens = tokens.access_token || tokens.refresh_token;
       
-      // Get spreadsheet ID from sortState (stored after first sync)
-      // Handle string "null" from database
-      const rawSpreadsheetId = user.preferences.sortState;
-      const spreadsheetId = (rawSpreadsheetId && rawSpreadsheetId !== 'null') ? rawSpreadsheetId : null;
-      const spreadsheetUrl = spreadsheetId 
-        ? `https://docs.google.com/spreadsheets/d/${spreadsheetId}`
-        : null;
+      if (!hasTokens) {
+        return NextResponse.json({ connected: false });
+      }
+
+      // Get system spreadsheet ID from admin settings
+      let spreadsheetUrl = null;
+      let spreadsheetId = null;
       
-      console.log('[Google Sheets Status] Raw sortState:', rawSpreadsheetId, 'Clean spreadsheetId:', spreadsheetId);
-      
+      const settings = await prisma.systemSettings.findFirst({
+        where: { key: 'google_sheets' }
+      });
+
+      if (settings) {
+        const data = JSON.parse(settings.value);
+        spreadsheetId = data.spreadsheetId || null;
+        spreadsheetUrl = spreadsheetId 
+          ? `https://docs.google.com/spreadsheets/d/${spreadsheetId}`
+          : null;
+      }
+
       return NextResponse.json({ 
-        connected: !!hasTokens,
+        connected: true,
         spreadsheetUrl,
-        spreadsheetId
+        spreadsheetId,
+        hasSheetConfigured: !!spreadsheetId
       });
     } catch (error) {
       return NextResponse.json({ connected: false });
     }
   } catch (error) {
-    console.error('Error checking Google Sheets status:', error);
+    console.error('[Google Sheets Status] Error:', error);
     return NextResponse.json({ connected: false }, { status: 500 });
   }
 }

@@ -16,12 +16,15 @@ import {
   TestTube,
   CheckCircle,
   XCircle,
+  Sheet,
+  ExternalLink,
+  Copy,
 } from "lucide-react";
 
 export default function SystemSettingsPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
-  const [activeTab, setActiveTab] = useState<"email" | "database" | "notifications" | "security">("email");
+  const [activeTab, setActiveTab] = useState<"email" | "database" | "notifications" | "security" | "googlesheets">("email");
   const [saving, setSaving] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   
@@ -32,6 +35,11 @@ export default function SystemSettingsPage() {
     smtpPass: "",
     smtpFrom: "",
   });
+
+  const [googleSheetsSettings, setGoogleSheetsSettings] = useState({
+    spreadsheetId: "",
+  });
+  const [googleSheetsSaved, setGoogleSheetsSaved] = useState(false);
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -58,6 +66,15 @@ export default function SystemSettingsPage() {
             smtpFrom: data.email.from || "",
           });
         }
+      }
+
+      // Load Google Sheets settings
+      const gsResponse = await fetch("/api/admin/settings/google-sheets");
+      if (gsResponse.ok) {
+        const gsData = await gsResponse.json();
+        setGoogleSheetsSettings({
+          spreadsheetId: gsData.spreadsheetId || "",
+        });
       }
     } catch (error) {
       console.error("Error loading settings:", error);
@@ -108,6 +125,43 @@ export default function SystemSettingsPage() {
         message: "Failed to send test email",
       });
     }
+  };
+
+  const handleSaveGoogleSheets = async () => {
+    setSaving(true);
+    setGoogleSheetsSaved(false);
+    try {
+      const response = await fetch("/api/admin/settings/google-sheets", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(googleSheetsSettings),
+      });
+
+      if (response.ok) {
+        setGoogleSheetsSaved(true);
+        setTimeout(() => setGoogleSheetsSaved(false), 3000);
+      } else {
+        const error = await response.json();
+        alert(error.error || "Failed to save settings");
+      }
+    } catch (error) {
+      console.error("Error saving Google Sheets settings:", error);
+      alert("Failed to save settings");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const extractSpreadsheetId = (input: string): string => {
+    // If it's a full URL, extract the ID
+    const urlMatch = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if (urlMatch) return urlMatch[1];
+    // Otherwise, assume it's already an ID
+    return input.trim();
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
   };
 
   if (status === "loading") {
@@ -191,6 +245,17 @@ export default function SystemSettingsPage() {
               >
                 <Shield className="w-4 h-4 inline mr-2" />
                 Security
+              </button>
+              <button
+                onClick={() => setActiveTab("googlesheets")}
+                className={`px-6 py-4 text-sm font-medium transition-colors ${
+                  activeTab === "googlesheets"
+                    ? "border-b-2 border-green-500 text-green-600"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <Sheet className="w-4 h-4 inline mr-2" />
+                Google Sheets
               </button>
             </div>
           </div>
@@ -415,6 +480,112 @@ export default function SystemSettingsPage() {
                       <strong>Note:</strong> Additional security features like 2FA, SSO, and IP whitelisting can be implemented based on requirements.
                     </p>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Google Sheets Tab */}
+            {activeTab === "googlesheets" && (
+              <div className="max-w-2xl">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Google Sheets Integration</h3>
+                
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                  <h4 className="text-sm font-medium text-green-900 mb-2">How it works:</h4>
+                  <ul className="text-sm text-green-800 space-y-1">
+                    <li>1. Create a Google Sheet manually in your Google Drive</li>
+                    <li>2. Share it with your service account or make it editable</li>
+                    <li>3. Paste the Sheet ID or URL below</li>
+                    <li>4. Use "Sync to Sheets" to push data, "Update from Sheets" to pull changes</li>
+                  </ul>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Google Sheet ID or URL
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={googleSheetsSettings.spreadsheetId}
+                        onChange={(e) => {
+                          const extracted = extractSpreadsheetId(e.target.value);
+                          setGoogleSheetsSettings({ spreadsheetId: extracted });
+                        }}
+                        placeholder="Paste Sheet URL or ID (e.g., 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms)"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      />
+                      {googleSheetsSettings.spreadsheetId && (
+                        <button
+                          onClick={() => copyToClipboard(googleSheetsSettings.spreadsheetId)}
+                          className="px-3 py-2 text-gray-600 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-50"
+                          title="Copy ID"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      You can paste either the full Google Sheets URL or just the spreadsheet ID
+                    </p>
+                  </div>
+
+                  {googleSheetsSettings.spreadsheetId && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-medium text-gray-700">Linked Spreadsheet</div>
+                          <div className="text-xs text-gray-500 mt-1 font-mono">
+                            ID: {googleSheetsSettings.spreadsheetId}
+                          </div>
+                        </div>
+                        <a
+                          href={`https://docs.google.com/spreadsheets/d/${googleSheetsSettings.spreadsheetId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-sm text-green-600 hover:text-green-700"
+                        >
+                          Open Sheet <ExternalLink className="w-4 h-4" />
+                        </a>
+                      </div>
+                    </div>
+                  )}
+
+                  {googleSheetsSaved && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5 text-green-600" />
+                      <span className="text-sm text-green-800">Settings saved successfully!</span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center space-x-3 pt-4">
+                    <button
+                      onClick={handleSaveGoogleSheets}
+                      disabled={saving}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center space-x-2 disabled:opacity-50"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>{saving ? "Saving..." : "Save Settings"}</span>
+                    </button>
+                    {googleSheetsSettings.spreadsheetId && (
+                      <button
+                        onClick={() => setGoogleSheetsSettings({ spreadsheetId: "" })}
+                        className="px-4 py-2 text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-8 border-t border-gray-200 pt-6">
+                  <h4 className="text-sm font-medium text-gray-900 mb-3">Important Notes:</h4>
+                  <ul className="text-sm text-gray-600 space-y-2">
+                    <li>• <strong>Sync to Sheets:</strong> Overwrites the Google Sheet with current tracker data</li>
+                    <li>• <strong>Update from Sheets:</strong> Reads changes from the Google Sheet and applies them to the tracker</li>
+                    <li>• The Sheet must have proper column headers (created automatically on first sync)</li>
+                    <li>• Make sure your Google account has edit access to the sheet</li>
+                  </ul>
                 </div>
               </div>
             )}

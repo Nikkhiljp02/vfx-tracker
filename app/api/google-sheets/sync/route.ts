@@ -1,20 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { syncToGoogleSheets, setCredentials, getGoogleAuth } from '@/lib/google-sheets';
+import { getGoogleAuth, formatDataForSheets } from '@/lib/google-sheets';
 import { prisma } from '@/lib/prisma';
 import { auth as getAuth } from '@/lib/auth';
+import { google } from 'googleapis';
 
-// Sync tracker data to Google Sheets
+// Sync tracker data to Google Sheets (simple overwrite)
 export async function POST(req: NextRequest) {
   try {
     console.log('[Google Sheets Sync] Starting sync...');
     
     const session = await getAuth();
     if (!session?.user) {
-      console.log('[Google Sheets Sync] Not authenticated');
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
-
-    console.log('[Google Sheets Sync] User:', (session.user as any).username);
 
     // Get user and their Google tokens
     const user = await prisma.user.findUnique({
@@ -23,125 +21,176 @@ export async function POST(req: NextRequest) {
     });
 
     if (!user?.preferences?.googleTokens) {
-      console.log('[Google Sheets Sync] No tokens found');
       return NextResponse.json(
-        { error: 'Google Sheets not connected. Please authorize first.' },
+        { error: 'Google Sheets not connected. Please connect first.' },
         { status: 400 }
       );
     }
 
-    console.log('[Google Sheets Sync] Tokens found, parsing...');
+    // Get system spreadsheet ID from admin settings
+    const settings = await prisma.systemSettings.findFirst({
+      where: { key: 'google_sheets' }
+    });
+
+    if (!settings) {
+      return NextResponse.json(
+        { error: 'No Google Sheet configured. Please set up the Sheet ID in Admin > Settings > Google Sheets.' },
+        { status: 400 }
+      );
+    }
+
+    const { spreadsheetId } = JSON.parse(settings.value);
+    if (!spreadsheetId) {
+      return NextResponse.json(
+        { error: 'No Google Sheet ID configured. Please set up the Sheet ID in Admin > Settings > Google Sheets.' },
+        { status: 400 }
+      );
+    }
+
+    console.log('[Google Sheets Sync] Using spreadsheet:', spreadsheetId);
 
     // Parse tokens
-    let tokens;
-    try {
-      tokens = JSON.parse(user.preferences.googleTokens);
-    } catch (e) {
-      console.error('[Google Sheets Sync] Failed to parse tokens:', e);
-      return NextResponse.json(
-        { error: 'Invalid token format. Please reconnect Google Sheets.' },
-        { status: 400 }
-      );
-    }
-
-    console.log('[Google Sheets Sync] Parsed tokens:', {
-      hasAccessToken: !!tokens.access_token,
-      hasRefreshToken: !!tokens.refresh_token,
-      tokenType: tokens.token_type,
-      scope: tokens.scope,
-      expiryDate: tokens.expiry_date
-    });
-
+    const tokens = JSON.parse(user.preferences.googleTokens);
     if (!tokens.access_token && !tokens.refresh_token) {
-      console.error('[Google Sheets Sync] No valid tokens found');
-      return NextResponse.json(
-        { error: 'No valid Google tokens found. Please reconnect Google Sheets.' },
-        { status: 401 }
-      );
-    }
-
-    console.log('[Google Sheets Sync] Creating OAuth client...');
-    const auth = getGoogleAuth();
-    console.log('[Google Sheets Sync] Setting credentials...');
-    auth.setCredentials(tokens);
-    console.log('[Google Sheets Sync] Credentials set. Auth state:', {
-      hasCredentials: !!auth.credentials,
-      credentialsKeys: auth.credentials ? Object.keys(auth.credentials) : []
-    });
-
-    // Get body data
-    const { spreadsheetId: requestSpreadsheetId, shows } = await req.json();
-    
-    // Use spreadsheet ID from request OR fallback to stored ID in preferences
-    // Handle string "null" from database or request
-    const rawSpreadsheetId = requestSpreadsheetId || user.preferences.sortState;
-    const spreadsheetId = (rawSpreadsheetId && rawSpreadsheetId !== 'null') ? rawSpreadsheetId : null;
-    console.log('[Google Sheets Sync] Request spreadsheet ID:', requestSpreadsheetId);
-    console.log('[Google Sheets Sync] Stored spreadsheet ID:', user.preferences.sortState);
-    console.log('[Google Sheets Sync] Raw spreadsheet ID:', rawSpreadsheetId);
-    console.log('[Google Sheets Sync] Final spreadsheet ID:', spreadsheetId, 'Type:', typeof spreadsheetId);
-    console.log('[Google Sheets Sync] Shows count:', shows?.length);
-
-    // Sync to Google Sheets
-    console.log('[Google Sheets Sync] Calling syncToGoogleSheets...');
-    const newSpreadsheetId = await syncToGoogleSheets(auth, spreadsheetId, shows);
-    console.log('[Google Sheets Sync] Sync complete, spreadsheet ID:', newSpreadsheetId);
-
-    // Save refreshed tokens if they were updated
-    const refreshedCredentials = auth.credentials;
-    
-    // ALWAYS save the spreadsheet ID to database
-    try {
-      const updateData: any = { sortState: newSpreadsheetId };
-      
-      // Also save refreshed tokens if they changed
-      if (refreshedCredentials && (
-        refreshedCredentials.access_token !== tokens.access_token ||
-        refreshedCredentials.refresh_token !== tokens.refresh_token
-      )) {
-        console.log('[Google Sheets Sync] Tokens were refreshed, including in save');
-        updateData.googleTokens = JSON.stringify(refreshedCredentials);
-      }
-      
-      console.log('[Google Sheets Sync] Saving to database:', { 
-        userId: user.id, 
-        spreadsheetId: newSpreadsheetId,
-        hasTokenUpdate: !!updateData.googleTokens 
-      });
-      
-      const updated = await prisma.userPreferences.update({
-        where: { userId: user.id },
-        data: updateData,
-      });
-      
-      console.log('[Google Sheets Sync] Database save result:', {
-        id: updated.id,
-        sortState: updated.sortState,
-        hasGoogleTokens: !!updated.googleTokens
-      });
-    } catch (saveError: any) {
-      console.error('[Google Sheets Sync] ERROR saving to database:', saveError);
-      // Don't fail the whole request, just log the error
-    }
-
-    return NextResponse.json({
-      success: true,
-      spreadsheetId: newSpreadsheetId,
-      url: `https://docs.google.com/spreadsheets/d/${newSpreadsheetId}`,
-    });
-  } catch (error: any) {
-    console.error('Error syncing to Google Sheets:', error);
-    
-    // Check if token expired
-    if (error.code === 401 || error.message?.includes('invalid_grant')) {
       return NextResponse.json(
         { error: 'Google authorization expired. Please reconnect.' },
         { status: 401 }
       );
     }
 
+    // Set up auth
+    const auth = getGoogleAuth();
+    auth.setCredentials(tokens);
+
+    // Get body data (shows)
+    const { shows } = await req.json();
+    console.log('[Google Sheets Sync] Shows count:', shows?.length);
+
+    // Format data for sheets
+    const rows = formatDataForSheets(shows);
+    console.log('[Google Sheets Sync] Formatted rows:', rows.length);
+
+    // Create sheets client
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    // Clear existing data and write new data
+    try {
+      // First, try to clear the existing data
+      await sheets.spreadsheets.values.clear({
+        spreadsheetId,
+        range: 'A:Z', // Clear all columns
+      });
+      console.log('[Google Sheets Sync] Cleared existing data');
+    } catch (clearError: any) {
+      // If clear fails, the sheet might not exist or be empty - that's OK
+      console.log('[Google Sheets Sync] Clear failed (sheet might be new):', clearError.message);
+    }
+
+    // Write new data
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: 'A1',
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: rows,
+      },
+    });
+    console.log('[Google Sheets Sync] Data written successfully');
+
+    // Apply formatting (freeze header, auto-resize, hide ID columns)
+    try {
+      // Get sheet ID (usually 0 for the first sheet)
+      const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
+      const sheetId = spreadsheet.data.sheets?.[0]?.properties?.sheetId || 0;
+
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [
+            // Freeze first row
+            {
+              updateSheetProperties: {
+                properties: { sheetId, gridProperties: { frozenRowCount: 1 } },
+                fields: 'gridProperties.frozenRowCount',
+              },
+            },
+            // Bold header row
+            {
+              repeatCell: {
+                range: { sheetId, startRowIndex: 0, endRowIndex: 1 },
+                cell: {
+                  userEnteredFormat: {
+                    textFormat: { bold: true },
+                    backgroundColor: { red: 0.9, green: 0.9, blue: 0.9 },
+                  },
+                },
+                fields: 'userEnteredFormat(textFormat,backgroundColor)',
+              },
+            },
+            // Auto-resize columns
+            {
+              autoResizeDimensions: {
+                dimensions: { sheetId, dimension: 'COLUMNS', startIndex: 0, endIndex: 14 },
+              },
+            },
+            // Hide Shot ID and Task ID columns (O and P = columns 14 and 15)
+            {
+              updateDimensionProperties: {
+                range: { sheetId, dimension: 'COLUMNS', startIndex: 14, endIndex: 16 },
+                properties: { hiddenByUser: true },
+                fields: 'hiddenByUser',
+              },
+            },
+          ],
+        },
+      });
+      console.log('[Google Sheets Sync] Formatting applied');
+    } catch (formatError: any) {
+      console.log('[Google Sheets Sync] Formatting failed (non-critical):', formatError.message);
+    }
+
+    // Save refreshed tokens if they changed
+    const refreshedCredentials = auth.credentials;
+    if (refreshedCredentials?.access_token !== tokens.access_token) {
+      await prisma.userPreferences.update({
+        where: { userId: user.id },
+        data: { googleTokens: JSON.stringify(refreshedCredentials) },
+      });
+      console.log('[Google Sheets Sync] Tokens refreshed and saved');
+    }
+
+    return NextResponse.json({
+      success: true,
+      spreadsheetId,
+      url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}`,
+      rowsWritten: rows.length,
+    });
+  } catch (error: any) {
+    console.error('[Google Sheets Sync] Error:', error);
+    
+    if (error.code === 401 || error.message?.includes('invalid_grant')) {
+      return NextResponse.json(
+        { error: 'Google authorization expired. Please reconnect.' },
+        { status: 401 }
+      );
+    }
+    
+    if (error.code === 404) {
+      return NextResponse.json(
+        { error: 'Google Sheet not found. Please check the Sheet ID in Admin Settings.' },
+        { status: 404 }
+      );
+    }
+    
+    if (error.code === 403) {
+      return NextResponse.json(
+        { error: 'No permission to edit the Google Sheet. Make sure you have edit access.' },
+        { status: 403 }
+      );
+    }
+
     return NextResponse.json(
-      { error: 'Failed to sync to Google Sheets', details: error.message },
+      { error: error.message || 'Failed to sync to Google Sheets' },
       { status: 500 }
     );
   }
