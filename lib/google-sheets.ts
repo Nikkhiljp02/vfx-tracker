@@ -132,13 +132,11 @@ export async function syncToGoogleSheets(
   spreadsheetId: string | null,
   shows: Show[]
 ) {
-  console.log('[Google Sheets] === SYNC V4 CODE RUNNING ===');
   // Fix: Handle string "null" from database
   if (spreadsheetId === 'null' || spreadsheetId === '') {
     spreadsheetId = null;
   }
-  console.log('[Google Sheets] Received spreadsheetId:', spreadsheetId, 'Type:', typeof spreadsheetId);
-  console.log('[Google Sheets] Is spreadsheetId falsy?', !spreadsheetId);
+  console.log('[Google Sheets] Sync starting with spreadsheetId:', spreadsheetId);
   
   const sheets = google.sheets({ version: 'v4', auth });
   const data = formatDataForSheets(shows);
@@ -149,8 +147,7 @@ export async function syncToGoogleSheets(
   // Create new spreadsheet if none exists
   if (!spreadsheetId) {
     isNewSpreadsheet = true;
-    console.log('[Google Sheets] ENTERING NEW SPREADSHEET CREATION BRANCH');
-    console.log('[Google Sheets] Creating NEW spreadsheet with embedded data...');
+    console.log('[Google Sheets] Creating NEW spreadsheet...');
     try {
       const response = await sheets.spreadsheets.create({
         requestBody: {
@@ -185,13 +182,13 @@ export async function syncToGoogleSheets(
 
       spreadsheetId = response.data.spreadsheetId!;
       sheetName = response.data.sheets?.[0]?.properties?.title || 'Tracker Data';
-      console.log('[Google Sheets] SUCCESS! Created new spreadsheet:', spreadsheetId, 'with sheet:', sheetName);
+      console.log('[Google Sheets] Created spreadsheet:', spreadsheetId);
     } catch (createError: any) {
-      console.error('[Google Sheets] FAILED to create spreadsheet:', createError.message);
+      console.error('[Google Sheets] Failed to create spreadsheet:', createError.message);
       throw createError;
     }
   } else {
-    console.log('[Google Sheets] ENTERING EXISTING SPREADSHEET UPDATE BRANCH');
+    console.log('[Google Sheets] Updating EXISTING spreadsheet:', spreadsheetId);
     // For existing spreadsheets, clear and update
     try {
       await sheets.spreadsheets.values.clear({
