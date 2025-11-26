@@ -133,6 +133,9 @@ export async function syncToGoogleSheets(
   shows: Show[]
 ) {
   console.log('[Google Sheets] === SYNC V3 CODE RUNNING ===');
+  console.log('[Google Sheets] Received spreadsheetId:', spreadsheetId, 'Type:', typeof spreadsheetId);
+  console.log('[Google Sheets] Is spreadsheetId falsy?', !spreadsheetId);
+  
   const sheets = google.sheets({ version: 'v4', auth });
   const data = formatDataForSheets(shows);
 
@@ -142,42 +145,49 @@ export async function syncToGoogleSheets(
   // Create new spreadsheet if none exists
   if (!spreadsheetId) {
     isNewSpreadsheet = true;
+    console.log('[Google Sheets] ENTERING NEW SPREADSHEET CREATION BRANCH');
     console.log('[Google Sheets] Creating NEW spreadsheet with embedded data...');
-    const response = await sheets.spreadsheets.create({
-      requestBody: {
-        properties: {
-          title: `VFX Tracker - ${new Date().toISOString().split('T')[0]}`,
-        },
-        sheets: [
-          {
-            properties: {
-              title: 'Tracker Data',
-              gridProperties: {
-                frozenRowCount: 1, // Freeze header row
-                rowCount: Math.max(1000, data.length + 10), // Ensure enough rows
-                columnCount: 16, // A-P columns
-              },
-            },
-            data: [
-              {
-                startRow: 0,
-                startColumn: 0,
-                rowData: data.map(row => ({
-                  values: row.map(cell => ({
-                    userEnteredValue: { stringValue: String(cell || '') }
-                  }))
-                }))
-              }
-            ]
+    try {
+      const response = await sheets.spreadsheets.create({
+        requestBody: {
+          properties: {
+            title: `VFX Tracker - ${new Date().toISOString().split('T')[0]}`,
           },
-        ],
-      },
-    });
+          sheets: [
+            {
+              properties: {
+                title: 'Tracker Data',
+                gridProperties: {
+                  frozenRowCount: 1,
+                  rowCount: Math.max(1000, data.length + 10),
+                  columnCount: 16,
+                },
+              },
+              data: [
+                {
+                  startRow: 0,
+                  startColumn: 0,
+                  rowData: data.map(row => ({
+                    values: row.map(cell => ({
+                      userEnteredValue: { stringValue: String(cell || '') }
+                    }))
+                  }))
+                }
+              ]
+            },
+          ],
+        },
+      });
 
-    spreadsheetId = response.data.spreadsheetId!;
-    sheetName = response.data.sheets?.[0]?.properties?.title || 'Tracker Data';
-    console.log('[Google Sheets] Created new spreadsheet:', spreadsheetId, 'with sheet:', sheetName);
+      spreadsheetId = response.data.spreadsheetId!;
+      sheetName = response.data.sheets?.[0]?.properties?.title || 'Tracker Data';
+      console.log('[Google Sheets] SUCCESS! Created new spreadsheet:', spreadsheetId, 'with sheet:', sheetName);
+    } catch (createError: any) {
+      console.error('[Google Sheets] FAILED to create spreadsheet:', createError.message);
+      throw createError;
+    }
   } else {
+    console.log('[Google Sheets] ENTERING EXISTING SPREADSHEET UPDATE BRANCH');
     // For existing spreadsheets, clear and update
     try {
       await sheets.spreadsheets.values.clear({
@@ -185,7 +195,6 @@ export async function syncToGoogleSheets(
         range: `${sheetName}!A1:P`,
       });
     } catch (error: any) {
-      // If sheet doesn't exist or range is invalid, we'll just overwrite
       console.log('[Google Sheets] Clear failed, will overwrite:', error.message);
     }
 
