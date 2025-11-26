@@ -78,13 +78,29 @@ export async function POST(req: NextRequest) {
     const newSpreadsheetId = await syncToGoogleSheets(auth, spreadsheetId, shows);
     console.log('[Google Sheets Sync] Sync complete, spreadsheet ID:', newSpreadsheetId);
 
-    // Store spreadsheet ID in preferences
-    await prisma.userPreferences.update({
-      where: { userId: user.id },
-      data: {
-        sortState: newSpreadsheetId, // Temporary storage
-      },
-    });
+    // Save refreshed tokens if they were updated
+    const refreshedCredentials = auth.credentials;
+    if (refreshedCredentials && (
+      refreshedCredentials.access_token !== tokens.access_token ||
+      refreshedCredentials.refresh_token !== tokens.refresh_token
+    )) {
+      console.log('[Google Sheets Sync] Tokens were refreshed, saving...');
+      await prisma.userPreferences.update({
+        where: { userId: user.id },
+        data: {
+          filterState: JSON.stringify(refreshedCredentials),
+          sortState: newSpreadsheetId, // Store spreadsheet ID
+        },
+      });
+    } else {
+      // Just store spreadsheet ID
+      await prisma.userPreferences.update({
+        where: { userId: user.id },
+        data: {
+          sortState: newSpreadsheetId,
+        },
+      });
+    }
 
     return NextResponse.json({
       success: true,

@@ -58,6 +58,21 @@ export async function POST(req: NextRequest) {
     const changes = await detectSheetChanges(auth, spreadsheetId, shows);
     console.log('[Google Sheets Import] Detected', changes.length, 'changes');
 
+    // Save refreshed tokens if they were updated
+    const refreshedCredentials = auth.credentials;
+    if (refreshedCredentials && (
+      refreshedCredentials.access_token !== tokens.access_token ||
+      refreshedCredentials.refresh_token !== tokens.refresh_token
+    )) {
+      console.log('[Google Sheets Import] Tokens were refreshed, saving...');
+      await prisma.userPreferences.update({
+        where: { userId: user.id },
+        data: {
+          filterState: JSON.stringify(refreshedCredentials),
+        },
+      });
+    }
+
     if (changes.length === 0) {
       return NextResponse.json({
         success: true,
