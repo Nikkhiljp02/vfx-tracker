@@ -477,7 +477,7 @@ export async function detectSheetChanges(
       changes.push({
         taskId: update.taskId,
         shotId: update.shotId,
-        changes: taskChanges,
+        updates: taskChanges,
       });
     }
   });
