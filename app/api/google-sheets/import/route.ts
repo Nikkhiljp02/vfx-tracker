@@ -40,10 +40,10 @@ export async function POST(req: NextRequest) {
 
     // Get spreadsheet ID from request or user preferences
     // Handle string "null" from database
-    const rawSpreadsheetId = requestSpreadsheetId || user.preferences.sortState;
+    const rawSpreadsheetId = requestSpreadsheetId || user.preferences?.sortState;
     const spreadsheetId = (rawSpreadsheetId && rawSpreadsheetId !== 'null') ? rawSpreadsheetId : null;
     console.log('[Google Sheets Import] Spreadsheet ID from request:', requestSpreadsheetId);
-    console.log('[Google Sheets Import] Spreadsheet ID from preferences:', user.preferences.sortState);
+    console.log('[Google Sheets Import] Spreadsheet ID from preferences:', user.preferences?.sortState);
     console.log('[Google Sheets Import] Using spreadsheet ID:', spreadsheetId);
 
     if (!spreadsheetId) {
