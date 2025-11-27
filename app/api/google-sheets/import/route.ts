@@ -17,18 +17,38 @@ function incrementVersion(currentVersion: string | null): string {
 
 // Import changes from Google Sheets back to tracker
 export async function POST(req: NextRequest) {
+  const startTime = Date.now();
   try {
     console.log('[Google Sheets Import] Starting import...');
     
-    const session = await getAuth();
+    // Run auth and settings queries in parallel
+    const [session, settings] = await Promise.all([
+      getAuth(),
+      prisma.systemSettings.findFirst({ where: { key: 'google_sheets' } })
+    ]);
+
     if (!session?.user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
     const username = (session.user as any).username;
-    console.log('[Google Sheets Import] User:', username);
 
-    // Get user and their Google tokens
+    if (!settings) {
+      return NextResponse.json(
+        { error: 'No Google Sheet configured. Please set up the Sheet ID in Admin > Settings > Google Sheets.' },
+        { status: 400 }
+      );
+    }
+
+    const { spreadsheetId } = JSON.parse(settings.value);
+    if (!spreadsheetId) {
+      return NextResponse.json(
+        { error: 'No Google Sheet ID configured.' },
+        { status: 400 }
+      );
+    }
+
+    // Get user with tokens
     const user = await prisma.user.findUnique({
       where: { username: username || '' },
       include: { preferences: true },
@@ -41,29 +61,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get system spreadsheet ID from admin settings
-    const settings = await prisma.systemSettings.findFirst({
-      where: { key: 'google_sheets' }
-    });
-
-    if (!settings) {
-      return NextResponse.json(
-        { error: 'No Google Sheet configured. Please set up the Sheet ID in Admin > Settings > Google Sheets.' },
-        { status: 400 }
-      );
-    }
-
-    const { spreadsheetId } = JSON.parse(settings.value);
-    if (!spreadsheetId) {
-      return NextResponse.json(
-        { error: 'No Google Sheet ID configured. Please set up the Sheet ID in Admin > Settings > Google Sheets.' },
-        { status: 400 }
-      );
-    }
-
-    console.log('[Google Sheets Import] Using spreadsheet:', spreadsheetId);
-
-    // Parse tokens
     const tokens = JSON.parse(user.preferences.googleTokens);
     if (!tokens.access_token && !tokens.refresh_token) {
       return NextResponse.json(
@@ -82,83 +79,87 @@ export async function POST(req: NextRequest) {
     // Detect changes from Google Sheets
     console.log('[Google Sheets Import] Detecting changes...');
     const changes = await detectSheetChanges(auth, spreadsheetId, shows);
-    console.log('[Google Sheets Import] Detected', changes.length, 'changes');
+    console.log('[Google Sheets Import] Detected', changes.length, 'changes in', Date.now() - startTime, 'ms');
 
-    // Apply changes to database
+    if (changes.length === 0) {
+      return NextResponse.json({
+        success: true,
+        changes: [],
+        totalDetected: 0,
+        totalApplied: 0,
+      });
+    }
+
+    // Get all current tasks in one query for AWF logic
+    const taskIds = changes.map(c => c.taskId);
+    const currentTasks = await prisma.task.findMany({
+      where: { id: { in: taskIds } },
+      select: { id: true, status: true, deliveredVersion: true, deliveredDate: true }
+    });
+    const taskMap = new Map(currentTasks.map(t => [t.id, t]));
+
+    // Prepare batch updates with AWF logic
+    const updatePromises: Promise<any>[] = [];
+    const activityLogData: any[] = [];
     const appliedChanges: any[] = [];
     
     for (const change of changes) {
-      try {
-        // Get current task to check for AWF status change logic
-        const currentTask = await prisma.task.findUnique({
-          where: { id: change.taskId },
-        });
+      const currentTask = taskMap.get(change.taskId);
+      if (!currentTask) continue;
 
-        if (!currentTask) {
-          console.log('[Google Sheets Import] Task not found:', change.taskId);
-          continue;
-        }
+      const updateData = { ...change.updates };
 
-        const updateData = { ...change.updates };
+      // Handle AWF version increment logic
+      if (updateData.status === 'AWF' && currentTask.status !== 'AWF') {
+        updateData.deliveredVersion = incrementVersion(currentTask.deliveredVersion);
+        updateData.deliveredDate = new Date();
+      }
 
-        // Handle AWF version increment logic
-        // If status is changing TO AWF and current status is NOT AWF
-        if (updateData.status === 'AWF' && currentTask.status !== 'AWF') {
-          console.log('[Google Sheets Import] AWF status change detected for task:', change.taskId);
-          // Auto-increment version
-          updateData.deliveredVersion = incrementVersion(currentTask.deliveredVersion);
-          // Auto-set delivered date
-          updateData.deliveredDate = new Date();
-          console.log('[Google Sheets Import] Auto-set version:', updateData.deliveredVersion, 'date:', updateData.deliveredDate);
-        }
-
-        // Update task in database
-        const updatedTask = await prisma.task.update({
+      // Queue the update
+      updatePromises.push(
+        prisma.task.update({
           where: { id: change.taskId },
           data: updateData,
-        });
+        })
+      );
 
-        // Log the change
-        await prisma.activityLog.create({
-          data: {
-            actionType: 'UPDATE',
-            entityType: 'Task',
-            entityId: change.taskId,
-            userId: user.id,
-            userName: username,
-            fieldName: 'multiple',
-            oldValue: JSON.stringify({
-              status: currentTask.status,
-              deliveredVersion: currentTask.deliveredVersion,
-              deliveredDate: currentTask.deliveredDate,
-            }),
-            newValue: JSON.stringify({
-              source: 'Google Sheets Import',
-              changes: updateData,
-            }),
-          },
-        });
+      // Prepare activity log
+      activityLogData.push({
+        actionType: 'UPDATE',
+        entityType: 'Task',
+        entityId: change.taskId,
+        userId: user.id,
+        userName: username,
+        fieldName: 'multiple',
+        oldValue: JSON.stringify({ status: currentTask.status }),
+        newValue: JSON.stringify({ source: 'Google Sheets Import', changes: updateData }),
+      });
 
-        appliedChanges.push({
-          taskId: change.taskId,
-          updates: change.updates,
-        });
-      } catch (updateError: any) {
-        console.error('[Google Sheets Import] Failed to update task:', change.taskId, updateError.message);
-      }
+      appliedChanges.push({ taskId: change.taskId, updates: change.updates });
     }
 
-    // Save refreshed tokens if they changed
+    // Execute all updates in parallel (batched)
+    const BATCH_SIZE = 20;
+    for (let i = 0; i < updatePromises.length; i += BATCH_SIZE) {
+      await Promise.all(updatePromises.slice(i, i + BATCH_SIZE));
+    }
+    console.log('[Google Sheets Import] Updates complete in', Date.now() - startTime, 'ms');
+
+    // Batch create activity logs (non-blocking)
+    prisma.activityLog.createMany({ data: activityLogData }).catch(err => 
+      console.error('[Google Sheets Import] Activity log error:', err)
+    );
+
+    // Save refreshed tokens if changed (non-blocking)
     const refreshedCredentials = auth.credentials;
     if (refreshedCredentials?.access_token !== tokens.access_token) {
-      await prisma.userPreferences.update({
+      prisma.userPreferences.update({
         where: { userId: user.id },
         data: { googleTokens: JSON.stringify(refreshedCredentials) },
-      });
-      console.log('[Google Sheets Import] Tokens refreshed and saved');
+      }).catch(err => console.error('[Google Sheets Import] Token save error:', err));
     }
 
-    console.log('[Google Sheets Import] Applied', appliedChanges.length, 'changes');
+    console.log('[Google Sheets Import] Total time:', Date.now() - startTime, 'ms');
 
     return NextResponse.json({
       success: true,
@@ -170,29 +171,15 @@ export async function POST(req: NextRequest) {
     console.error('[Google Sheets Import] Error:', error);
     
     if (error.code === 401 || error.message?.includes('invalid_grant')) {
-      return NextResponse.json(
-        { error: 'Google authorization expired. Please reconnect.' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Google authorization expired. Please reconnect.' }, { status: 401 });
     }
-    
     if (error.code === 404) {
-      return NextResponse.json(
-        { error: 'Google Sheet not found. Please check the Sheet ID in Admin Settings.' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Google Sheet not found.' }, { status: 404 });
     }
-    
     if (error.code === 403) {
-      return NextResponse.json(
-        { error: 'No permission to read the Google Sheet. Make sure you have access.' },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: 'No permission to read the Google Sheet.' }, { status: 403 });
     }
 
-    return NextResponse.json(
-      { error: error.message || 'Failed to import from Google Sheets' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message || 'Failed to import from Google Sheets' }, { status: 500 });
   }
 }

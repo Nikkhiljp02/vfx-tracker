@@ -131,8 +131,9 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Handle import from Google Sheets to VFX Tracker
+// Handle import from Google Sheets to VFX Tracker - OPTIMIZED
 async function handleImportFromSheets(auth: any, spreadsheetId: string, user: any, tokens: any) {
+  const startTime = Date.now();
   try {
     console.log('[Webhook Import] Starting import from sheets...');
 
@@ -141,15 +142,20 @@ async function handleImportFromSheets(auth: any, spreadsheetId: string, user: an
       include: {
         shots: {
           include: {
-            tasks: true
+            tasks: {
+              select: {
+                id: true, status: true, leadName: true, bidMds: true,
+                internalEta: true, clientEta: true, deliveredVersion: true, deliveredDate: true
+              }
+            }
           }
         }
       }
     });
 
-    // Detect changes from Google Sheets (cast to any to avoid type issues with Prisma results)
+    // Detect changes from Google Sheets
     const changes = await detectSheetChanges(auth, spreadsheetId, shows as any);
-    console.log('[Webhook Import] Detected', changes.length, 'changes');
+    console.log('[Webhook Import] Detected', changes.length, 'changes in', Date.now() - startTime, 'ms');
 
     if (changes.length === 0) {
       return NextResponse.json({
@@ -159,75 +165,68 @@ async function handleImportFromSheets(auth: any, spreadsheetId: string, user: an
       });
     }
 
-    // Apply changes to database
+    // Get all current tasks in one query
+    const taskIds = changes.map(c => c.taskId);
+    const currentTasks = await prisma.task.findMany({
+      where: { id: { in: taskIds } },
+      select: { id: true, status: true, deliveredVersion: true }
+    });
+    const taskMap = new Map(currentTasks.map(t => [t.id, t]));
+
+    // Prepare batch updates
+    const updatePromises: Promise<any>[] = [];
+    const activityLogData: any[] = [];
     const appliedChanges: any[] = [];
     
     for (const change of changes) {
-      try {
-        const currentTask = await prisma.task.findUnique({
-          where: { id: change.taskId },
-        });
+      const currentTask = taskMap.get(change.taskId);
+      if (!currentTask) continue;
 
-        if (!currentTask) {
-          console.log('[Webhook Import] Task not found:', change.taskId);
-          continue;
-        }
+      const updateData = { ...change.updates };
 
-        const updateData = { ...change.updates };
-
-        // Handle AWF version increment logic
-        if (updateData.status === 'AWF' && currentTask.status !== 'AWF') {
-          updateData.deliveredVersion = incrementVersion(currentTask.deliveredVersion);
-          updateData.deliveredDate = new Date();
-          console.log('[Webhook Import] AWF auto-increment:', updateData.deliveredVersion);
-        }
-
-        // Update task in database
-        await prisma.task.update({
-          where: { id: change.taskId },
-          data: updateData,
-        });
-
-        // Log the change
-        await prisma.activityLog.create({
-          data: {
-            actionType: 'UPDATE',
-            entityType: 'Task',
-            entityId: change.taskId,
-            userId: user.id,
-            userName: user.username + ' (via Google Sheets)',
-            fieldName: 'multiple',
-            oldValue: JSON.stringify({
-              status: currentTask.status,
-              deliveredVersion: currentTask.deliveredVersion,
-            }),
-            newValue: JSON.stringify({
-              source: 'Google Sheets Webhook',
-              changes: updateData,
-            }),
-          },
-        });
-
-        appliedChanges.push({
-          taskId: change.taskId,
-          shotName: change.shotName,
-          updates: change.updates,
-        });
-      } catch (updateError: any) {
-        console.error('[Webhook Import] Failed to update task:', change.taskId, updateError.message);
+      // Handle AWF version increment
+      if (updateData.status === 'AWF' && currentTask.status !== 'AWF') {
+        updateData.deliveredVersion = incrementVersion(currentTask.deliveredVersion);
+        updateData.deliveredDate = new Date();
       }
+
+      updatePromises.push(
+        prisma.task.update({ where: { id: change.taskId }, data: updateData })
+      );
+
+      activityLogData.push({
+        actionType: 'UPDATE',
+        entityType: 'Task',
+        entityId: change.taskId,
+        userId: user.id,
+        userName: user.username + ' (via Google Sheets)',
+        fieldName: 'multiple',
+        oldValue: JSON.stringify({ status: currentTask.status }),
+        newValue: JSON.stringify({ source: 'Webhook', changes: updateData }),
+      });
+
+      appliedChanges.push({ taskId: change.taskId, shotName: change.shotName, updates: change.updates });
     }
 
-    // Save refreshed tokens if they changed
+    // Execute updates in batches of 25
+    const BATCH_SIZE = 25;
+    for (let i = 0; i < updatePromises.length; i += BATCH_SIZE) {
+      await Promise.all(updatePromises.slice(i, i + BATCH_SIZE));
+    }
+
+    // Non-blocking: Activity logs
+    prisma.activityLog.createMany({ data: activityLogData }).catch(console.error);
+
+    // Non-blocking: Save refreshed tokens
     const refreshedCredentials = auth.credentials;
     if (refreshedCredentials?.access_token !== tokens.access_token) {
-      await prisma.userPreferences.update({
+      prisma.userPreferences.update({
         where: { userId: user.id },
         data: { googleTokens: JSON.stringify(refreshedCredentials) },
-      });
+      }).catch(console.error);
     }
 
-    console.log('[Webhook Import] Applied', appliedChanges.length, 'changes');
+    console.log('[Webhook Import] Completed in', Date.now() - startTime, 'ms');
 
     return NextResponse.json({
       success: true,
@@ -239,10 +238,7 @@ async function handleImportFromSheets(auth: any, spreadsheetId: string, user: an
 
   } catch (error: any) {
     console.error('[Webhook Import] Error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Import failed: ' + error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: 'Import failed: ' + error.message }, { status: 500 });
   }
 }
 
