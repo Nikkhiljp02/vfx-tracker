@@ -720,7 +720,7 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
     
     if (selectedCells.size === 0) return;
     
-    // Optimistic update - update UI immediately
+    // Optimistic update - update UI immediately with status
     const updatedShows = shows.map(show => ({
       ...show,
       shots: show.shots?.map(shot => ({
@@ -736,28 +736,46 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
     }));
     setShows(updatedShows);
     
+    // Store selected task IDs before clearing
+    const taskIds = Array.from(selectedCells).map(cellId => cellId.split('|')[0]);
+    
     // Clear selection immediately
     setSelectedCells(new Set());
     setLastSelectedCell(null);
     
-    // Update server in background
-    const updates: Promise<any>[] = [];
-    selectedCells.forEach(cellId => {
-      const [taskId] = cellId.split('|');
-      if (taskId) {
-        updates.push(
+    // Update server and get response with auto-generated values (version, date for AWF)
+    try {
+      const responses = await Promise.all(
+        taskIds.map(taskId =>
           fetch(`/api/tasks/${taskId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: newStatus }),
-          })
-        );
+          }).then(res => res.json())
+        )
+      );
+      
+      // Update shows with actual server response (includes auto-incremented version/date)
+      if (newStatus === 'AWF' || responses.some(r => r.deliveredVersion || r.deliveredDate)) {
+        setShows(prevShows => prevShows.map(show => ({
+          ...show,
+          shots: show.shots?.map(shot => ({
+            ...shot,
+            tasks: shot.tasks?.map(task => {
+              const serverTask = responses.find(r => r.id === task.id);
+              if (serverTask) {
+                return {
+                  ...task,
+                  status: serverTask.status,
+                  deliveredVersion: serverTask.deliveredVersion,
+                  deliveredDate: serverTask.deliveredDate,
+                };
+              }
+              return task;
+            })
+          }))
+        })));
       }
-    });
-    
-    try {
-      await Promise.all(updates);
-      // Realtime will broadcast changes to all clients automatically
     } catch (error) {
       console.error('Failed to update statuses:', error);
       alert('Failed to update some statuses');

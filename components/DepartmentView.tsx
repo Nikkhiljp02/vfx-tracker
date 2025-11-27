@@ -304,35 +304,64 @@ export default function DepartmentView({ detailedView }: DepartmentViewProps) {
     
     if (selectedCells.size === 0) return;
     
-    const updates: Promise<any>[] = [];
+    // Store task IDs before clearing
+    const taskIds = Array.from(selectedCells);
     
-    // Parse selected cell IDs (taskIds) and update tasks
-    selectedCells.forEach(taskId => {
-      if (taskId) {
-        updates.push(
+    // Optimistic update - update status immediately
+    setShows(prevShows => prevShows.map(show => ({
+      ...show,
+      shots: show.shots?.map(shot => ({
+        ...shot,
+        tasks: shot.tasks?.map(task => 
+          taskIds.includes(task.id) ? { ...task, status: newStatus } : task
+        )
+      }))
+    })));
+    
+    // Clear selection immediately
+    setSelectedCells(new Set());
+    setLastSelectedCell(null);
+    
+    try {
+      // Update server and get responses with auto-generated values
+      const responses = await Promise.all(
+        taskIds.map(taskId =>
           fetch(`/api/tasks/${taskId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: newStatus }),
-          })
-        );
+          }).then(res => res.json())
+        )
+      );
+      
+      // Update with actual server response (includes version/date for AWF)
+      if (newStatus === 'AWF' || responses.some(r => r.deliveredVersion || r.deliveredDate)) {
+        setShows(prevShows => prevShows.map(show => ({
+          ...show,
+          shots: show.shots?.map(shot => ({
+            ...shot,
+            tasks: shot.tasks?.map(task => {
+              const serverTask = responses.find(r => r.id === task.id);
+              if (serverTask) {
+                return {
+                  ...task,
+                  status: serverTask.status,
+                  deliveredVersion: serverTask.deliveredVersion,
+                  deliveredDate: serverTask.deliveredDate,
+                };
+              }
+              return task;
+            })
+          }))
+        })));
       }
-    });
-    
-    try {
-      await Promise.all(updates);
-      
-      // Fetch updated shows to refresh everywhere instantly
-      const showsRes = await fetch('/api/shows');
-      const showsData = await showsRes.json();
-      setShows(showsData);
-      
-      // Clear selection
-      setSelectedCells(new Set());
-      setLastSelectedCell(null);
     } catch (error) {
       console.error('Failed to update statuses:', error);
       alert('Failed to update some statuses');
+      // Revert on error
+      const showsRes = await fetch('/api/shows');
+      const showsData = await showsRes.json();
+      setShows(showsData);
     }
   };
 
