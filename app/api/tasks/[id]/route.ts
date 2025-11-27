@@ -170,16 +170,22 @@ export async function PUT(
     if (internalEta !== undefined) updateData.internalEta = internalEta ? new Date(internalEta) : null;
     if (clientEta !== undefined) updateData.clientEta = clientEta ? new Date(clientEta) : null;
 
-    // Handle AWF status change - auto increment version
+    // Handle AWF status change - ALWAYS auto increment version when transitioning TO AWF
+    // This triggers on: YTS→AWF, WIP→AWF, Int App→AWF, C KB→AWF (redelivery)
     if (status === 'AWF' && currentTask.status !== 'AWF') {
       updateData.status = status;
-      updateData.deliveredVersion = deliveredVersion || incrementVersion(currentTask.deliveredVersion);
-      updateData.deliveredDate = deliveredDate ? new Date(deliveredDate) : new Date();
+      // Always auto-increment version - ignore any provided deliveredVersion
+      updateData.deliveredVersion = incrementVersion(currentTask.deliveredVersion);
+      // Always set delivered date to now - ignore any provided deliveredDate
+      updateData.deliveredDate = new Date();
+      console.log('[Task Update] AWF transition: version', currentTask.deliveredVersion, '→', updateData.deliveredVersion);
     } else if (status) {
       updateData.status = status;
+      // Only allow manual version/date updates when NOT transitioning to AWF
       if (deliveredVersion !== undefined) updateData.deliveredVersion = deliveredVersion;
       if (deliveredDate !== undefined) updateData.deliveredDate = deliveredDate ? new Date(deliveredDate) : null;
     } else {
+      // No status change - allow manual version/date updates
       if (deliveredVersion !== undefined) updateData.deliveredVersion = deliveredVersion;
       if (deliveredDate !== undefined) updateData.deliveredDate = deliveredDate ? new Date(deliveredDate) : null;
     }
