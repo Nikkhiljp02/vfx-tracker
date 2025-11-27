@@ -2,7 +2,7 @@
 
 import { useVFXStore } from '@/lib/store';
 import { useMemo, useState, useEffect } from 'react';
-import { Task, Shot } from '@/lib/types';
+import { Task, Shot, Show } from '@/lib/types';
 import TaskCell from './TaskCell';
 import BulkActionsBar from './BulkActionsBar';
 import ShotChatPanel from './ShotChatPanel';
@@ -308,7 +308,7 @@ export default function DepartmentView({ detailedView }: DepartmentViewProps) {
     const taskIds = Array.from(selectedCells);
     
     // Optimistic update - update status immediately
-    setShows(prevShows => prevShows.map(show => ({
+    setShows((prevShows: Show[]) => prevShows.map(show => ({
       ...show,
       shots: show.shots?.map(shot => ({
         ...shot,
@@ -336,7 +336,7 @@ export default function DepartmentView({ detailedView }: DepartmentViewProps) {
       
       // Update with actual server response (includes version/date for AWF)
       if (newStatus === 'AWF' || responses.some(r => r.deliveredVersion || r.deliveredDate)) {
-        setShows(prevShows => prevShows.map(show => ({
+        setShows((prevShows: Show[]) => prevShows.map(show => ({
           ...show,
           shots: show.shots?.map(shot => ({
             ...shot,
