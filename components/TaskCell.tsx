@@ -101,7 +101,27 @@ export default function TaskCell({ task }: TaskCellProps) {
         return;
       }
 
-      // Don't refresh immediately - let polling pick it up naturally
+      // Update with server response (includes auto-incremented version/date for AWF)
+      const serverTask = await response.json();
+      if (serverTask.deliveredVersion || serverTask.deliveredDate) {
+        const showsWithServerData = updatedShows.map(show => ({
+          ...show,
+          shots: show.shots?.map(shot => ({
+            ...shot,
+            tasks: shot.tasks?.map(t => 
+              t.id === task.id 
+                ? { 
+                    ...t, 
+                    status: serverTask.status,
+                    deliveredVersion: serverTask.deliveredVersion,
+                    deliveredDate: serverTask.deliveredDate,
+                  }
+                : t
+            )
+          }))
+        }));
+        setShows(showsWithServerData);
+      }
       
     } catch (error) {
       console.error('Error updating task:', error);
