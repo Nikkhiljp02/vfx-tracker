@@ -756,8 +756,9 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
       );
       
       // Update shows with actual server response (includes auto-incremented version/date)
+      // Use updatedShows as base (not stale shows) to preserve optimistic status update
       if (newStatus === 'AWF' || responses.some(r => r.deliveredVersion || r.deliveredDate)) {
-        const showsWithServerData = shows.map(show => ({
+        const showsWithServerData = updatedShows.map(show => ({
           ...show,
           shots: show.shots?.map(shot => ({
             ...shot,
