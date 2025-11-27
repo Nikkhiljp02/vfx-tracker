@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
-import { supabase } from '@/lib/supabase';
 
 // Cache for permission checks (short-lived, per-request optimization)
 const permissionCache = new Map<string, boolean>();
@@ -227,13 +226,6 @@ export async function PUT(
       }
     });
 
-    // Fire-and-forget: Broadcast update
-    supabase.channel('vfx-tracker-updates').send({
-      type: 'broadcast',
-      event: 'data-update',
-      payload: { type: 'task', action: 'update', taskId: id },
-    }).catch(() => {});
-
     return NextResponse.json(task);
   } catch (error) {
     console.error('Error updating task:', error);
@@ -309,12 +301,5 @@ export async function DELETE(
   } catch (error) {
     console.error('Error deleting task:', error);
     return NextResponse.json({ error: 'Failed to delete task' }, { status: 500 });
-  } finally {
-    // Broadcast deletion to all connected clients
-    supabase.channel('vfx-tracker-updates').send({
-      type: 'broadcast',
-      event: 'data-update',
-      payload: { type: 'task', action: 'delete' },
-    }).catch((err) => console.error('Broadcast error:', err));
   }
 }
