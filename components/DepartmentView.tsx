@@ -308,7 +308,7 @@ export default function DepartmentView({ detailedView }: DepartmentViewProps) {
     const taskIds = Array.from(selectedCells);
     
     // Optimistic update - update status immediately
-    setShows((prevShows: Show[]) => prevShows.map(show => ({
+    const updatedShows = shows.map(show => ({
       ...show,
       shots: show.shots?.map(shot => ({
         ...shot,
@@ -316,7 +316,8 @@ export default function DepartmentView({ detailedView }: DepartmentViewProps) {
           taskIds.includes(task.id) ? { ...task, status: newStatus } : task
         )
       }))
-    })));
+    }));
+    setShows(updatedShows);
     
     // Clear selection immediately
     setSelectedCells(new Set());
@@ -336,7 +337,7 @@ export default function DepartmentView({ detailedView }: DepartmentViewProps) {
       
       // Update with actual server response (includes version/date for AWF)
       if (newStatus === 'AWF' || responses.some(r => r.deliveredVersion || r.deliveredDate)) {
-        setShows((prevShows: Show[]) => prevShows.map(show => ({
+        const showsWithServerData = shows.map(show => ({
           ...show,
           shots: show.shots?.map(shot => ({
             ...shot,
@@ -353,7 +354,8 @@ export default function DepartmentView({ detailedView }: DepartmentViewProps) {
               return task;
             })
           }))
-        })));
+        }));
+        setShows(showsWithServerData);
       }
     } catch (error) {
       console.error('Failed to update statuses:', error);

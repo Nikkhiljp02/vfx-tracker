@@ -757,7 +757,7 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
       
       // Update shows with actual server response (includes auto-incremented version/date)
       if (newStatus === 'AWF' || responses.some(r => r.deliveredVersion || r.deliveredDate)) {
-        setShows(prevShows => prevShows.map(show => ({
+        const showsWithServerData = shows.map(show => ({
           ...show,
           shots: show.shots?.map(shot => ({
             ...shot,
@@ -774,7 +774,8 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
               return task;
             })
           }))
-        })));
+        }));
+        setShows(showsWithServerData);
       }
     } catch (error) {
       console.error('Failed to update statuses:', error);
