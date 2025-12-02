@@ -33,6 +33,18 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log('POST /api/status-options - Creating status:', body);
     
+    // Check if status with same name already exists
+    const existing = await prisma.statusOption.findFirst({
+      where: { statusName: body.name }
+    });
+    
+    if (existing) {
+      return NextResponse.json(
+        { error: `Status "${body.name}" already exists. ${existing.isActive ? 'It is currently active.' : 'It exists but is inactive - you can reactivate it from the list.'}` },
+        { status: 400 }
+      );
+    }
+    
     const statusOption = await prisma.statusOption.create({
       data: {
         statusName: body.name,
@@ -44,8 +56,17 @@ export async function POST(request: NextRequest) {
     
     console.log('Status option created:', statusOption);
     return NextResponse.json(statusOption, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating status option:', error);
+    
+    // Handle unique constraint violation
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: `Status with this name already exists` },
+        { status: 400 }
+      );
+    }
+    
     return NextResponse.json(
       { error: 'Failed to create status option', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
