@@ -277,6 +277,11 @@ export default function Header() {
 
           try {
             // Create shot with tasks, converting dates properly
+            console.log('Creating shot with scopeOfWork:', {
+              shotName: shotData.shotName,
+              scopeOfWork: shotData.scopeOfWork,
+              shotDataKeys: Object.keys(shotData)
+            });
             const response = await fetch('/api/shots', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -287,7 +292,7 @@ export default function Header() {
                 sequence: shotData.sequence || null,
                 turnover: shotData.turnover || null,
                 shotTag: shotData.shotTag,
-                scopeOfWork: shotData.scopeOfWork,
+                scopeOfWork: shotData.scopeOfWork || '',
                 tasks: shotData.tasks.map((task: any) => ({
                   department: task.department,
                   isInternal: task.isInternal,

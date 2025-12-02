@@ -131,6 +131,12 @@ export function validateImportData(data: any[]): { valid: boolean; errors: strin
   const errors: string[] = [];
   const showsMap = new Map<string, any>();
 
+  // Log the first row's keys to debug column names
+  if (data.length > 0) {
+    console.log('Excel column names found:', Object.keys(data[0]));
+    console.log('First row data:', data[0]);
+  }
+
   data.forEach((row, index) => {
     const rowNum = index + 2; // Excel row number (1-indexed + header)
 
@@ -162,13 +168,16 @@ export function validateImportData(data: any[]): { valid: boolean; errors: strin
     // Find or create shot
     let shot = show.shots.find((s: any) => s.shotName === shotName);
     if (!shot) {
+      // Support multiple column names for SOW
+      const sowValue = row['Scope of Work'] || row['SOW'] || row['sow'] || row['Sow'] || row['scope of work'] || '';
+      
       shot = {
         shotName,
         episode: row['EP']?.toString().trim() || null,
         sequence: row['SEQ']?.toString().trim() || null,
         turnover: row['TO']?.toString().trim() || null,
         shotTag: row['Shot Tag']?.toString().trim() || 'Fresh',
-        scopeOfWork: row['Scope of Work']?.toString().trim() || '',
+        scopeOfWork: sowValue?.toString().trim() || '',
         tasks: [],
       };
       show.shots.push(shot);

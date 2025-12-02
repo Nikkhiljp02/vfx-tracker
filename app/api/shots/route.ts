@@ -136,6 +136,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { showId, shotName, episode, sequence, turnover, frames, shotTag, parentShotId, scopeOfWork, remark, tasks } = body;
 
+    console.log('POST /api/shots - Creating shot:', {
+      showId,
+      shotName,
+      scopeOfWork,
+      hasSOW: !!scopeOfWork,
+      bodyKeys: Object.keys(body)
+    });
+
     if (!showId || !shotName) {
       return NextResponse.json(
         { error: 'Show ID and shot name are required' },
