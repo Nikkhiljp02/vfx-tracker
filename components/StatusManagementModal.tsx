@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Save, Trash2, GripVertical } from 'lucide-react';
+import { X, Plus, Save, Trash2, ChevronUp, ChevronDown, RotateCcw } from 'lucide-react';
 
 interface StatusOption {
   id: string;
@@ -111,39 +111,114 @@ export default function StatusManagementModal({
 
     setIsLoading(true);
     try {
+      console.log('Deleting status:', id);
       const response = await fetch(`/api/status-options/${id}`, {
         method: 'DELETE',
       });
 
+      console.log('Delete response:', response.status);
       if (response.ok) {
         await fetchStatuses();
         onUpdate();
+      } else {
+        const errorData = await response.json();
+        console.error('Delete failed:', errorData);
+        alert(`Failed to delete status: ${errorData.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error deleting status:', error);
+      alert('Error deleting status: ' + error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleReorder = (index: number, direction: 'up' | 'down') => {
+  const handleReactivateStatus = async (id: string) => {
+    setIsLoading(true);
+    try {
+      console.log('Reactivating status:', id);
+      const response = await fetch(`/api/status-options/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: true }),
+      });
+
+      if (response.ok) {
+        await fetchStatuses();
+        onUpdate();
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to reactivate status: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error reactivating status:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleReorder = async (index: number, direction: 'up' | 'down') => {
     const newStatuses = [...statuses];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
 
     if (targetIndex < 0 || targetIndex >= newStatuses.length) return;
 
+    // Swap the items
     [newStatuses[index], newStatuses[targetIndex]] = [
       newStatuses[targetIndex],
       newStatuses[index],
     ];
 
-    // Update order values
-    newStatuses.forEach((status, idx) => {
-      status.statusOrder = idx;
-      handleUpdateStatus(status);
-    });
+    // Update order values locally first for immediate UI feedback
+    const updatedStatuses = newStatuses.map((status, idx) => ({
+      ...status,
+      statusOrder: idx,
+    }));
+    setStatuses(updatedStatuses);
 
-    setStatuses(newStatuses);
+    // Now update each changed status in the backend
+    setIsLoading(true);
+    try {
+      // Only update the two swapped items
+      const status1 = updatedStatuses[index];
+      const status2 = updatedStatuses[targetIndex];
+      
+      console.log('Reordering statuses:', { 
+        status1: { id: status1.id, name: status1.statusName, newOrder: status1.statusOrder },
+        status2: { id: status2.id, name: status2.statusName, newOrder: status2.statusOrder }
+      });
+
+      await Promise.all([
+        fetch(`/api/status-options/${status1.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            statusName: status1.statusName,
+            colorCode: status1.colorCode,
+            statusOrder: status1.statusOrder,
+            isActive: status1.isActive,
+          }),
+        }),
+        fetch(`/api/status-options/${status2.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            statusName: status2.statusName,
+            colorCode: status2.colorCode,
+            statusOrder: status2.statusOrder,
+            isActive: status2.isActive,
+          }),
+        }),
+      ]);
+
+      onUpdate();
+    } catch (error) {
+      console.error('Error reordering statuses:', error);
+      // Revert on error
+      await fetchStatuses();
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -195,21 +270,31 @@ export default function StatusManagementModal({
 
         {/* Status List */}
         <div className="space-y-2">
-          <h3 className="font-semibold mb-3">Current Statuses</h3>
+          <h3 className="font-semibold mb-3">Current Statuses (drag to reorder)</h3>
           {statuses.map((status, index) => (
             <div
               key={status.id}
               className={`flex items-center gap-2 p-3 border rounded ${
-                !status.isActive ? 'bg-gray-100 opacity-50' : 'bg-white'
+                !status.isActive ? 'bg-gray-100 opacity-60' : 'bg-white'
               }`}
             >
-              <div className="flex flex-col">
+              {/* Up/Down buttons */}
+              <div className="flex flex-col gap-1">
                 <button
                   onClick={() => handleReorder(index, 'up')}
-                  disabled={index === 0}
-                  className="text-gray-400 hover:text-gray-600 disabled:opacity-20"
+                  disabled={index === 0 || isLoading}
+                  className="text-gray-400 hover:text-gray-600 disabled:opacity-20 p-0.5 hover:bg-gray-100 rounded"
+                  title="Move up"
                 >
-                  <GripVertical size={16} />
+                  <ChevronUp size={16} />
+                </button>
+                <button
+                  onClick={() => handleReorder(index, 'down')}
+                  disabled={index === statuses.length - 1 || isLoading}
+                  className="text-gray-400 hover:text-gray-600 disabled:opacity-20 p-0.5 hover:bg-gray-100 rounded"
+                  title="Move down"
+                >
+                  <ChevronDown size={16} />
                 </button>
               </div>
 
@@ -278,13 +363,25 @@ export default function StatusManagementModal({
                   >
                     Edit
                   </button>
-                  <button
-                    onClick={() => handleDeleteStatus(status.id)}
-                    disabled={isLoading || !status.isActive}
-                    className="px-3 py-1 text-red-600 hover:bg-red-50 rounded disabled:opacity-30"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  {status.isActive ? (
+                    <button
+                      onClick={() => handleDeleteStatus(status.id)}
+                      disabled={isLoading}
+                      className="px-3 py-1 text-red-600 hover:bg-red-50 rounded disabled:opacity-30"
+                      title="Deactivate status"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleReactivateStatus(status.id)}
+                      disabled={isLoading}
+                      className="px-3 py-1 text-green-600 hover:bg-green-50 rounded disabled:opacity-30"
+                      title="Reactivate status"
+                    >
+                      <RotateCcw size={16} />
+                    </button>
+                  )}
                 </>
               )}
             </div>
