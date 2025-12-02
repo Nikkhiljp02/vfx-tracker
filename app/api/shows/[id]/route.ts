@@ -118,16 +118,20 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    console.log('DELETE /api/shows/[id] - Starting');
     const session = await auth();
 
     if (!session?.user) {
+      console.log('DELETE failed: No session');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const user = session.user as any;
+    console.log('DELETE request by user:', { id: user.id, email: user.email, role: user.role });
 
     // Only Admin or Coordinator can delete shows
     if (user.role !== 'ADMIN' && user.role !== 'COORDINATOR') {
+      console.log('DELETE failed: Insufficient permissions', user.role);
       return NextResponse.json(
         { error: 'Forbidden - Only Admin or Coordinator can delete shows' },
         { status: 403 }
@@ -135,6 +139,7 @@ export async function DELETE(
     }
 
     const { id } = await params;
+    console.log('Attempting to delete show:', id);
     
     // Fetch complete show with all relations BEFORE deletion
     const showToDelete = await prisma.show.findUnique({
@@ -151,8 +156,16 @@ export async function DELETE(
     });
 
     if (!showToDelete) {
+      console.log('DELETE failed: Show not found', id);
       return NextResponse.json({ error: 'Show not found' }, { status: 404 });
     }
+
+    console.log('Found show to delete:', {
+      id: showToDelete.id,
+      name: showToDelete.showName,
+      shotsCount: showToDelete.shots.length,
+      tasksCount: showToDelete.shots.reduce((sum, shot) => sum + shot.tasks.length, 0)
+    });
 
     // Count all entities that will be deleted
     const totalTasks = showToDelete.shots.reduce((sum, shot) => sum + shot.tasks.length, 0);
@@ -160,6 +173,7 @@ export async function DELETE(
 
     // Backup complete entity before deletion
     try {
+      console.log('Creating activity logs for deletion...');
       // @ts-ignore - ActivityLog model will be available after prisma generate
       await prisma.activityLog.create({
         data: {
@@ -212,8 +226,15 @@ export async function DELETE(
     }
 
     // Now perform the actual deletion (cascade will handle shots and tasks)
+    console.log('Performing actual database deletion...');
     await prisma.show.delete({
       where: { id },
+    });
+
+    console.log('Show deleted successfully:', {
+      id,
+      deletedShots: totalShots,
+      deletedTasks: totalTasks
     });
 
     return NextResponse.json({ 
@@ -223,6 +244,9 @@ export async function DELETE(
     });
   } catch (error) {
     console.error('Error deleting show:', error);
-    return NextResponse.json({ error: 'Failed to delete show' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Failed to delete show',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }

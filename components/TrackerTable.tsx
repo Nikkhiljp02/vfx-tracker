@@ -1206,28 +1206,44 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
 
   const handleDeleteShow = async (showId: string) => {
     const show = shows.find(s => s.id === showId);
-    if (!show) return;
+    if (!show) {
+      console.error('Show not found in state:', showId);
+      return;
+    }
+
+    console.log('Attempting to delete show:', { id: showId, name: show.showName });
 
     const confirmed = confirm(
       `Are you sure you want to delete "${show.showName}"? This will delete ALL shots and tasks for this show and cannot be undone.`
     );
 
-    if (!confirmed) return;
+    if (!confirmed) {
+      console.log('Delete cancelled by user');
+      return;
+    }
 
     setDeleting(true);
     try {
+      console.log('Sending DELETE request to /api/shows/' + showId);
       const response = await fetch(`/api/shows/${showId}`, {
         method: 'DELETE',
       });
 
+      console.log('DELETE response status:', response.status);
+      const responseData = await response.json();
+      console.log('DELETE response data:', responseData);
+
       if (response.ok) {
         alert(`Show "${show.showName}" deleted successfully!`);
         // Fetch updated shows to refresh the table instantly
+        console.log('Fetching updated shows list...');
         const showsRes = await fetch('/api/shows');
         const showsData = await showsRes.json();
+        console.log('Updated shows count:', showsData.length);
         setShows(showsData);
       } else {
-        alert('Failed to delete show. Please try again.');
+        console.error('Delete failed with error:', responseData);
+        alert(`Failed to delete show: ${responseData.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error deleting show:', error);
