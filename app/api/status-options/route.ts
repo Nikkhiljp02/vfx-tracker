@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    console.log('POST /api/status-options - Creating status:', body);
     
     const statusOption = await prisma.statusOption.create({
       data: {
@@ -41,11 +42,12 @@ export async function POST(request: NextRequest) {
       },
     });
     
+    console.log('Status option created:', statusOption);
     return NextResponse.json(statusOption, { status: 201 });
   } catch (error) {
     console.error('Error creating status option:', error);
     return NextResponse.json(
-      { error: 'Failed to create status option' },
+      { error: 'Failed to create status option', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

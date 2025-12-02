@@ -44,29 +44,42 @@ export default function StatusManagementModal({
   };
 
   const handleAddStatus = async () => {
-    if (!newStatus.name.trim()) return;
+    if (!newStatus.name.trim()) {
+      console.log('Add status failed: name is empty');
+      return;
+    }
 
     setIsLoading(true);
     try {
       const maxOrder = Math.max(...statuses.map(s => s.statusOrder), 0);
+      const payload = {
+        name: newStatus.name,
+        color: newStatus.color,
+        order: maxOrder + 1,
+        isActive: true,
+      };
+      console.log('Adding status with payload:', payload);
+      
       const response = await fetch('/api/status-options', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: newStatus.name,
-          color: newStatus.color,
-          order: maxOrder + 1,
-          isActive: true,
-        }),
+        body: JSON.stringify(payload),
       });
+
+      console.log('Add status response:', response.status, response.statusText);
+      const responseData = await response.json();
+      console.log('Add status response data:', responseData);
 
       if (response.ok) {
         setNewStatus({ name: '', color: '#3B82F6' });
         await fetchStatuses();
         onUpdate();
+      } else {
+        alert(`Failed to add status: ${responseData.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error adding status:', error);
+      alert('Error adding status: ' + error);
     } finally {
       setIsLoading(false);
     }

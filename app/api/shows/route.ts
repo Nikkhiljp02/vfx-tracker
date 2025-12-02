@@ -38,6 +38,9 @@ export async function GET() {
               episode: true,
               sequence: true,
               turnover: true,
+              frames: true,
+              scopeOfWork: true,
+              remark: true,
               _count: {
                 select: { tasks: true }
               },
@@ -94,6 +97,9 @@ export async function GET() {
               episode: true,
               sequence: true,
               turnover: true,
+              frames: true,
+              scopeOfWork: true,
+              remark: true,
               _count: {
                 select: { tasks: true }
               },
