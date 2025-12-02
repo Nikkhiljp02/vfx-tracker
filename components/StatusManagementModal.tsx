@@ -158,66 +158,90 @@ export default function StatusManagementModal({
   };
 
   const handleReorder = async (index: number, direction: 'up' | 'down') => {
-    const newStatuses = [...statuses];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
 
-    if (targetIndex < 0 || targetIndex >= newStatuses.length) return;
+    if (targetIndex < 0 || targetIndex >= statuses.length) return;
 
-    // Swap the items
-    [newStatuses[index], newStatuses[targetIndex]] = [
-      newStatuses[targetIndex],
-      newStatuses[index],
-    ];
+    // Get the two statuses being swapped BEFORE any changes
+    const statusAtIndex = statuses[index];
+    const statusAtTarget = statuses[targetIndex];
+    
+    console.log('Swapping statuses:', {
+      moving: { id: statusAtIndex.id, name: statusAtIndex.statusName, currentOrder: statusAtIndex.statusOrder },
+      with: { id: statusAtTarget.id, name: statusAtTarget.statusName, currentOrder: statusAtTarget.statusOrder },
+      direction
+    });
 
-    // Update order values locally first for immediate UI feedback
+    // Create new array with swapped items
+    const newStatuses = [...statuses];
+    [newStatuses[index], newStatuses[targetIndex]] = [newStatuses[targetIndex], newStatuses[index]];
+
+    // Update order values based on new positions
     const updatedStatuses = newStatuses.map((status, idx) => ({
       ...status,
       statusOrder: idx,
     }));
+    
+    // Update UI immediately
     setStatuses(updatedStatuses);
 
-    // Now update each changed status in the backend
+    // Now update in the backend
     setIsLoading(true);
     try {
-      // Only update the two swapped items
-      const status1 = updatedStatuses[index];
-      const status2 = updatedStatuses[targetIndex];
+      // The statuses that were swapped now have new orders
+      const newOrderForStatusAtIndex = targetIndex; // statusAtIndex moved to targetIndex position
+      const newOrderForStatusAtTarget = index; // statusAtTarget moved to index position
       
-      console.log('Reordering statuses:', { 
-        status1: { id: status1.id, name: status1.statusName, newOrder: status1.statusOrder },
-        status2: { id: status2.id, name: status2.statusName, newOrder: status2.statusOrder }
+      console.log('Saving new orders:', {
+        [statusAtIndex.statusName]: newOrderForStatusAtIndex,
+        [statusAtTarget.statusName]: newOrderForStatusAtTarget
       });
 
-      await Promise.all([
-        fetch(`/api/status-options/${status1.id}`, {
+      const [response1, response2] = await Promise.all([
+        fetch(`/api/status-options/${statusAtIndex.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            statusName: status1.statusName,
-            colorCode: status1.colorCode,
-            statusOrder: status1.statusOrder,
-            isActive: status1.isActive,
+            statusName: statusAtIndex.statusName,
+            colorCode: statusAtIndex.colorCode,
+            statusOrder: newOrderForStatusAtIndex,
+            isActive: statusAtIndex.isActive,
           }),
         }),
-        fetch(`/api/status-options/${status2.id}`, {
+        fetch(`/api/status-options/${statusAtTarget.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            statusName: status2.statusName,
-            colorCode: status2.colorCode,
-            statusOrder: status2.statusOrder,
-            isActive: status2.isActive,
+            statusName: statusAtTarget.statusName,
+            colorCode: statusAtTarget.colorCode,
+            statusOrder: newOrderForStatusAtTarget,
+            isActive: statusAtTarget.isActive,
           }),
         }),
       ]);
 
-      onUpdate();
+      const result1 = await response1.json();
+      const result2 = await response2.json();
+      
+      console.log('Reorder API responses:', { 
+        response1: { status: response1.status, data: result1 },
+        response2: { status: response2.status, data: result2 }
+      });
+
+      if (!response1.ok || !response2.ok) {
+        alert('Failed to save order. Please try again.');
+        await fetchStatuses(); // Revert to server state
+      } else {
+        onUpdate();
+      }
     } catch (error) {
       console.error('Error reordering statuses:', error);
-      // Revert on error
-      await fetchStatuses();
+      alert('Error saving order: ' + error);
+      await fetchStatuses(); // Revert on error
     } finally {
       setIsLoading(false);
+    }
+  };;
     }
   };
 
