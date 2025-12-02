@@ -275,6 +275,7 @@ export function downloadTemplate() {
 }
 
 // Validate and prepare update data
+// Uses Show Name + Shot Name + Shot Tag as unique identifier for shots
 export function validateUpdateData(data: any[], existingShows: Show[]): { 
   valid: boolean; 
   errors: string[]; 
@@ -287,6 +288,7 @@ export function validateUpdateData(data: any[], existingShows: Show[]): {
 } {
   const errors: string[] = [];
   const updates: Array<any> = [];
+  const processedShots = new Set<string>(); // Track which shots we've added shot-level updates for
 
   // Create lookup maps
   const showsMap = new Map(existingShows.map(s => [s.showName, s]));
@@ -301,6 +303,7 @@ export function validateUpdateData(data: any[], existingShows: Show[]): {
 
     const showName = row['Show Name'].toString().trim();
     const shotName = row['Shot Name'].toString().trim();
+    const shotTag = row['Shot Tag']?.toString().trim() || null;
     const department = row['Department']?.toString().trim();
 
     const show = showsMap.get(showName);
@@ -309,14 +312,77 @@ export function validateUpdateData(data: any[], existingShows: Show[]): {
       return;
     }
 
-    const shot = show.shots?.find(s => s.shotName === shotName);
+    // Find shot by Show Name + Shot Name + Shot Tag (tag is optional match)
+    let shot = show.shots?.find(s => {
+      const nameMatch = s.shotName === shotName;
+      // If shotTag is provided in the import, match it; otherwise just match by name
+      if (shotTag) {
+        return nameMatch && s.shotTag === shotTag;
+      }
+      return nameMatch;
+    });
+    
     if (!shot) {
-      errors.push(`Row ${rowNum}: Shot "${shotName}" not found in show "${showName}"`);
+      errors.push(`Row ${rowNum}: Shot "${shotName}"${shotTag ? ` with tag "${shotTag}"` : ''} not found in show "${showName}"`);
       return;
     }
 
+    // Create a unique key for this shot to avoid duplicate shot updates
+    const shotKey = `${show.id}|${shot.id}`;
+
+    // Always check for shot-level updates (once per shot)
+    if (!processedShots.has(shotKey)) {
+      const shotUpdateData: any = {};
+      
+      // Shot Tag update
+      if (row['Shot Tag'] !== undefined && row['Shot Tag'] !== shot.shotTag) {
+        shotUpdateData.shotTag = row['Shot Tag']?.toString().trim() || 'Fresh';
+      }
+      
+      // Scope of Work - support multiple column names
+      const sowValue = row['Scope of Work'] ?? row['SOW'] ?? row['sow'];
+      if (sowValue !== undefined) {
+        shotUpdateData.scopeOfWork = sowValue?.toString().trim() || '';
+      }
+      
+      // Episode
+      if (row['EP'] !== undefined) {
+        shotUpdateData.episode = row['EP']?.toString().trim() || null;
+      }
+      
+      // Sequence
+      if (row['SEQ'] !== undefined) {
+        shotUpdateData.sequence = row['SEQ']?.toString().trim() || null;
+      }
+      
+      // Turnover
+      if (row['TO'] !== undefined) {
+        shotUpdateData.turnover = row['TO']?.toString().trim() || null;
+      }
+      
+      // Frames
+      if (row['Frames'] !== undefined) {
+        const frames = row['Frames'];
+        shotUpdateData.frames = frames ? parseInt(frames.toString()) : null;
+      }
+      
+      // Remark
+      if (row['Remark'] !== undefined) {
+        shotUpdateData.remark = row['Remark']?.toString().trim() || null;
+      }
+
+      if (Object.keys(shotUpdateData).length > 0) {
+        updates.push({
+          shotId: shot.id,
+          updateData: shotUpdateData,
+        });
+      }
+      
+      processedShots.add(shotKey);
+    }
+
+    // If department is provided, also update the task
     if (department) {
-      // Update task
       const isInternal = row['Is Internal']?.toString().toLowerCase() === 'yes';
       const task = shot.tasks?.find(t => 
         t.department === department && t.isInternal === isInternal
@@ -327,30 +393,22 @@ export function validateUpdateData(data: any[], existingShows: Show[]): {
         return;
       }
 
-      const updateData: any = {};
-      if (row['Status']) updateData.status = row['Status'].toString().trim();
-      if (row['Lead Name']) updateData.leadName = row['Lead Name'].toString().trim();
-      if (row['Bid (MDs)']) updateData.bidMds = parseFloat(row['Bid (MDs)'].toString());
-      if (row['Internal ETA']) updateData.internalEta = row['Internal ETA'];
-      if (row['Client ETA']) updateData.clientEta = row['Client ETA'];
-      if (row['Delivered Version']) updateData.deliveredVersion = row['Delivered Version'].toString().trim();
+      const taskUpdateData: any = {};
+      if (row['Status'] !== undefined) taskUpdateData.status = row['Status']?.toString().trim() || '';
+      if (row['Lead Name'] !== undefined) taskUpdateData.leadName = row['Lead Name']?.toString().trim() || null;
+      if (row['Bid (MDs)'] !== undefined) {
+        const bid = row['Bid (MDs)'];
+        taskUpdateData.bidMds = bid ? parseFloat(bid.toString()) : null;
+      }
+      if (row['Internal ETA'] !== undefined) taskUpdateData.internalEta = row['Internal ETA'] || null;
+      if (row['Client ETA'] !== undefined) taskUpdateData.clientEta = row['Client ETA'] || null;
+      if (row['Delivered Version'] !== undefined) taskUpdateData.deliveredVersion = row['Delivered Version']?.toString().trim() || null;
+      if (row['Delivered Date'] !== undefined) taskUpdateData.deliveredDate = row['Delivered Date'] || null;
 
-      if (Object.keys(updateData).length > 0) {
+      if (Object.keys(taskUpdateData).length > 0) {
         updates.push({
           taskId: task.id,
-          updateData,
-        });
-      }
-    } else {
-      // Update shot only
-      const updateData: any = {};
-      if (row['Shot Tag']) updateData.shotTag = row['Shot Tag'].toString().trim();
-      if (row['Scope of Work'] !== undefined) updateData.scopeOfWork = row['Scope of Work']?.toString().trim() || '';
-
-      if (Object.keys(updateData).length > 0) {
-        updates.push({
-          shotId: shot.id,
-          updateData,
+          updateData: taskUpdateData,
         });
       }
     }

@@ -53,7 +53,12 @@ function incrementVersion(currentVersion: string | null): string {
 }
 
 // Helper function to validate status transition
+// For core statuses, enforce workflow rules. For custom statuses, allow any transition.
 function isValidStatusTransition(currentStatus: string, newStatus: string): boolean {
+  // Core workflow statuses
+  const coreStatuses = ['YTS', 'WIP', 'Int App', 'AWF', 'C APP', 'C KB', 'OMIT', 'HOLD'];
+  
+  // Allowed transitions for core workflow
   const allowedTransitions: Record<string, string[]> = {
     'YTS': ['WIP', 'Int App', 'AWF', 'OMIT', 'HOLD'],
     'WIP': ['Int App', 'AWF', 'OMIT', 'HOLD'],
@@ -64,6 +69,14 @@ function isValidStatusTransition(currentStatus: string, newStatus: string): bool
     'OMIT': ['YTS', 'WIP', 'Int App', 'AWF', 'C APP', 'C KB', 'HOLD'],
     'HOLD': ['YTS', 'WIP', 'Int App', 'AWF', 'C APP', 'C KB'],
   };
+
+  // If transitioning FROM or TO a custom status (not core), allow it
+  // This enables custom statuses like "Int KB" to work seamlessly
+  if (!coreStatuses.includes(currentStatus) || !coreStatuses.includes(newStatus)) {
+    return true;
+  }
+
+  // For core-to-core transitions, enforce the workflow rules
   return allowedTransitions[currentStatus]?.includes(newStatus) || false;
 }
 

@@ -241,8 +241,6 @@ export default function StatusManagementModal({
     } finally {
       setIsLoading(false);
     }
-  };;
-    }
   };
 
   if (!isOpen) return null;
