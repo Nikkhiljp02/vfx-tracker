@@ -1244,12 +1244,12 @@ export default function ResourceForecastView() {
         <table className="min-w-full border-collapse">
           <thead className="bg-gray-800 sticky top-0 z-30">
             <tr className="h-10">
-              <th className="sticky left-0 z-40 bg-gray-800 px-2 py-2 text-left text-xs font-semibold text-gray-300 uppercase border-r border-gray-700" style={{width: '80px', minWidth: '80px'}}>ID</th>
-              <th className="sticky z-40 bg-gray-800 px-2 py-2 text-left text-xs font-semibold text-gray-300 uppercase border-r border-gray-700" style={{left: '80px', width: '160px', minWidth: '160px'}}>Name</th>
-              <th className="sticky z-40 bg-gray-800 px-2 py-2 text-left text-xs font-semibold text-gray-300 uppercase border-r border-gray-700" style={{left: '240px', width: '120px', minWidth: '120px'}}>Designation</th>
-              <th className="sticky z-40 bg-gray-800 px-2 py-2 text-left text-xs font-semibold text-gray-300 uppercase border-r border-gray-700" style={{left: '360px', width: '120px', minWidth: '120px'}}>Reporting</th>
-              <th className="sticky z-40 bg-gray-800 px-2 py-2 text-left text-xs font-semibold text-gray-300 uppercase border-r border-gray-700" style={{left: '480px', width: '100px', minWidth: '100px'}}>Dept</th>
-              <th className="sticky z-40 bg-gray-800 px-2 py-2 text-left text-xs font-semibold text-gray-300 uppercase border-r-2 border-gray-600 shadow-[2px_0_5px_rgba(0,0,0,0.3)]" style={{left: '580px', width: '80px', minWidth: '80px'}}>Shift</th>
+              <th className="sticky left-0 z-40 px-2 py-2 text-left text-xs font-semibold text-gray-300 uppercase border-r border-gray-700" style={{width: '80px', minWidth: '80px', backgroundColor: '#1f2937'}}>ID</th>
+              <th className="sticky z-40 px-2 py-2 text-left text-xs font-semibold text-gray-300 uppercase border-r border-gray-700" style={{left: '80px', width: '160px', minWidth: '160px', backgroundColor: '#1f2937'}}>Name</th>
+              <th className="sticky z-40 px-2 py-2 text-left text-xs font-semibold text-gray-300 uppercase border-r border-gray-700" style={{left: '240px', width: '120px', minWidth: '120px', backgroundColor: '#1f2937'}}>Designation</th>
+              <th className="sticky z-40 px-2 py-2 text-left text-xs font-semibold text-gray-300 uppercase border-r border-gray-700" style={{left: '360px', width: '120px', minWidth: '120px', backgroundColor: '#1f2937'}}>Reporting</th>
+              <th className="sticky z-40 px-2 py-2 text-left text-xs font-semibold text-gray-300 uppercase border-r border-gray-700" style={{left: '480px', width: '100px', minWidth: '100px', backgroundColor: '#1f2937'}}>Dept</th>
+              <th className="sticky z-40 px-2 py-2 text-left text-xs font-semibold text-gray-300 uppercase border-r-4 border-gray-500" style={{left: '580px', width: '80px', minWidth: '80px', backgroundColor: '#1f2937', boxShadow: '4px 0 8px rgba(0,0,0,0.5)'}}>Shift</th>
               {dates.map((date: Date) => {
                 const weekend = isWeekend(date);
                 const working = isWorkingDay(date);
@@ -1284,8 +1284,8 @@ export default function ResourceForecastView() {
               <>
                 {filteredMembers.map((member: any) => (
                 <tr key={member.id} className="hover:bg-gray-800/50 h-10 border-b border-gray-800 transition-colors group">
-                  <td className="sticky left-0 z-20 bg-gray-900 px-2 py-2 text-xs border-r border-gray-700 font-medium text-gray-300 truncate" style={{width: '80px', minWidth: '80px'}}>{member.empId}</td>
-                  <td className="sticky z-20 bg-gray-900 px-2 py-2 text-xs border-r border-gray-700 text-gray-300 truncate" style={{left: '80px', width: '160px', minWidth: '160px'}}>
+                  <td className="sticky left-0 z-20 px-2 py-2 text-xs border-r border-gray-700 font-medium text-gray-300 truncate" style={{width: '80px', minWidth: '80px', backgroundColor: '#111827'}}>{member.empId}</td>
+                  <td className="sticky z-20 px-2 py-2 text-xs border-r border-gray-700 text-gray-300 truncate" style={{left: '80px', width: '160px', minWidth: '160px', backgroundColor: '#111827'}}>
                     <div className="flex items-center justify-between gap-1">
                       <span className="truncate">{member.empName}</span>
                       <button
@@ -1297,10 +1297,10 @@ export default function ResourceForecastView() {
                       </button>
                     </div>
                   </td>
-                  <td className="sticky z-20 bg-gray-900 px-2 py-2 text-xs border-r border-gray-700 text-gray-400 truncate" style={{left: '240px', width: '120px', minWidth: '120px'}}>{member.designation}</td>
-                  <td className="sticky z-20 bg-gray-900 px-2 py-2 text-xs border-r border-gray-700 text-gray-400 truncate" style={{left: '360px', width: '120px', minWidth: '120px'}}>{member.reportingTo || '-'}</td>
-                  <td className="sticky z-20 bg-gray-900 px-2 py-2 text-xs border-r border-gray-700 text-gray-400 truncate" style={{left: '480px', width: '100px', minWidth: '100px'}}>{member.department}</td>
-                  <td className="sticky z-20 bg-gray-900 px-2 py-2 text-xs border-r-2 border-gray-600 text-gray-400 truncate shadow-[2px_0_5px_rgba(0,0,0,0.3)]" style={{left: '580px', width: '80px', minWidth: '80px'}}>{member.shift}</td>
+                  <td className="sticky z-20 px-2 py-2 text-xs border-r border-gray-700 text-gray-400 truncate" style={{left: '240px', width: '120px', minWidth: '120px', backgroundColor: '#111827'}}>{member.designation}</td>
+                  <td className="sticky z-20 px-2 py-2 text-xs border-r border-gray-700 text-gray-400 truncate" style={{left: '360px', width: '120px', minWidth: '120px', backgroundColor: '#111827'}}>{member.reportingTo || '-'}</td>
+                  <td className="sticky z-20 px-2 py-2 text-xs border-r border-gray-700 text-gray-400 truncate" style={{left: '480px', width: '100px', minWidth: '100px', backgroundColor: '#111827'}}>{member.department}</td>
+                  <td className="sticky z-20 px-2 py-2 text-xs border-r-4 border-gray-500 text-gray-400 truncate" style={{left: '580px', width: '80px', minWidth: '80px', backgroundColor: '#111827', boxShadow: '4px 0 8px rgba(0,0,0,0.5)'}}>{member.shift}</td>
                   {dates.map((date, dateIndex) => {
                     const dailyAlloc = getDailyAllocation(member, date);
                     const isEditing = editingCell?.memberId === member.id && editingCell?.dateIndex === dateIndex;
@@ -1373,8 +1373,8 @@ export default function ResourceForecastView() {
               ))}
               
               {/* Utilization Totals Row */}
-              <tr className="bg-gray-800 font-bold border-t-2 border-gray-600 sticky bottom-0 z-10">
-                <td colSpan={6} className="sticky left-0 z-20 bg-gray-800 px-2 py-3 text-xs text-yellow-400 uppercase border-r-2 border-gray-600 shadow-[2px_0_5px_rgba(0,0,0,0.3)]" style={{left: '0px', width: '660px'}}>
+              <tr className="font-bold border-t-2 border-gray-600 sticky bottom-0 z-10" style={{backgroundColor: '#1f2937'}}>
+                <td colSpan={6} className="sticky left-0 z-20 px-2 py-3 text-xs text-yellow-400 uppercase border-r-4 border-gray-500" style={{left: '0px', width: '660px', backgroundColor: '#1f2937', boxShadow: '4px 0 8px rgba(0,0,0,0.5)'}}>
                   TOTAL UTILIZATION
                 </td>
                 {dates.map((date, idx) => {

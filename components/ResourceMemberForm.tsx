@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface ResourceMember {
   id: string;
@@ -21,6 +22,7 @@ interface Props {
 }
 
 export default function ResourceMemberForm({ isOpen, onClose, onSuccess, member }: Props) {
+  const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
     empId: '',
     empName: '',
@@ -84,6 +86,10 @@ export default function ResourceMemberForm({ isOpen, onClose, onSuccess, member 
         throw new Error(data.error || `Failed to ${isEditMode ? 'update' : 'create'} member`);
       }
 
+      // Invalidate cache to refresh member list
+      queryClient.invalidateQueries({ queryKey: ['resourceMembers'] });
+      queryClient.invalidateQueries({ queryKey: ['resourceForecast'] });
+
       onSuccess();
       handleClose();
     } catch (error: any) {
@@ -130,7 +136,6 @@ export default function ResourceMemberForm({ isOpen, onClose, onSuccess, member 
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               required
               placeholder="EMP001"
-              disabled={isEditMode}
             />
           </div>
 
