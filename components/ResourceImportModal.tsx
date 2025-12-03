@@ -158,15 +158,15 @@ export default function ResourceImportModal({ isOpen, onClose, onSuccess, type }
           'Emp Name': 'John Doe',
           'Designation': 'Senior Compositor',
           'Reporting To': 'Jane Smith',
-          'Department': 'Compositing',
+          'Department': 'Comp',
           'Shift': 'Day'
         },
         {
           'Emp ID': 'EMP002',
           'Emp Name': 'Alice Johnson',
-          'Designation': 'Junior Animator',
+          'Designation': 'Junior Roto Artist',
           'Reporting To': 'Bob Wilson',
-          'Department': 'Animation',
+          'Department': 'Roto',
           'Shift': 'Night'
         }
       ];

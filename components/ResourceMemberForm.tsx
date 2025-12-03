@@ -191,14 +191,10 @@ export default function ResourceMemberForm({ isOpen, onClose, onSuccess, member 
               required
             >
               <option value="">Select Department</option>
-              <option value="Compositing">Compositing</option>
-              <option value="Paint">Paint</option>
               <option value="Roto">Roto</option>
-              <option value="Animation">Animation</option>
+              <option value="Paint">Paint</option>
+              <option value="Comp">Comp</option>
               <option value="MMRA">MMRA</option>
-              <option value="FX">FX</option>
-              <option value="Lighting">Lighting</option>
-              <option value="Matchmove">Matchmove</option>
             </select>
           </div>
 
