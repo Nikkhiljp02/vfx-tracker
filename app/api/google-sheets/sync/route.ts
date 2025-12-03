@@ -156,7 +156,7 @@ export async function POST(req: NextRequest) {
 
     // Fetch FRESH data from database instead of using potentially stale client data
     const freshShows = await prisma.show.findMany({
-      where: { isActive: true },
+      where: { status: { not: 'Archived' } }, // Exclude archived shows
       include: {
         shots: {
           where: { isActive: true },
