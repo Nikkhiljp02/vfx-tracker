@@ -276,50 +276,61 @@ export default function AwardSheetViewOptimized() {
   }, [shots, searchQuery]);
 
   return (
-    <div className="h-full flex flex-col bg-gray-900">
+    <div className="h-full flex flex-col bg-[#0a0a0a]">
       {/* Header */}
-      <div className="flex-none bg-gray-800 border-b border-gray-700 p-4">
+      <div className="flex-none bg-[#111111] border-b border-[#1a1a1a] p-4">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold text-white">Award Sheet</h1>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-amber-500/10 flex items-center justify-center">
+              <Download className="text-amber-500" size={20} />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-white">Award Sheet</h2>
+              <p className="text-xs text-gray-500">Track and manage award data</p>
+            </div>
+          </div>
           <div className="flex gap-2">
-            <button onClick={addShot} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            <button onClick={addShot} className="flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white font-medium hover:bg-cyan-500 transition-colors">
               <Plus size={18} /> Add Shot
             </button>
-            <button onClick={exportToExcel} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+            <button onClick={exportToExcel} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white font-medium hover:bg-emerald-500 transition-colors">
               <Download size={18} /> Export
             </button>
-            <label className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 cursor-pointer">
+            <label className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white font-medium hover:bg-purple-500 transition-colors cursor-pointer">
               <Upload size={18} /> Import
               <input type="file" accept=".xlsx,.xls" onChange={handleImport} className="hidden" />
             </label>
           </div>
         </div>
 
-        <div className="flex gap-4">
+        <div className="flex gap-4 items-center">
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search..."
-            className="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg"
+            placeholder="Search shots..."
+            className="flex-1 px-4 py-2 bg-[#0a0a0a] border border-[#252525] text-white placeholder-gray-500 focus:border-cyan-500 focus:outline-none transition-colors"
           />
-          <div className="text-sm text-gray-400 flex items-center">{filteredShots.length} shot(s)</div>
+          <div className="text-sm text-gray-400">{filteredShots.length} shot(s)</div>
         </div>
       </div>
 
       {/* Table */}
       <div className="flex-1 overflow-auto">
         {isLoading ? (
-          <div className="flex items-center justify-center h-64 text-gray-400">Loading...</div>
+          <div className="flex flex-col items-center justify-center h-64 gap-3">
+            <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent animate-spin"></div>
+            <span className="text-gray-400 text-sm">Loading...</span>
+          </div>
         ) : (
-          <table className="min-w-full divide-y divide-gray-700">
-            <thead className="bg-gray-800 sticky top-0 z-10">
+          <table className="min-w-full">
+            <thead className="bg-[#111111] sticky top-0 z-10">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase w-12">Actions</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase min-w-[200px]">Show Name</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase min-w-[200px]">Shot Name</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide border-b border-[#1a1a1a] w-12">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide border-b border-[#1a1a1a] min-w-[200px]">Show Name</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide border-b border-[#1a1a1a] min-w-[200px]">Shot Name</th>
                 {customColumns.map(col => (
-                  <th key={col.id} className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase min-w-[150px] group">
+                  <th key={col.id} className="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide border-b border-[#1a1a1a] min-w-[150px] group">
                     <div className="flex items-center justify-between">
                       <span>{col.name}</span>
                       <button onClick={() => deleteCustomColumn(col.name)} className="opacity-0 group-hover:opacity-100 ml-2 text-red-400 hover:text-red-300">
@@ -328,7 +339,7 @@ export default function AwardSheetViewOptimized() {
                     </div>
                   </th>
                 ))}
-                <th className="px-4 py-3 text-center w-20">
+                <th className="px-4 py-3 text-center border-b border-[#1a1a1a] w-20">
                   {showAddColumn ? (
                     <div className="flex gap-1">
                       <input
@@ -337,26 +348,26 @@ export default function AwardSheetViewOptimized() {
                         onChange={(e) => setNewColumnName(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && addCustomColumn()}
                         placeholder="Name"
-                        className="px-2 py-1 bg-gray-700 border border-gray-600 text-white rounded text-xs w-32"
+                        className="px-2 py-1 bg-[#0a0a0a] border border-[#252525] text-white text-xs w-32 focus:border-cyan-500 focus:outline-none"
                         autoFocus
                       />
-                      <button onClick={addCustomColumn} className="text-green-400 hover:text-green-300"><Save size={14} /></button>
+                      <button onClick={addCustomColumn} className="text-emerald-400 hover:text-emerald-300"><Save size={14} /></button>
                       <button onClick={() => { setShowAddColumn(false); setNewColumnName(''); }} className="text-red-400 hover:text-red-300"><X size={14} /></button>
                     </div>
                   ) : (
-                    <button onClick={() => setShowAddColumn(true)} className="text-blue-400 hover:text-blue-300" title="Add column">
+                    <button onClick={() => setShowAddColumn(true)} className="text-cyan-400 hover:text-cyan-300" title="Add column">
                       <Plus size={18} />
                     </button>
                   )}
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-gray-900 divide-y divide-gray-700">
+            <tbody className="bg-[#0a0a0a]">
               {filteredShots.length === 0 ? (
-                <tr><td colSpan={customColumns.length + 4} className="px-4 py-8 text-center text-gray-400">No shots. Click "Add Shot"</td></tr>
+                <tr><td colSpan={customColumns.length + 4} className="px-4 py-8 text-center text-gray-500">No shots. Click "Add Shot"</td></tr>
               ) : (
                 filteredShots.map((shot: AwardShot) => (
-                  <tr key={shot.id} className="hover:bg-gray-800">
+                  <tr key={shot.id} className="border-b border-[#1a1a1a] hover:bg-[#111111] transition-colors">
                     <td className="px-4 py-3">
                       <button onClick={() => deleteShot(shot.id)} className="text-red-400 hover:text-red-300" title="Delete">
                         <Trash2 size={16} />
@@ -370,11 +381,11 @@ export default function AwardSheetViewOptimized() {
                           onChange={(e) => setEditValue(e.target.value)}
                           onBlur={handleCellSave}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-2 py-1 bg-gray-700 border border-blue-500 text-white rounded"
+                          className="w-full px-2 py-1 bg-[#0a0a0a] border border-cyan-500 text-white"
                           autoFocus
                         />
                       ) : (
-                        <div onClick={() => handleCellEdit(shot.id, 'showName', shot.showName)} className="cursor-pointer text-white hover:bg-gray-700 px-2 py-1 rounded">
+                        <div onClick={() => handleCellEdit(shot.id, 'showName', shot.showName)} className="cursor-pointer text-white hover:bg-[#1a1a1a] px-2 py-1">
                           {shot.showName}
                         </div>
                       )}
@@ -387,11 +398,11 @@ export default function AwardSheetViewOptimized() {
                           onChange={(e) => setEditValue(e.target.value)}
                           onBlur={handleCellSave}
                           onKeyDown={handleKeyDown}
-                          className="w-full px-2 py-1 bg-gray-700 border border-blue-500 text-white rounded"
+                          className="w-full px-2 py-1 bg-[#0a0a0a] border border-cyan-500 text-white"
                           autoFocus
                         />
                       ) : (
-                        <div onClick={() => handleCellEdit(shot.id, 'shotName', shot.shotName)} className="cursor-pointer text-white hover:bg-gray-700 px-2 py-1 rounded">
+                        <div onClick={() => handleCellEdit(shot.id, 'shotName', shot.shotName)} className="cursor-pointer text-white hover:bg-[#1a1a1a] px-2 py-1">
                           {shot.shotName}
                         </div>
                       )}
@@ -407,11 +418,11 @@ export default function AwardSheetViewOptimized() {
                               onChange={(e) => setEditValue(e.target.value)}
                               onBlur={handleCellSave}
                               onKeyDown={handleKeyDown}
-                              className="w-full px-2 py-1 bg-gray-700 border border-blue-500 text-white rounded"
+                              className="w-full px-2 py-1 bg-[#0a0a0a] border border-cyan-500 text-white"
                               autoFocus
                             />
                           ) : (
-                            <div onClick={() => handleCellEdit(shot.id, col.name, value)} className="cursor-pointer text-gray-300 hover:bg-gray-700 px-2 py-1 rounded min-h-[28px]">
+                            <div onClick={() => handleCellEdit(shot.id, col.name, value)} className="cursor-pointer text-gray-300 hover:bg-[#1a1a1a] px-2 py-1 min-h-[28px]">
                               {value || <span className="text-gray-600 italic">-</span>}
                             </div>
                           )}

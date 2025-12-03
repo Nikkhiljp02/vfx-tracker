@@ -1016,22 +1016,22 @@ export default function ResourceForecastView() {
   }, [members]);
 
   return (
-    <div className="h-full flex flex-col bg-gray-900" onClick={() => setContextMenu(null)}>
+    <div className="h-full flex flex-col bg-[#0a0a0a]" onClick={() => setContextMenu(null)}>
       {/* Context Menu */}
       {contextMenu && (
         <div
-          className="fixed bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-[100] py-2 min-w-[250px]"
+          className="fixed bg-[#111111] border border-[#1a1a1a] shadow-xl z-[100] py-2 min-w-[250px]"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="px-4 py-2 text-xs text-gray-400 border-b border-gray-700 font-medium">
+          <div className="px-4 py-2 text-xs text-gray-400 border-b border-[#1a1a1a] font-medium">
             {contextMenu.cells.length} cell{contextMenu.cells.length > 1 ? 's' : ''} selected
           </div>
           <div className="p-3">
             <input
               type="text"
               placeholder="Enter shots (e.g., Shot1/Shot2)"
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 bg-[#0a0a0a] border border-[#252525] text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500"
               value={bulkInputValue}
               onChange={(e) => setBulkInputValue(e.target.value)}
               onKeyDown={(e) => {
@@ -1045,14 +1045,14 @@ export default function ResourceForecastView() {
             />
           </div>
           <button
-            className="w-full px-4 py-2 text-left text-sm text-white hover:bg-gray-700 transition-colors flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm text-white hover:bg-[#1a1a1a] transition-colors flex items-center gap-2"
             onClick={handleBulkPaste}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
             Apply to Selected Cells
           </button>
           <button
-            className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-gray-700 transition-colors flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-[#1a1a1a] transition-colors flex items-center gap-2"
             onClick={() => {
               handleDeleteSelected();
               setContextMenu(null);
@@ -1062,7 +1062,7 @@ export default function ResourceForecastView() {
             Clear Selected Cells
           </button>
           <button
-            className="w-full px-4 py-2 text-left text-sm text-yellow-400 hover:bg-gray-700 transition-colors flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm text-amber-400 hover:bg-[#1a1a1a] transition-colors flex items-center gap-2"
             onClick={() => {
               handleMarkLeave();
               setContextMenu(null);
@@ -1074,44 +1074,44 @@ export default function ResourceForecastView() {
         </div>
       )}
 
-      {/* Header - Mobile Optimized */}
-      <div className="flex-none p-3 md:p-4 border-b border-gray-700">
+      {/* Header */}
+      <div className="flex-none p-4 bg-[#111111] border-b border-[#1a1a1a]">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-            <h1 className="text-xl md:text-2xl font-bold text-white">Resource Forecast</h1>
+            <h1 className="text-lg font-semibold text-white">Resource Forecast</h1>
             {selectedCells.size > 0 && (
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs md:text-sm text-gray-400">{selectedCells.size} cells</span>
-                <button onClick={handleCopy} className="px-2 py-1 bg-gray-700 text-white text-xs rounded hover:bg-gray-600 active:bg-gray-500 touch-manipulation" title="Copy">Copy</button>
-                <button onClick={handlePaste} disabled={copiedCells.size === 0} className="px-2 py-1 bg-gray-700 text-white text-xs rounded hover:bg-gray-600 disabled:opacity-50 touch-manipulation" title="Paste">Paste</button>
-                <button onClick={handleMarkLeave} className="px-2 py-1 bg-yellow-600 text-white text-xs rounded hover:bg-yellow-700 active:bg-yellow-800 touch-manipulation" title="Leave">Leave</button>
-                <button onClick={handleDeleteSelected} className="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 active:bg-red-800 touch-manipulation" title="Delete">Del</button>
+                <span className="text-xs text-gray-400">{selectedCells.size} cells</span>
+                <button onClick={handleCopy} className="px-2 py-1 bg-[#1a1a1a] text-white text-xs hover:bg-[#252525] touch-manipulation" title="Copy">Copy</button>
+                <button onClick={handlePaste} disabled={copiedCells.size === 0} className="px-2 py-1 bg-[#1a1a1a] text-white text-xs hover:bg-[#252525] disabled:opacity-50 touch-manipulation" title="Paste">Paste</button>
+                <button onClick={handleMarkLeave} className="px-2 py-1 bg-amber-600 text-white text-xs hover:bg-amber-500 touch-manipulation" title="Leave">Leave</button>
+                <button onClick={handleDeleteSelected} className="px-2 py-1 bg-red-600 text-white text-xs hover:bg-red-500 touch-manipulation" title="Delete">Del</button>
               </div>
             )}
           </div>
           <div className="flex gap-2 flex-wrap">
-            <button onClick={handleUndo} disabled={historyIndex <= 0} className="px-2 md:px-3 py-2 bg-gray-700 text-white text-xs md:text-sm rounded-lg hover:bg-gray-600 active:bg-gray-500 transition-colors disabled:opacity-50 touch-manipulation" title="Undo">↶</button>
-            <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="px-2 md:px-3 py-2 bg-gray-700 text-white text-xs md:text-sm rounded-lg hover:bg-gray-600 active:bg-gray-500 transition-colors disabled:opacity-50 touch-manipulation" title="Redo">↷</button>
-            <button onClick={exportToExcel} className="px-2 md:px-3 py-2 bg-green-600 text-white text-xs md:text-sm rounded-lg hover:bg-green-700 active:bg-green-800 transition-colors touch-manipulation">📊<span className="hidden sm:inline ml-1">CSV</span></button>
-            <button onClick={() => { setImportType('members'); setShowImportModal(true); }} className="px-2 md:px-4 py-2 bg-blue-600 text-white text-xs md:text-sm rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors touch-manipulation"><span className="hidden sm:inline">Import </span>Members</button>
-            <button onClick={() => { setImportType('allocations'); setShowImportModal(true); }} className="px-2 md:px-4 py-2 bg-purple-600 text-white text-xs md:text-sm rounded-lg hover:bg-purple-700 active:bg-purple-800 transition-colors touch-manipulation"><span className="hidden sm:inline">Import </span>Alloc</button>
-            <button onClick={() => setShowAddMemberModal(true)} className="px-2 md:px-4 py-2 bg-green-600 text-white text-xs md:text-sm rounded-lg hover:bg-green-700 active:bg-green-800 transition-colors touch-manipulation">+ Member</button>
+            <button onClick={handleUndo} disabled={historyIndex <= 0} className="px-3 py-2 bg-[#1a1a1a] text-white text-xs hover:bg-[#252525] transition-colors disabled:opacity-50 touch-manipulation" title="Undo">↶</button>
+            <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="px-3 py-2 bg-[#1a1a1a] text-white text-xs hover:bg-[#252525] transition-colors disabled:opacity-50 touch-manipulation" title="Redo">↷</button>
+            <button onClick={exportToExcel} className="px-3 py-2 bg-emerald-600 text-white text-xs hover:bg-emerald-500 transition-colors touch-manipulation">📊<span className="hidden sm:inline ml-1">CSV</span></button>
+            <button onClick={() => { setImportType('members'); setShowImportModal(true); }} className="px-4 py-2 bg-cyan-600 text-white text-xs hover:bg-cyan-500 transition-colors touch-manipulation"><span className="hidden sm:inline">Import </span>Members</button>
+            <button onClick={() => { setImportType('allocations'); setShowImportModal(true); }} className="px-4 py-2 bg-purple-600 text-white text-xs hover:bg-purple-500 transition-colors touch-manipulation"><span className="hidden sm:inline">Import </span>Alloc</button>
+            <button onClick={() => setShowAddMemberModal(true)} className="px-4 py-2 bg-emerald-600 text-white text-xs hover:bg-emerald-500 transition-colors touch-manipulation">+ Member</button>
             
             {/* Bulk Operations Dropdown */}
             <div className="relative group">
-              <button className="px-2 md:px-4 py-2 bg-orange-600 text-white text-xs md:text-sm rounded-lg hover:bg-orange-700 active:bg-orange-800 transition-colors touch-manipulation">
+              <button className="px-4 py-2 bg-amber-600 text-white text-xs hover:bg-amber-500 transition-colors touch-manipulation">
                 Bulk ▾
               </button>
-              <div className="absolute right-0 mt-1 w-48 md:w-56 bg-gray-800 border border-gray-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+              <div className="absolute right-0 mt-1 w-48 md:w-56 bg-[#111111] border border-[#1a1a1a] shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
                 <button
                   onClick={() => setBulkMode('reassign')}
-                  className="w-full text-left px-3 md:px-4 py-2 text-xs md:text-sm text-white hover:bg-gray-700 active:bg-gray-600 transition-colors rounded-t-lg touch-manipulation"
+                  className="w-full text-left px-4 py-2 text-xs text-white hover:bg-[#1a1a1a] transition-colors touch-manipulation"
                 >
                   🔄 Bulk Reassign
                 </button>
                 <button
                   onClick={() => setBulkMode('copy')}
-                  className="w-full text-left px-3 md:px-4 py-2 text-xs md:text-sm text-white hover:bg-gray-700 active:bg-gray-600 transition-colors rounded-b-lg touch-manipulation"
+                  className="w-full text-left px-4 py-2 text-xs text-white hover:bg-[#1a1a1a] transition-colors touch-manipulation"
                 >
                   📋 Copy Week
                 </button>
@@ -1122,16 +1122,16 @@ export default function ResourceForecastView() {
 
         {/* Quick Filter Views */}
         {savedViews.filter(v => v.isQuickFilter).length > 0 && (
-          <div className="flex gap-2 items-center mb-3 pb-3 border-b border-gray-700">
-            <span className="text-xs text-gray-400 font-semibold">QUICK FILTERS:</span>
+          <div className="flex gap-2 items-center mb-3 pb-3 border-b border-[#1a1a1a]">
+            <span className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Quick Filters:</span>
             {savedViews.filter(v => v.isQuickFilter).map(view => (
               <button
                 key={view.id}
                 onClick={() => applyView(view)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                className={`px-3 py-1 text-xs font-medium transition-colors ${
                   activeViewId === view.id 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    ? 'bg-cyan-500 text-black' 
+                    : 'bg-[#1a1a1a] text-gray-300 hover:bg-[#252525]'
                 }`}
               >
                 {view.name}

@@ -8,6 +8,7 @@ import AllocationListView from '@/components/AllocationListView';
 import ResourceDashboard from '@/components/ResourceDashboard';
 import ResourceCapacityView from '@/components/ResourceCapacityView';
 import AwardSheetViewOptimized from '@/components/AwardSheetViewOptimized';
+import { LayoutDashboard, CalendarDays, ListTodo, BarChart3, Trophy } from 'lucide-react';
 
 export default function ResourceForecastPage() {
   const { data: session, status } = useSession();
@@ -33,8 +34,11 @@ export default function ResourceForecastPage() {
 
   if (status === 'loading') {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-gray-500">Loading...</div>
+      <div className="flex items-center justify-center h-screen bg-[#0a0a0a]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent animate-spin"></div>
+          <div className="text-gray-400 font-medium">Loading Resource Module...</div>
+        </div>
       </div>
     );
   }
@@ -48,61 +52,38 @@ export default function ResourceForecastPage() {
     return null;
   }
 
+  const tabs = [
+    { id: 'dashboard', label: 'Summary', icon: LayoutDashboard, shortLabel: 'Summary' },
+    { id: 'forecast', label: 'Resource Forecast', icon: CalendarDays, shortLabel: 'Forecast' },
+    { id: 'allocations', label: 'Allocations', icon: ListTodo, shortLabel: 'Allocations' },
+    { id: 'capacity', label: 'Capacity', icon: BarChart3, shortLabel: 'Capacity' },
+    { id: 'awardsheet', label: 'Award Sheet', icon: Trophy, shortLabel: 'Award' },
+  ];
+
   return (
-    <div className="h-screen flex flex-col bg-gray-900">
-      {/* Tab Navigation - Mobile Optimized */}
-      <div className="flex-none bg-gray-800 border-b border-gray-700">
+    <div className="h-screen flex flex-col bg-[#0a0a0a]">
+      {/* Professional Tab Navigation */}
+      <div className="flex-none bg-[#111111] border-b border-[#1a1a1a]">
         <div className="flex overflow-x-auto hide-scrollbar">
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`flex-shrink-0 px-4 md:px-6 py-3 text-xs md:text-sm font-medium transition-colors touch-manipulation ${
-              activeTab === 'dashboard'
-                ? 'bg-gray-900 text-white border-b-2 border-blue-500'
-                : 'text-gray-400 hover:text-white active:bg-gray-700'
-            }`}
-          >
-            📊 Dashboard
-          </button>
-          <button
-            onClick={() => setActiveTab('forecast')}
-            className={`flex-shrink-0 px-4 md:px-6 py-3 text-xs md:text-sm font-medium transition-colors touch-manipulation whitespace-nowrap ${
-              activeTab === 'forecast'
-                ? 'bg-gray-900 text-white border-b-2 border-blue-500'
-                : 'text-gray-400 hover:text-white active:bg-gray-700'
-            }`}
-          >
-            Resource Forecast
-          </button>
-          <button
-            onClick={() => setActiveTab('allocations')}
-            className={`flex-shrink-0 px-4 md:px-6 py-3 text-xs md:text-sm font-medium transition-colors touch-manipulation ${
-              activeTab === 'allocations'
-                ? 'bg-gray-900 text-white border-b-2 border-blue-500'
-                : 'text-gray-400 hover:text-white active:bg-gray-700'
-            }`}
-          >
-            Allocations List
-          </button>
-          <button
-            onClick={() => setActiveTab('capacity')}
-            className={`flex-shrink-0 px-4 md:px-6 py-3 text-xs md:text-sm font-medium transition-colors touch-manipulation whitespace-nowrap ${
-              activeTab === 'capacity'
-                ? 'bg-gray-900 text-white border-b-2 border-blue-500'
-                : 'text-gray-400 hover:text-white active:bg-gray-700'
-            }`}
-          >
-            Resource Capacity
-          </button>
-          <button
-            onClick={() => setActiveTab('awardsheet')}
-            className={`flex-shrink-0 px-4 md:px-6 py-3 text-xs md:text-sm font-medium transition-colors touch-manipulation whitespace-nowrap ${
-              activeTab === 'awardsheet'
-                ? 'bg-gray-900 text-white border-b-2 border-blue-500'
-                : 'text-gray-400 hover:text-white active:bg-gray-700'
-            }`}
-          >
-            🏆 Award Sheet
-          </button>
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex-shrink-0 flex items-center gap-2 px-4 md:px-6 py-3.5 text-xs md:text-sm font-medium transition-all duration-200 touch-manipulation border-b-2 ${
+                  isActive
+                    ? 'bg-[#0a0a0a] text-cyan-400 border-cyan-500'
+                    : 'text-gray-500 border-transparent hover:text-gray-300 hover:bg-[#151515]'
+                }`}
+              >
+                <Icon size={16} className={isActive ? 'text-cyan-400' : 'text-gray-600'} />
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="sm:hidden">{tab.shortLabel}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
