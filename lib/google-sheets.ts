@@ -52,17 +52,39 @@ export function setCredentials(auth: any, tokens: any) {
 }
 
 // Format date to d-MMM-yy format (e.g., "4-Dec-25")
+// Handles both Date objects and ISO date strings (YYYY-MM-DD)
 function formatDate(dateStr: string | Date | null | undefined): string {
   if (!dateStr) return '';
-  const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return '';
   
-  const day = date.getDate();
+  let year: number, month: number, day: number;
+  
+  if (dateStr instanceof Date) {
+    if (isNaN(dateStr.getTime())) return '';
+    year = dateStr.getFullYear();
+    month = dateStr.getMonth();
+    day = dateStr.getDate();
+  } else {
+    // Parse ISO date string (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss.sssZ)
+    const str = dateStr.toString();
+    const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+      year = parseInt(isoMatch[1]);
+      month = parseInt(isoMatch[2]) - 1; // 0-indexed
+      day = parseInt(isoMatch[3]);
+    } else {
+      // Fallback to Date parsing for other formats
+      const date = new Date(str);
+      if (isNaN(date.getTime())) return '';
+      year = date.getFullYear();
+      month = date.getMonth();
+      day = date.getDate();
+    }
+  }
+  
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const month = months[date.getMonth()];
-  const year = date.getFullYear().toString().slice(-2);
+  const yearStr = year.toString().slice(-2);
   
-  return `${day}-${month}-${year}`;
+  return `${day}-${months[month]}-${yearStr}`;
 }
 
 // Format data for Google Sheets (same as Excel export)
