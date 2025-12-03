@@ -2,14 +2,16 @@
 
 import { LayoutGrid, Layers, Truck, Users, Activity } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
 interface MobileNavProps {
-  activeView: 'tracker' | 'department' | 'delivery' | 'dashboard' | 'feedback' | 'resource-forecast';
-  onViewChange: (view: 'tracker' | 'department' | 'delivery' | 'dashboard' | 'feedback' | 'resource-forecast') => void;
+  activeView: 'tracker' | 'department' | 'delivery' | 'dashboard' | 'feedback';
+  onViewChange: (view: 'tracker' | 'department' | 'delivery' | 'dashboard' | 'feedback') => void;
 }
 
 export default function MobileNav({ activeView, onViewChange }: MobileNavProps) {
   const { data: session } = useSession();
+  const router = useRouter();
   const user = session?.user as any;
   const showResourceForecast = user?.role === 'ADMIN' || user?.role === 'RESOURCE';
 
@@ -19,7 +21,6 @@ export default function MobileNav({ activeView, onViewChange }: MobileNavProps) 
     { id: 'department' as const, icon: Layers, label: 'Depts' },
     { id: 'delivery' as const, icon: Truck, label: 'Delivery' },
     { id: 'feedback' as const, icon: Activity, label: 'Feedback' },
-    ...(showResourceForecast ? [{ id: 'resource-forecast' as const, icon: Users, label: 'Resource' }] : []),
   ];
 
   return (
@@ -46,6 +47,15 @@ export default function MobileNav({ activeView, onViewChange }: MobileNavProps) 
             </button>
           );
         })}
+        {showResourceForecast && (
+          <button
+            onClick={() => router.push('/resource-forecast')}
+            className="flex flex-col items-center justify-center gap-1 transition-colors text-gray-600 hover:bg-gray-50"
+          >
+            <Users size={22} strokeWidth={2} />
+            <span className="text-xs font-medium">Resource</span>
+          </button>
+        )}
       </div>
     </nav>
   );

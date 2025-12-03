@@ -9,16 +9,12 @@ import DepartmentView from '@/components/DepartmentView';
 import DeliveryView from '@/components/DeliveryView';
 import AdvancedDashboard from '@/components/AdvancedDashboard';
 import FeedbackView from '@/components/FeedbackView';
-import ResourceForecastView from '@/components/ResourceForecastView';
-import ResourceDashboard from '@/components/ResourceDashboard';
-import AllocationListView from '@/components/AllocationListView';
-import ResourceCapacityView from '@/components/ResourceCapacityView';
 import Header from '@/components/Header';
 import FilterPanel from '@/components/FilterPanel';
 import MobileNav from '@/components/MobileNav';
 import MobileFilterDrawer from '@/components/MobileFilterDrawer';
-import { ResourceProvider } from '@/lib/resourceContext';
 import { FeedbackModalProvider, useFeedbackModal } from '@/lib/feedbackModalContext';
+import { useRouter } from 'next/navigation';
 import { LayoutGrid, Layers, Truck, Filter, Users, Activity, X } from 'lucide-react';
 
 export default function Home() {
@@ -35,9 +31,9 @@ export default function Home() {
     }
     return false;
   });
-  const [activeView, setActiveView] = useState<'tracker' | 'department' | 'delivery' | 'dashboard' | 'feedback' | 'resource-forecast'>('dashboard');
-  const [resourceTab, setResourceTab] = useState<'summary' | 'forecast' | 'allocations' | 'capacity'>('summary');
+  const [activeView, setActiveView] = useState<'tracker' | 'department' | 'delivery' | 'dashboard' | 'feedback'>('dashboard');
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
+  const router = useRouter();
   const [showUnhideModal, setShowUnhideModal] = useState(false);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
@@ -165,14 +161,8 @@ export default function Home() {
           </button>
           {(session?.user as any)?.role === 'ADMIN' || (session?.user as any)?.role === 'RESOURCE' ? (
             <button
-              onClick={() => setActiveView('resource-forecast')}
-              className={`
-                flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors
-                ${activeView === 'resource-forecast'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                }
-              `}
+              onClick={() => router.push('/resource-forecast')}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors bg-white text-gray-700 hover:bg-gray-100 border border-gray-300"
             >
               <Users size={18} />
               Resources
@@ -186,68 +176,6 @@ export default function Home() {
           <DeliveryView />
         ) : activeView === 'feedback' ? (
           <FeedbackView />
-        ) : activeView === 'resource-forecast' ? (
-          <ResourceProvider>
-            <div className="h-full flex flex-col bg-gray-900">
-              {/* Resource Tabs */}
-              <div className="flex-none bg-gray-800 border-b border-gray-700">
-                <div className="flex">
-                  <button
-                    onClick={() => setResourceTab('summary')}
-                    className={`px-6 py-3 text-sm font-medium transition-colors ${
-                      resourceTab === 'summary'
-                        ? 'bg-gray-900 text-white border-b-2 border-blue-500'
-                        : 'text-gray-400 hover:text-white hover:bg-gray-700'
-                    }`}
-                  >
-                    📊 Resource Summary
-                  </button>
-                  <button
-                    onClick={() => setResourceTab('forecast')}
-                    className={`px-6 py-3 text-sm font-medium transition-colors ${
-                      resourceTab === 'forecast'
-                        ? 'bg-gray-900 text-white border-b-2 border-blue-500'
-                        : 'text-gray-400 hover:text-white hover:bg-gray-700'
-                    }`}
-                  >
-                    Resource Forecast
-                  </button>
-                  <button
-                    onClick={() => setResourceTab('allocations')}
-                    className={`px-6 py-3 text-sm font-medium transition-colors ${
-                      resourceTab === 'allocations'
-                        ? 'bg-gray-900 text-white border-b-2 border-blue-500'
-                        : 'text-gray-400 hover:text-white hover:bg-gray-700'
-                    }`}
-                  >
-                    Allocations
-                  </button>
-                  <button
-                    onClick={() => setResourceTab('capacity')}
-                    className={`px-6 py-3 text-sm font-medium transition-colors ${
-                      resourceTab === 'capacity'
-                        ? 'bg-gray-900 text-white border-b-2 border-blue-500'
-                        : 'text-gray-400 hover:text-white hover:bg-gray-700'
-                    }`}
-                  >
-                    Resource Capacity
-                  </button>
-                </div>
-              </div>
-              {/* Resource Tab Content */}
-              <div className="flex-1 overflow-hidden">
-                {resourceTab === 'summary' ? (
-                  <ResourceDashboard />
-                ) : resourceTab === 'forecast' ? (
-                  <ResourceForecastView />
-                ) : resourceTab === 'allocations' ? (
-                  <AllocationListView />
-                ) : (
-                  <ResourceCapacityView />
-                )}
-              </div>
-            </div>
-          </ResourceProvider>
         ) : (
           <>
             <FilterPanel 
