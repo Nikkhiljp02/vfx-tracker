@@ -147,6 +147,21 @@ function formatDateDisplay(date: Date | null): string {
   return `${day}-${month}-${year}`;
 }
 
+// Helper to safely format date for export without timezone shift
+function safeFormatDate(date: any): string {
+  if (!date) return '';
+  if (typeof date === 'string') {
+    const match = date.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) return `${match[1]}-${match[2]}-${match[3]}`;
+  }
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return '';
+  const year = d.getFullYear();
+  const month = (d.getMonth() + 1).toString().padStart(2, '0');
+  const day = d.getDate().toString().padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 // Export tracker data to Excel
 export function exportToExcel(shows: Show[], filename: string = 'vfx_tracker_export.xlsx') {
   const workbook = XLSX.utils.book_new();
@@ -168,10 +183,10 @@ export function exportToExcel(shows: Show[], filename: string = 'vfx_tracker_exp
           'Status': task.status,
           'Lead Name': task.leadName || '',
           'Bid (MDs)': task.bidMds || '',
-          'Internal ETA': task.internalEta ? new Date(task.internalEta).toISOString().split('T')[0] : '',
-          'Client ETA': task.clientEta ? new Date(task.clientEta).toISOString().split('T')[0] : '',
+          'Internal ETA': safeFormatDate(task.internalEta),
+          'Client ETA': safeFormatDate(task.clientEta),
           'Delivered Version': task.deliveredVersion || '',
-          'Delivered Date': task.deliveredDate ? new Date(task.deliveredDate).toISOString().split('T')[0] : '',
+          'Delivered Date': safeFormatDate(task.deliveredDate),
         });
       });
 

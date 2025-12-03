@@ -98,18 +98,59 @@ export function getUniqueTurnovers(shows: Show[]): string[] {
   return Array.from(turnovers).sort();
 }
 
-// Format date to YYYY-MM-DD
-export function formatDate(date: Date | null | undefined): string {
+// Format date to YYYY-MM-DD without timezone conversion
+// Accepts: Date object, ISO string (2025-12-04), or ISO datetime (2025-12-04T00:00:00.000Z)
+export function formatDate(date: Date | string | null | undefined): string {
   if (!date) return '';
+  
+  // If it's already a YYYY-MM-DD string, return it
+  if (typeof date === 'string') {
+    const isoMatch = date.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+      return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+    }
+  }
+  
+  // For Date objects, use local date components to avoid timezone shift
   const d = new Date(date);
-  return d.toISOString().split('T')[0];
+  if (isNaN(d.getTime())) return '';
+  
+  const year = d.getFullYear();
+  const month = (d.getMonth() + 1).toString().padStart(2, '0');
+  const day = d.getDate().toString().padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
-// Format date to display format (e.g., Nov 5, 2025)
-export function formatDisplayDate(date: Date | null | undefined): string {
+// Format date to display format (e.g., Nov 5, 2025) without timezone conversion
+export function formatDisplayDate(date: Date | string | null | undefined): string {
   if (!date) return '';
-  const d = new Date(date);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  
+  let year: number, month: number, day: number;
+  
+  // If it's a string, parse it without timezone conversion
+  if (typeof date === 'string') {
+    const isoMatch = date.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+      year = parseInt(isoMatch[1]);
+      month = parseInt(isoMatch[2]) - 1;
+      day = parseInt(isoMatch[3]);
+    } else {
+      const d = new Date(date);
+      if (isNaN(d.getTime())) return '';
+      year = d.getFullYear();
+      month = d.getMonth();
+      day = d.getDate();
+    }
+  } else {
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return '';
+    year = d.getFullYear();
+    month = d.getMonth();
+    day = d.getDate();
+  }
+  
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${months[month]} ${day}, ${year}`;
 }
 
 // Parse departments from JSON string

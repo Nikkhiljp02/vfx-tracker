@@ -1,7 +1,7 @@
 'use client';
 
 import { useVFXStore } from '@/lib/store';
-import { getUniqueLeads, getUniqueEpisodes, getUniqueSequences, getUniqueTurnovers } from '@/lib/utils';
+import { getUniqueLeads, getUniqueEpisodes, getUniqueSequences, getUniqueTurnovers, formatDate } from '@/lib/utils';
 import { useDebounce } from '@/lib/hooks';
 import { Filter, X, Search, List, CheckSquare, EyeOff } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
@@ -558,11 +558,11 @@ export default function FilterPanel({
                   <label className="block text-xs text-gray-500 mb-0.5">From</label>
                   <input
                     type="date"
-                    value={filters?.dateRange?.from ? new Date(filters.dateRange.from).toISOString().split('T')[0] : ''}
+                    value={formatDate(filters?.dateRange?.from)}
                     onChange={(e) => setFilters({ 
                       dateRange: { 
                         ...(filters?.dateRange ?? { from: null, to: null }), 
-                        from: e.target.value ? new Date(e.target.value) : null 
+                        from: e.target.value || null 
                       } 
                     })}
                     className="w-full px-2 py-1 text-xs border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -572,11 +572,11 @@ export default function FilterPanel({
                   <label className="block text-xs text-gray-500 mb-0.5">To</label>
                   <input
                     type="date"
-                    value={filters?.dateRange?.to ? new Date(filters.dateRange.to).toISOString().split('T')[0] : ''}
+                    value={formatDate(filters?.dateRange?.to)}
                     onChange={(e) => setFilters({ 
                       dateRange: { 
                         ...(filters?.dateRange ?? { from: null, to: null }), 
-                        to: e.target.value ? new Date(e.target.value) : null 
+                        to: e.target.value || null 
                       } 
                     })}
                     className="w-full px-2 py-1 text-xs border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500"

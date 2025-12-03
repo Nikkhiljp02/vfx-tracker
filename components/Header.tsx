@@ -8,6 +8,7 @@ import { useVFXStore } from '@/lib/store';
 import { useKeyboardShortcut } from '@/lib/hooks';
 import { clearAllCaches } from '@/lib/cache';
 import { exportToExcel, downloadTemplate, parseExcelFile, validateImportData, validateUpdateData } from '@/lib/excel';
+import { formatDate } from '@/lib/utils';
 import NewShowModal from './NewShowModal';
 import NewShotModal from './NewShotModal';
 import StatusManagementModal from './StatusManagementModal';
@@ -501,14 +502,14 @@ export default function Header() {
                 fieldChanges.push({ field: 'Bid (MDs)', oldValue: existingTask.bidMds, newValue: taskData.bidMds });
               }
               
-              const oldInternalEta = existingTask.internalEta ? new Date(existingTask.internalEta).toISOString().split('T')[0] : null;
-              const newInternalEta = taskData.internalEta ? new Date(taskData.internalEta).toISOString().split('T')[0] : null;
+              const oldInternalEta = formatDate(existingTask.internalEta);
+              const newInternalEta = formatDate(taskData.internalEta);
               if (oldInternalEta !== newInternalEta) {
                 fieldChanges.push({ field: 'Internal ETA', oldValue: oldInternalEta, newValue: newInternalEta });
               }
               
-              const oldClientEta = existingTask.clientEta ? new Date(existingTask.clientEta).toISOString().split('T')[0] : null;
-              const newClientEta = taskData.clientEta ? new Date(taskData.clientEta).toISOString().split('T')[0] : null;
+              const oldClientEta = formatDate(existingTask.clientEta);
+              const newClientEta = formatDate(taskData.clientEta);
               if (oldClientEta !== newClientEta) {
                 fieldChanges.push({ field: 'Client ETA', oldValue: oldClientEta, newValue: newClientEta });
               }

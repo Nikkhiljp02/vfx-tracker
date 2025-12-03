@@ -3,7 +3,7 @@
 import { Task, StatusOption } from '@/lib/types';
 import { useState, useMemo } from 'react';
 import { useVFXStore } from '@/lib/store';
-import { formatDisplayDate, isValidStatusTransition, incrementVersion } from '@/lib/utils';
+import { formatDisplayDate, formatDate, isValidStatusTransition, incrementVersion } from '@/lib/utils';
 import { Pencil, Save, X, Lock } from 'lucide-react';
 
 interface TaskCellProps {
@@ -202,8 +202,8 @@ export default function TaskCell({ task }: TaskCellProps) {
           <label className="block text-xs font-medium text-gray-700">Int ETA</label>
           <input
             type="date"
-            value={editedTask.internalEta ? new Date(editedTask.internalEta).toISOString().split('T')[0] : ''}
-            onChange={(e) => setEditedTask({ ...editedTask, internalEta: e.target.value ? new Date(e.target.value) : null })}
+            value={formatDate(editedTask.internalEta)}
+            onChange={(e) => setEditedTask({ ...editedTask, internalEta: e.target.value || null })}
             className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
           />
         </div>
@@ -213,8 +213,8 @@ export default function TaskCell({ task }: TaskCellProps) {
           <label className="block text-xs font-medium text-gray-700">Client ETA</label>
           <input
             type="date"
-            value={editedTask.clientEta ? new Date(editedTask.clientEta).toISOString().split('T')[0] : ''}
-            onChange={(e) => setEditedTask({ ...editedTask, clientEta: e.target.value ? new Date(e.target.value) : null })}
+            value={formatDate(editedTask.clientEta)}
+            onChange={(e) => setEditedTask({ ...editedTask, clientEta: e.target.value || null })}
             className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
           />
         </div>
@@ -236,8 +236,8 @@ export default function TaskCell({ task }: TaskCellProps) {
           <label className="block text-xs font-medium text-gray-700">Delivered Date</label>
           <input
             type="date"
-            value={editedTask.deliveredDate ? new Date(editedTask.deliveredDate).toISOString().split('T')[0] : ''}
-            onChange={(e) => setEditedTask({ ...editedTask, deliveredDate: e.target.value ? new Date(e.target.value) : null })}
+            value={formatDate(editedTask.deliveredDate)}
+            onChange={(e) => setEditedTask({ ...editedTask, deliveredDate: e.target.value || null })}
             className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
           />
         </div>

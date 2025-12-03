@@ -43,10 +43,10 @@ export interface Task {
   leadName: string | null;
   dependencies: string | null; // JSON string
   bidMds: number | null;
-  internalEta: Date | null;
-  clientEta: Date | null;
+  internalEta: Date | string | null;  // Can be Date or ISO string
+  clientEta: Date | string | null;     // Can be Date or ISO string
   deliveredVersion: string | null;
-  deliveredDate: Date | null;
+  deliveredDate: Date | string | null; // Can be Date or ISO string
   createdDate: Date;
   updatedDate: Date;
   shot?: Shot;
@@ -124,8 +124,8 @@ export interface TrackerFilters {
   sequences: string[]; // Filter by sequence (SQ010, SQ020, etc.)
   turnovers: string[]; // Filter by turnover (TO01, TO02, etc.)
   dateRange: {
-    from: Date | null;
-    to: Date | null;
+    from: Date | string | null;
+    to: Date | string | null;
   };
 }
 

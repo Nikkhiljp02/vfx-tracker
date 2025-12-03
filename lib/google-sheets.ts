@@ -628,35 +628,37 @@ export async function detectSheetChanges(
       hasChanges = true;
     }
 
-    // Check dates
-    const currentInternalEta = currentTask.internalEta 
-      ? new Date(currentTask.internalEta).toISOString().split('T')[0] 
-      : null;
-    const newInternalEta = update.updates.internalEta 
-      ? new Date(update.updates.internalEta).toISOString().split('T')[0] 
-      : null;
+    // Check dates - use string comparison to avoid timezone issues
+    const normalizeDate = (d: any): string | null => {
+      if (!d) return null;
+      if (typeof d === 'string') {
+        const match = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (match) return `${match[1]}-${match[2]}-${match[3]}`;
+      }
+      const date = new Date(d);
+      if (isNaN(date.getTime())) return null;
+      const year = date.getFullYear();
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const day = date.getDate().toString().padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    
+    const currentInternalEta = normalizeDate(currentTask.internalEta);
+    const newInternalEta = normalizeDate(update.updates.internalEta);
     if (currentInternalEta !== newInternalEta) {
       taskChanges.internalEta = update.updates.internalEta;
       hasChanges = true;
     }
 
-    const currentClientEta = currentTask.clientEta 
-      ? new Date(currentTask.clientEta).toISOString().split('T')[0] 
-      : null;
-    const newClientEta = update.updates.clientEta 
-      ? new Date(update.updates.clientEta).toISOString().split('T')[0] 
-      : null;
+    const currentClientEta = normalizeDate(currentTask.clientEta);
+    const newClientEta = normalizeDate(update.updates.clientEta);
     if (currentClientEta !== newClientEta) {
       taskChanges.clientEta = update.updates.clientEta;
       hasChanges = true;
     }
 
-    const currentDeliveredDate = currentTask.deliveredDate 
-      ? new Date(currentTask.deliveredDate).toISOString().split('T')[0] 
-      : null;
-    const newDeliveredDate = update.updates.deliveredDate 
-      ? new Date(update.updates.deliveredDate).toISOString().split('T')[0] 
-      : null;
+    const currentDeliveredDate = normalizeDate(currentTask.deliveredDate);
+    const newDeliveredDate = normalizeDate(update.updates.deliveredDate);
     if (currentDeliveredDate !== newDeliveredDate) {
       taskChanges.deliveredDate = update.updates.deliveredDate;
       hasChanges = true;
