@@ -159,10 +159,8 @@ export async function POST(req: NextRequest) {
       where: { status: { not: 'Archived' } }, // Exclude archived shows
       include: {
         shots: {
-          where: { isActive: true },
           include: {
             tasks: {
-              where: { isActive: true },
               orderBy: { department: 'asc' }
             }
           },
