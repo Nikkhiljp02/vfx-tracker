@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Create new award sheet entry
+// POST - Create or update award sheet entry (upsert)
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
@@ -93,8 +93,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const shot = await prisma.awardSheet.create({
-      data: {
+    // Use upsert to create or update if exists
+    const shot = await prisma.awardSheet.upsert({
+      where: {
+        showName_shotName: {
+          showName,
+          shotName,
+        },
+      },
+      update: {
+        customFields: JSON.stringify(customFields || {}),
+      },
+      create: {
         showName,
         shotName,
         customFields: JSON.stringify(customFields || {}),
@@ -106,18 +116,10 @@ export async function POST(request: NextRequest) {
       customFields: JSON.parse(shot.customFields),
     }, { status: 201 });
   } catch (error: any) {
-    console.error('Error creating award sheet entry:', error);
-    
-    // Handle unique constraint violation
-    if (error.code === 'P2002') {
-      return NextResponse.json(
-        { error: 'Shot already exists in award sheet' },
-        { status: 409 }
-      );
-    }
+    console.error('Error creating/updating award sheet entry:', error);
     
     return NextResponse.json(
-      { error: 'Failed to create award sheet entry' },
+      { error: 'Failed to create/update award sheet entry' },
       { status: 500 }
     );
   }
