@@ -137,11 +137,16 @@ export default function AwardSheetViewOptimized() {
   });
 
   // Action handlers
-  const addShot = () => addShotMutation.mutate({
-    showName: 'New Show',
-    shotName: 'New Shot',
-    customFields: {},
-  });
+  const addShot = () => {
+    // Generate unique shot name to prevent upsert from updating existing
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+    addShotMutation.mutate({
+      showName: 'New Show',
+      shotName: `Shot_${randomSuffix}_${timestamp}`,
+      customFields: {},
+    });
+  };
 
   const deleteShot = (id: string) => {
     if (!confirm('Delete this shot?')) return;

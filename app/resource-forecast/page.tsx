@@ -7,11 +7,12 @@ import ResourceForecastView from '@/components/ResourceForecastView';
 import AllocationListView from '@/components/AllocationListView';
 import ResourceDashboard from '@/components/ResourceDashboard';
 import ResourceCapacityView from '@/components/ResourceCapacityView';
+import AwardSheetViewOptimized from '@/components/AwardSheetViewOptimized';
 
 export default function ResourceForecastPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'forecast' | 'allocations' | 'capacity'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'forecast' | 'allocations' | 'capacity' | 'awardsheet'>('dashboard');
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -92,6 +93,16 @@ export default function ResourceForecastPage() {
           >
             Resource Capacity
           </button>
+          <button
+            onClick={() => setActiveTab('awardsheet')}
+            className={`flex-shrink-0 px-4 md:px-6 py-3 text-xs md:text-sm font-medium transition-colors touch-manipulation whitespace-nowrap ${
+              activeTab === 'awardsheet'
+                ? 'bg-gray-900 text-white border-b-2 border-blue-500'
+                : 'text-gray-400 hover:text-white active:bg-gray-700'
+            }`}
+          >
+            🏆 Award Sheet
+          </button>
         </div>
       </div>
 
@@ -114,8 +125,10 @@ export default function ResourceForecastPage() {
           <ResourceForecastView />
         ) : activeTab === 'allocations' ? (
           <AllocationListView />
-        ) : (
+        ) : activeTab === 'capacity' ? (
           <ResourceCapacityView />
+        ) : (
+          <AwardSheetViewOptimized />
         )}
       </div>
     </div>
