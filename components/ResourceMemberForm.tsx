@@ -86,9 +86,11 @@ export default function ResourceMemberForm({ isOpen, onClose, onSuccess, member 
         throw new Error(data.error || `Failed to ${isEditMode ? 'update' : 'create'} member`);
       }
 
-      // Invalidate cache to refresh member list
-      queryClient.invalidateQueries({ queryKey: ['resourceMembers'] });
-      queryClient.invalidateQueries({ queryKey: ['resourceForecast'] });
+      // Invalidate ALL resourceMembers queries (including all filter variations)
+      await queryClient.invalidateQueries({ queryKey: ['resourceMembers'] });
+      await queryClient.invalidateQueries({ queryKey: ['resourceForecast'] });
+      // Force immediate refetch to ensure UI updates
+      await queryClient.refetchQueries({ queryKey: ['resourceMembers'] });
 
       onSuccess();
       handleClose();

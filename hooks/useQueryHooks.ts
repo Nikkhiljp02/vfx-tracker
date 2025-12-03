@@ -20,9 +20,9 @@ export function useResourceMembers(department?: string, shift?: string, isActive
       if (!res.ok) throw new Error('Failed to fetch members');
       return res.json();
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    staleTime: 30 * 1000, // 30 seconds - quick refresh for updates
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
   });
 }
 
@@ -39,31 +39,41 @@ export function useAddResourceMember() {
       if (!res.ok) throw new Error('Failed to add member');
       return res.json();
     },
-    onMutate: async (newMember) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ['resourceMembers'] });
-
-      // Snapshot previous value
-      const previousMembers = queryClient.getQueryData(['resourceMembers']);
-
-      // Optimistically update
-      queryClient.setQueryData(['resourceMembers'], (old: any) => {
-        return old ? [...old, { ...newMember, id: 'temp-' + Date.now() }] : [newMember];
-      });
-
-      return { previousMembers };
-    },
-    onError: (err, newMember, context: any) => {
-      // Rollback on error
-      queryClient.setQueryData(['resourceMembers'], context.previousMembers);
-      toast.error('Failed to add member');
-    },
     onSuccess: () => {
       toast.success('Member added successfully');
-    },
-    onSettled: () => {
-      // Refetch to ensure consistency
+      // Invalidate ALL resourceMembers queries (all variations)
       queryClient.invalidateQueries({ queryKey: ['resourceMembers'] });
+      queryClient.invalidateQueries({ queryKey: ['resourceForecast'] });
+    },
+    onError: () => {
+      toast.error('Failed to add member');
+    },
+  });
+}
+
+export function useUpdateResourceMember() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await fetch(`/api/resource/members/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('Failed to update member');
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success('Member updated successfully');
+      // Invalidate ALL resourceMembers queries immediately
+      queryClient.invalidateQueries({ queryKey: ['resourceMembers'] });
+      queryClient.invalidateQueries({ queryKey: ['resourceForecast'] });
+      // Force refetch
+      queryClient.refetchQueries({ queryKey: ['resourceMembers'] });
+    },
+    onError: () => {
+      toast.error('Failed to update member');
     },
   });
 }
