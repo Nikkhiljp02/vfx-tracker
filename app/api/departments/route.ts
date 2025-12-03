@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// Cache for 5 minutes (departments rarely change)
-export const revalidate = 300;
+// Force dynamic since we use searchParams
+export const dynamic = 'force-dynamic';
 
 // GET all departments
 export async function GET(request: NextRequest) {

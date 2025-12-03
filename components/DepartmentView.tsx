@@ -715,17 +715,8 @@ export default function DepartmentView({ detailedView }: DepartmentViewProps) {
                                 isSelected ? 'ring-4 ring-blue-400 ring-opacity-50 scale-105' : ''
                               }`}
                               style={{ backgroundColor: (() => {
-                                const statusColors: any = {
-                                  'YTS': '#9CA3AF',
-                                  'WIP': '#3B82F6',
-                                  'Int App': '#10B981',
-                                  'AWF': '#F59E0B',
-                                  'C APP': '#22C55E',
-                                  'C KB': '#EF4444',
-                                  'OMIT': '#6B7280',
-                                  'HOLD': '#8B5CF6',
-                                };
-                                return statusColors[task.status] || '#6B7280';
+                                const statusOption = statusOptions.find(s => s.statusName === task.status);
+                                return statusOption?.colorCode || '#6B7280';
                               })() }}
                               onClick={hasEditPermission ? (e) => handleCellClick(cellId, e, idx) : undefined}
                               onContextMenu={hasEditPermission 
