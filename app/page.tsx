@@ -13,7 +13,6 @@ import ResourceForecastView from '@/components/ResourceForecastView';
 import ResourceDashboard from '@/components/ResourceDashboard';
 import AllocationListView from '@/components/AllocationListView';
 import ResourceCapacityView from '@/components/ResourceCapacityView';
-import AwardSheetViewOptimized from '@/components/AwardSheetViewOptimized';
 import Header from '@/components/Header';
 import FilterPanel from '@/components/FilterPanel';
 import MobileNav from '@/components/MobileNav';
@@ -36,7 +35,7 @@ export default function Home() {
     }
     return false;
   });
-  const [activeView, setActiveView] = useState<'tracker' | 'department' | 'delivery' | 'dashboard' | 'feedback' | 'resource-forecast' | 'award-sheet'>('dashboard');
+  const [activeView, setActiveView] = useState<'tracker' | 'department' | 'delivery' | 'dashboard' | 'feedback' | 'resource-forecast'>('dashboard');
   const [resourceTab, setResourceTab] = useState<'summary' | 'forecast' | 'allocations' | 'capacity'>('summary');
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [showUnhideModal, setShowUnhideModal] = useState(false);
@@ -165,34 +164,19 @@ export default function Home() {
             Feedback
           </button>
           {(session?.user as any)?.role === 'ADMIN' || (session?.user as any)?.role === 'RESOURCE' ? (
-            <>
-              <button
-                onClick={() => setActiveView('resource-forecast')}
-                className={`
-                  flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors
-                  ${activeView === 'resource-forecast'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                  }
-                `}
-              >
-                <Users size={18} />
-                Resources
-              </button>
-              <button
-                onClick={() => setActiveView('award-sheet')}
-                className={`
-                  flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors
-                  ${activeView === 'award-sheet'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                  }
-                `}
-              >
-                <LayoutGrid size={18} />
-                Award
-              </button>
-            </>
+            <button
+              onClick={() => setActiveView('resource-forecast')}
+              className={`
+                flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors
+                ${activeView === 'resource-forecast'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                }
+              `}
+            >
+              <Users size={18} />
+              Resources
+            </button>
           ) : null}
         </div>
 
@@ -202,8 +186,6 @@ export default function Home() {
           <DeliveryView />
         ) : activeView === 'feedback' ? (
           <FeedbackView />
-        ) : activeView === 'award-sheet' ? (
-          <AwardSheetViewOptimized />
         ) : activeView === 'resource-forecast' ? (
           <ResourceProvider>
             <div className="h-full flex flex-col bg-gray-900">

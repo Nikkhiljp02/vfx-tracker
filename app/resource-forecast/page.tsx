@@ -6,13 +6,14 @@ import { useRouter } from 'next/navigation';
 import ResourceForecastView from '@/components/ResourceForecastView';
 import AllocationListView from '@/components/AllocationListView';
 import ResourceDashboard from '@/components/ResourceDashboard';
-import ResourceCapacityWithAward from '@/components/ResourceCapacityWithAward';
-import { LayoutDashboard, CalendarDays, ListTodo, BarChart3 } from 'lucide-react';
+import ResourceCapacityView from '@/components/ResourceCapacityView';
+import AwardSheetViewOptimized from '@/components/AwardSheetViewOptimized';
+import { LayoutDashboard, CalendarDays, ListTodo, BarChart3, Trophy } from 'lucide-react';
 
 export default function ResourceForecastPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'forecast' | 'allocations' | 'capacity'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'forecast' | 'allocations' | 'capacity' | 'award'>('dashboard');
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -55,7 +56,8 @@ export default function ResourceForecastPage() {
     { id: 'dashboard', label: 'Summary', icon: LayoutDashboard, shortLabel: 'Summary' },
     { id: 'forecast', label: 'Resource Forecast', icon: CalendarDays, shortLabel: 'Forecast' },
     { id: 'allocations', label: 'Allocations', icon: ListTodo, shortLabel: 'Allocations' },
-    { id: 'capacity', label: 'Capacity & Award', icon: BarChart3, shortLabel: 'Capacity' },
+    { id: 'capacity', label: 'Resource Capacity', icon: BarChart3, shortLabel: 'Capacity' },
+    { id: 'award', label: 'Award Sheet', icon: Trophy, shortLabel: 'Award' },
   ];
 
   return (
@@ -104,8 +106,10 @@ export default function ResourceForecastPage() {
           <ResourceForecastView />
         ) : activeTab === 'allocations' ? (
           <AllocationListView />
+        ) : activeTab === 'capacity' ? (
+          <ResourceCapacityView />
         ) : (
-          <ResourceCapacityWithAward />
+          <AwardSheetViewOptimized />
         )}
       </div>
     </div>
