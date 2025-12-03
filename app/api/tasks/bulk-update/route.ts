@@ -121,7 +121,8 @@ export async function POST(request: NextRequest) {
             : null,
           newValue: typeof newValue === 'object' ? JSON.stringify(newValue) : String(newValue),
           fullEntityData: JSON.stringify(task),
-          userName: 'System', // TODO: Replace with actual user when auth is implemented
+          userName: user.username || user.email || 'Unknown',
+          userId: user.id,
           timestamp: new Date(),
           isReversed: false
         });

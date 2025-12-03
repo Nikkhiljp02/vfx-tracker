@@ -235,14 +235,22 @@ export function exportToExcel(shows: Show[], filename: string = 'vfx_tracker_exp
   XLSX.utils.book_append_sheet(workbook, shotsSheet, 'Shots');
 
   // Create shows summary sheet
-  const showsSummary = shows.map((show) => ({
-    'Show Name': show.showName,
-    'Client': show.clientName || '',
-    'Status': show.status,
-    'Departments': JSON.parse(show.departments).join(', '),
-    'Total Shots': show.shots?.length || 0,
-    'Notes': show.notes || '',
-  }));
+  const showsSummary = shows.map((show) => {
+    let departments: string[] = [];
+    try {
+      departments = JSON.parse(show.departments);
+    } catch {
+      departments = [];
+    }
+    return {
+      'Show Name': show.showName,
+      'Client': show.clientName || '',
+      'Status': show.status,
+      'Departments': departments.join(', '),
+      'Total Shots': show.shots?.length || 0,
+      'Notes': show.notes || '',
+    };
+  });
 
   const showsSheet = XLSX.utils.json_to_sheet(showsSummary);
   showsSheet['!cols'] = [

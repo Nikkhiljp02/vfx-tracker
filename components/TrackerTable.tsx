@@ -278,24 +278,18 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
       // Ctrl/Cmd + C - Copy hovered shot name
       if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
         const hoveredShot = hoveredShotNameRef.current;
-        console.log('Ctrl+C pressed, hoveredShotName:', hoveredShot);
-        console.log('Active element:', document.activeElement?.tagName);
         
         if (hoveredShot && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
           e.preventDefault();
           e.stopPropagation();
           
-          console.log('Attempting to copy:', hoveredShot);
-          
           // Try modern clipboard API first
           if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(hoveredShot)
               .then(() => {
-                console.log(`✓ Copied shot name: ${hoveredShot}`);
-                // Optional: You could add a toast notification here
+                // Successfully copied
               })
-              .catch(err => {
-                console.error('Clipboard API failed:', err);
+              .catch(() => {
                 // Fallback method
                 fallbackCopyTextToClipboard(hoveredShot);
               });
@@ -324,14 +318,9 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
     textArea.select();
     
     try {
-      const successful = document.execCommand('copy');
-      if (successful) {
-        console.log(`✓ Copied shot name (fallback): ${text}`);
-      } else {
-        console.error('Fallback copy failed');
-      }
-    } catch (err) {
-      console.error('Fallback copy error:', err);
+      document.execCommand('copy');
+    } catch {
+      // Fallback copy failed silently
     }
     
     document.body.removeChild(textArea);
@@ -1223,46 +1212,35 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
   const handleDeleteShow = async (showId: string) => {
     const show = shows.find(s => s.id === showId);
     if (!show) {
-      console.error('Show not found in state:', showId);
       return;
     }
-
-    console.log('Attempting to delete show:', { id: showId, name: show.showName });
 
     const confirmed = confirm(
       `Are you sure you want to delete "${show.showName}"? This will delete ALL shots and tasks for this show and cannot be undone.`
     );
 
     if (!confirmed) {
-      console.log('Delete cancelled by user');
       return;
     }
 
     setDeleting(true);
     try {
-      console.log('Sending DELETE request to /api/shows/' + showId);
       const response = await fetch(`/api/shows/${showId}`, {
         method: 'DELETE',
       });
 
-      console.log('DELETE response status:', response.status);
       const responseData = await response.json();
-      console.log('DELETE response data:', responseData);
 
       if (response.ok) {
         alert(`Show "${show.showName}" deleted successfully!`);
         // Fetch updated shows to refresh the table instantly
-        console.log('Fetching updated shows list...');
         const showsRes = await fetch('/api/shows');
         const showsData = await showsRes.json();
-        console.log('Updated shows count:', showsData.length);
         setShows(showsData);
       } else {
-        console.error('Delete failed with error:', responseData);
         alert(`Failed to delete show: ${responseData.error || 'Unknown error'}`);
       }
-    } catch (error) {
-      console.error('Error deleting show:', error);
+    } catch {
       alert('Failed to delete show. Please try again.');
     } finally {
       setDeleting(false);
@@ -2039,11 +2017,9 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
                   style={{ left: `${getShotLeft()}px`, width: getColumnWidth('shot'), minWidth: getColumnWidth('shot') }}
                   onMouseEnter={() => {
                     hoveredShotNameRef.current = row.shotName;
-                    console.log('Hovering shot:', row.shotName);
                   }}
                   onMouseLeave={() => {
                     hoveredShotNameRef.current = null;
-                    console.log('Left shot hover');
                   }}
                   onClick={(e) => {
                     e.stopPropagation();

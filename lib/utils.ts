@@ -5,7 +5,7 @@ export function transformToTrackerRows(shows: Show[]): TrackerRow[] {
   const rows: TrackerRow[] = [];
 
   shows.forEach((show) => {
-    const showDepartments = JSON.parse(show.departments) as string[];
+    const showDepartments = parseDepartments(show.departments);
 
     show.shots?.forEach((shot) => {
       // Group tasks by department

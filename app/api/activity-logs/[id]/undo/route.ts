@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { auth } from '@/lib/auth';
 
 // POST /api/activity-logs/[id]/undo - Undo a specific change
 export async function POST(
@@ -7,6 +8,24 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const user = session.user as { id: string; username?: string; email?: string; role?: string };
+
+    // Only ADMIN and COORDINATOR roles can undo changes
+    if (user.role !== 'ADMIN' && user.role !== 'COORDINATOR' && !user.role?.toUpperCase().includes('COORDINATOR')) {
+      return NextResponse.json(
+        { error: 'Forbidden - Only admins and coordinators can undo changes' },
+        { status: 403 }
+      );
+    }
+
     const { id: logId } = await params;
 
     // @ts-ignore - ActivityLog model will be available after prisma generate
@@ -237,7 +256,8 @@ export async function POST(
         fieldName: log.fieldName,
         oldValue: log.newValue,
         newValue: log.oldValue,
-        userName: 'System (Undo)',
+        userName: `${user.username || user.email || 'Unknown'} (Undo)`,
+        userId: user.id,
       },
     });
 

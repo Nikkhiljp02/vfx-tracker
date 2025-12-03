@@ -19,8 +19,12 @@ export default function MobileFilterDrawer({ isOpen, onClose }: MobileFilterDraw
   const allSequences = [...new Set(shows.flatMap(s => (s.shots || []).map(shot => shot.sequence)).filter(Boolean))].sort();
   const allTurnovers = [...new Set(shows.flatMap(s => (s.shots || []).map(shot => shot.turnover)).filter(Boolean))].sort();
   const allDepartments = [...new Set(shows.flatMap(s => {
-    const depts = s.departments ? JSON.parse(s.departments) : [];
-    return depts;
+    try {
+      const depts = s.departments ? JSON.parse(s.departments) : [];
+      return Array.isArray(depts) ? depts : [];
+    } catch {
+      return [];
+    }
   }))].sort();
   const allStatuses = ['YTS', 'WIP', 'Int App', 'AWF', 'C APP', 'C KB', 'OMIT', 'HOLD'];
   const allLeads = [...new Set(

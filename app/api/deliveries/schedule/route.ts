@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 
 // GET - List all schedules with execution logs
 export async function GET(request: NextRequest) {
   try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const includeCompleted = searchParams.get("includeCompleted") === "true";
 
@@ -39,6 +48,14 @@ export async function GET(request: NextRequest) {
 // POST - Create new schedule
 export async function POST(req: NextRequest) {
   try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const body = await req.json();
     const {
       scheduleType,
@@ -99,6 +116,14 @@ export async function POST(req: NextRequest) {
 // DELETE - Remove schedule or clear completed schedules
 export async function DELETE(req: NextRequest) {
   try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     const clearCompleted = searchParams.get("clearCompleted") === "true";
@@ -138,6 +163,14 @@ export async function DELETE(req: NextRequest) {
 // PATCH - Toggle active status
 export async function PATCH(req: NextRequest) {
   try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const body = await req.json();
     const { id, isActive } = body;
 

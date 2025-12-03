@@ -284,7 +284,14 @@ export default function ShowsManagementPage() {
                           </td>
                           <td className="px-6 py-4">
                             <div className="text-sm text-gray-600">
-                              {JSON.parse(show.departments).join(", ")}
+                              {(() => {
+                                try {
+                                  const depts = JSON.parse(show.departments);
+                                  return Array.isArray(depts) ? depts.join(", ") : "";
+                                } catch {
+                                  return "";
+                                }
+                              })()}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">

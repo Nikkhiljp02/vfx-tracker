@@ -45,7 +45,6 @@ export default function StatusManagementModal({
 
   const handleAddStatus = async () => {
     if (!newStatus.name.trim()) {
-      console.log('Add status failed: name is empty');
       return;
     }
 
@@ -58,7 +57,6 @@ export default function StatusManagementModal({
         order: maxOrder + 1,
         isActive: true,
       };
-      console.log('Adding status with payload:', payload);
       
       const response = await fetch('/api/status-options', {
         method: 'POST',
@@ -66,9 +64,7 @@ export default function StatusManagementModal({
         body: JSON.stringify(payload),
       });
 
-      console.log('Add status response:', response.status, response.statusText);
       const responseData = await response.json();
-      console.log('Add status response data:', responseData);
 
       if (response.ok) {
         setNewStatus({ name: '', color: '#3B82F6' });
@@ -111,18 +107,15 @@ export default function StatusManagementModal({
 
     setIsLoading(true);
     try {
-      console.log('Deleting status:', id);
       const response = await fetch(`/api/status-options/${id}`, {
         method: 'DELETE',
       });
 
-      console.log('Delete response:', response.status);
       if (response.ok) {
         await fetchStatuses();
         onUpdate();
       } else {
         const errorData = await response.json();
-        console.error('Delete failed:', errorData);
         alert(`Failed to delete status: ${errorData.error || 'Unknown error'}`);
       }
     } catch (error) {
@@ -136,7 +129,6 @@ export default function StatusManagementModal({
   const handleReactivateStatus = async (id: string) => {
     setIsLoading(true);
     try {
-      console.log('Reactivating status:', id);
       const response = await fetch(`/api/status-options/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
