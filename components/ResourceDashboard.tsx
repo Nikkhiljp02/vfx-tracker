@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, isSaturday, isSunday, startOfMonth, endOfMonth } from 'date-fns';
 import { useResourceMembers, useResourceAllocations } from '@/hooks/useQueryHooks';
 import { Users, Calendar, Clock, Award, BarChart3, TrendingUp, Activity, Zap, Target, AlertTriangle, CheckCircle, XCircle, ArrowUpRight, ArrowDownRight, Briefcase, UserCheck, UserX } from 'lucide-react';
 
 export default function ResourceDashboard() {
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [workingWeekends, setWorkingWeekends] = useState<Set<string>>(new Set());
   
   const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
   const startDateStr = format(currentWeekStart, 'yyyy-MM-dd');
@@ -17,15 +18,76 @@ export default function ResourceDashboard() {
   const { data: allocations = [], isLoading: allocationsLoading } = useResourceAllocations(startDateStr, endDateStr);
   const loading = membersLoading || allocationsLoading;
 
+  // Load working weekends from localStorage and allocations
+  useEffect(() => {
+    const weekendWorkingDates = new Set<string>();
+    
+    // Check allocations for weekend working flags
+    allocations.forEach((alloc: any) => {
+      if (alloc.isWeekendWorking) {
+        const dateKey = alloc.date?.split('T')[0] || alloc.date;
+        weekendWorkingDates.add(dateKey);
+      }
+    });
+    
+    // Also check localStorage for manually toggled weekends
+    const storedWeekends = localStorage.getItem('workingWeekends');
+    if (storedWeekends) {
+      try {
+        const parsedWeekends = JSON.parse(storedWeekends);
+        parsedWeekends.forEach((dateKey: string) => weekendWorkingDates.add(dateKey));
+      } catch (e) {
+        console.error('Error parsing working weekends:', e);
+      }
+    }
+    
+    setWorkingWeekends(weekendWorkingDates);
+  }, [allocations, currentWeekStart]);
+
   const weekDays = useMemo(() => {
     return eachDayOfInterval({ start: currentWeekStart, end: weekEnd });
   }, [currentWeekStart, weekEnd]);
+
+  // Check if a date is a working day (including working weekends)
+  const isWorkingDay = (date: Date) => {
+    const dateKey = format(date, 'yyyy-MM-dd');
+    if (!isSaturday(date) && !isSunday(date)) return true; // Weekdays are always working
+    return workingWeekends.has(dateKey); // Weekends only if marked as working
+  };
+
+  // Calculate which weekend days are considered working this week
+  const weekendWorkingStatus = useMemo(() => {
+    let saturdayWorking = false;
+    let sundayWorking = false;
+    
+    weekDays.forEach((day: Date) => {
+      const dateKey = format(day, 'yyyy-MM-dd');
+      if (isSaturday(day) && workingWeekends.has(dateKey)) {
+        saturdayWorking = true;
+      }
+      if (isSunday(day) && workingWeekends.has(dateKey)) {
+        sundayWorking = true;
+      }
+    });
+    
+    return { saturdayWorking, sundayWorking };
+  }, [weekDays, workingWeekends]);
+
+  // Generate weekend status text
+  const getWeekendStatusText = () => {
+    const { saturdayWorking, sundayWorking } = weekendWorkingStatus;
+    if (saturdayWorking && sundayWorking) return '(Saturday/Sunday: Considered)';
+    if (saturdayWorking) return '(Saturday: Considered)';
+    if (sundayWorking) return '(Sunday: Considered)';
+    return null;
+  };
 
   // Calculate overall statistics
   const overallStats = useMemo(() => {
     const activeMembers = members.filter((m: any) => m.isActive);
     
-    const workingDaysCount = weekDays.filter((day: Date) => !isSaturday(day) && !isSunday(day)).length;
+    // Count working days including working weekends
+    const workingDaysCount = weekDays.filter((day: Date) => isWorkingDay(day)).length;
     const totalCapacity = activeMembers.length * workingDaysCount;
 
     let allocatedManDays = 0;
@@ -42,6 +104,10 @@ export default function ResourceDashboard() {
     const adjustedCapacity = totalCapacity - leaveDays;
     const availableManDays = Math.max(0, adjustedCapacity - allocatedManDays);
     const occupancyRate = adjustedCapacity > 0 ? (allocatedManDays / adjustedCapacity) * 100 : 0;
+    
+    // Calculate over/under utilization
+    const utilizationDiff = allocatedManDays - adjustedCapacity;
+    const isOverUtilized = utilizationDiff > 0;
 
     return {
       totalMembers: members.length,
@@ -54,13 +120,15 @@ export default function ResourceDashboard() {
       leaveDays,
       occupancyRate,
       workingDays: workingDaysCount,
+      utilizationDiff: Math.abs(utilizationDiff),
+      isOverUtilized,
     };
-  }, [members, allocations, weekDays]);
+  }, [members, allocations, weekDays, workingWeekends]);
 
   // Department statistics
   const departmentStats = useMemo(() => {
     const departments = ['Roto', 'Paint', 'Comp', 'MMRA'];
-    const workingDaysCount = weekDays.filter((day: Date) => !isSaturday(day) && !isSunday(day)).length;
+    const workingDaysCount = weekDays.filter((day: Date) => isWorkingDay(day)).length;
 
     return departments.map(dept => {
       const deptMembers = members.filter((m: any) => m.department === dept && m.isActive);
@@ -83,6 +151,10 @@ export default function ResourceDashboard() {
       const adjustedCapacity = totalCapacity - leaveDays;
       const availableManDays = Math.max(0, adjustedCapacity - allocatedManDays);
       const occupancyRate = adjustedCapacity > 0 ? (allocatedManDays / adjustedCapacity) * 100 : 0;
+      
+      // Calculate over/under utilization per department
+      const utilizationDiff = allocatedManDays - adjustedCapacity;
+      const isOverUtilized = utilizationDiff > 0;
 
       return {
         department: dept,
@@ -92,9 +164,11 @@ export default function ResourceDashboard() {
         available: availableManDays,
         onLeave: leaveDays,
         occupancyRate,
+        utilizationDiff: Math.abs(utilizationDiff),
+        isOverUtilized,
       };
     });
-  }, [members, allocations, weekDays]);
+  }, [members, allocations, weekDays, workingWeekends]);
 
   // Show statistics
   const showStats = useMemo(() => {
@@ -130,11 +204,13 @@ export default function ResourceDashboard() {
 
   // Critical metrics
   const criticalMetrics = useMemo(() => {
+    const workingDaysCount = weekDays.filter((day: Date) => isWorkingDay(day)).length;
+    
     const overallocatedMembers = members.filter((m: any) => {
       if (!m.isActive) return false;
       const memberAllocs = allocations.filter((a: any) => a.resourceId === m.id && !a.isLeave);
       const totalAllocated = memberAllocs.reduce((sum: number, a: any) => sum + a.manDays, 0);
-      return totalAllocated > overallStats.workingDays;
+      return totalAllocated > workingDaysCount;
     });
 
     const idleMembers = members.filter((m: any) => {
@@ -153,7 +229,7 @@ export default function ResourceDashboard() {
       onLeave: membersOnLeave,
       fullyUtilized: Math.max(0, overallStats.activeMembers - overallocatedMembers.length - idleMembers.length - membersOnLeave),
     };
-  }, [members, allocations, overallStats]);
+  }, [members, allocations, overallStats, weekDays, workingWeekends]);
 
   const handlePreviousWeek = () => setCurrentWeekStart(subWeeks(currentWeekStart, 1));
   const handleNextWeek = () => setCurrentWeekStart(addWeeks(currentWeekStart, 1));
@@ -180,7 +256,7 @@ export default function ResourceDashboard() {
             </button>
           </div>
         </div>
-        <div className="flex items-center gap-3 mt-3">
+        <div className="flex items-center gap-3 mt-3 flex-wrap">
           <Calendar className="text-cyan-500" size={16} />
           <span className="text-gray-300 font-medium text-sm">
             {format(currentWeekStart, 'MMM dd')} - {format(weekEnd, 'MMM dd, yyyy')}
@@ -188,6 +264,11 @@ export default function ResourceDashboard() {
           <span className="px-2 py-0.5 bg-cyan-500/10 text-cyan-400 text-xs font-semibold border border-cyan-500/20">
             {overallStats.workingDays} Working Days
           </span>
+          {getWeekendStatusText() && (
+            <span className="px-2 py-0.5 bg-amber-500/10 text-amber-400 text-xs font-semibold border border-amber-500/20">
+              {getWeekendStatusText()}
+            </span>
+          )}
         </div>
       </div>
 
@@ -229,7 +310,12 @@ export default function ResourceDashboard() {
                   <span className="text-xs text-gray-500 uppercase tracking-wider">Capacity</span>
                 </div>
                 <div className="text-3xl font-bold text-white">{overallStats.adjustedCapacity.toFixed(0)}</div>
-                <div className="text-xs text-gray-500 mt-2">Man-days this week</div>
+                <div className="text-xs text-gray-500 mt-2">
+                  Man-days this week
+                  {getWeekendStatusText() && (
+                    <span className="block text-amber-400 mt-1">{getWeekendStatusText()}</span>
+                  )}
+                </div>
               </div>
 
               {/* Allocated */}
@@ -263,6 +349,9 @@ export default function ResourceDashboard() {
                 <div className="flex items-center gap-2">
                   <BarChart3 className="text-cyan-500" size={18} />
                   <span className="text-sm font-semibold text-white">Overall Occupancy Rate</span>
+                  {getWeekendStatusText() && (
+                    <span className="text-xs text-amber-400">{getWeekendStatusText()}</span>
+                  )}
                 </div>
                 <div className="text-right">
                   <span className={`text-2xl font-bold ${
@@ -283,7 +372,7 @@ export default function ResourceDashboard() {
                   style={{ width: `${Math.min(100, overallStats.occupancyRate)}%` }}
                 />
               </div>
-              <div className="grid grid-cols-4 gap-4 mt-4 pt-4 border-t border-[#1a1a1a]">
+              <div className="grid grid-cols-5 gap-4 mt-4 pt-4 border-t border-[#1a1a1a]">
                 <div>
                   <div className="text-xs text-gray-500 uppercase">Total Capacity</div>
                   <div className="text-lg font-bold text-white mt-1">{overallStats.totalCapacity} MD</div>
@@ -300,6 +389,12 @@ export default function ResourceDashboard() {
                   <div className="text-xs text-gray-500 uppercase">Available</div>
                   <div className="text-lg font-bold text-amber-400 mt-1">{overallStats.availableManDays.toFixed(1)} MD</div>
                 </div>
+                <div>
+                  <div className="text-xs text-gray-500 uppercase">{overallStats.isOverUtilized ? 'Over Utilized' : 'Under Utilized'}</div>
+                  <div className={`text-lg font-bold mt-1 ${overallStats.isOverUtilized ? 'text-red-400' : 'text-cyan-400'}`}>
+                    {overallStats.isOverUtilized ? '+' : '-'}{overallStats.utilizationDiff.toFixed(1)} MD
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -310,6 +405,9 @@ export default function ResourceDashboard() {
                 <div className="flex items-center gap-2 mb-4">
                   <Briefcase className="text-cyan-500" size={18} />
                   <span className="text-sm font-semibold text-white">Department Performance</span>
+                  {getWeekendStatusText() && (
+                    <span className="text-xs text-amber-400 ml-auto">{getWeekendStatusText()}</span>
+                  )}
                 </div>
                 <div className="space-y-3">
                   {departmentStats.map((dept) => (
@@ -336,6 +434,9 @@ export default function ResourceDashboard() {
                       <div className="flex items-center justify-between mt-2 text-xs">
                         <span className="text-gray-500">Allocated: <span className="text-emerald-400 font-medium">{dept.allocated.toFixed(1)} MD</span></span>
                         <span className="text-gray-500">Available: <span className="text-amber-400 font-medium">{dept.available.toFixed(1)} MD</span></span>
+                        <span className={`font-medium ${dept.isOverUtilized ? 'text-red-400' : 'text-cyan-400'}`}>
+                          {dept.isOverUtilized ? 'Over' : 'Under'}: {dept.utilizationDiff.toFixed(1)} MD
+                        </span>
                       </div>
                     </div>
                   ))}
