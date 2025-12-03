@@ -359,6 +359,23 @@ export default function FilterPanel({
                 Lead Names
               </label>
               <div className="space-y-1 max-h-24 overflow-y-auto border border-gray-300 rounded-md p-1.5">
+                {/* Unassigned option - always show first */}
+                <label className="flex items-center gap-1.5 cursor-pointer hover:bg-gray-50 px-1 py-0.5 rounded">
+                  <input
+                    type="checkbox"
+                    checked={(filters?.leadNames ?? []).includes('__UNASSIGNED__')}
+                    onChange={(e) => {
+                      const currentLeadNames = filters?.leadNames ?? [];
+                      if (e.target.checked) {
+                        setFilters({ leadNames: [...currentLeadNames, '__UNASSIGNED__'] });
+                      } else {
+                        setFilters({ leadNames: currentLeadNames.filter(l => l !== '__UNASSIGNED__') });
+                      }
+                    }}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-3 h-3"
+                  />
+                  <span className="text-xs text-gray-700 italic">Unassigned</span>
+                </label>
                 {uniqueLeads.length > 0 ? (
                   uniqueLeads.map((lead) => (
                     <label key={lead} className="flex items-center gap-1.5 cursor-pointer hover:bg-gray-50 px-1 py-0.5 rounded">

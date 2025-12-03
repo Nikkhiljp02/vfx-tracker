@@ -51,16 +51,34 @@ export function setCredentials(auth: any, tokens: any) {
   return auth;
 }
 
+// Format date to d-MMM-yy format (e.g., "4-Dec-25")
+function formatDate(dateStr: string | Date | null | undefined): string {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return '';
+  
+  const day = date.getDate();
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = months[date.getMonth()];
+  const year = date.getFullYear().toString().slice(-2);
+  
+  return `${day}-${month}-${year}`;
+}
+
 // Format data for Google Sheets (same as Excel export)
 export function formatDataForSheets(shows: Show[]) {
   const rows: any[][] = [];
   
-  // Header row
+  // Header row - Added EP, SEQ, TO, Frames columns
   rows.push([
     'Show Name',
     'Client',
     'Shot Name',
     'Shot Tag',
+    'EP',
+    'SEQ',
+    'TO',
+    'Frames',
     'Scope of Work',
     'Department',
     'Is Internal',
@@ -84,16 +102,20 @@ export function formatDataForSheets(shows: Show[]) {
           show.clientName || '',
           shot.shotName,
           shot.shotTag,
+          (shot as any).episode || '',
+          (shot as any).sequence || '',
+          (shot as any).turnover || '',
+          (shot as any).frames || '',
           shot.scopeOfWork || '',
           task.department,
           task.isInternal ? 'Yes' : 'No',
           task.status,
           task.leadName || '',
           task.bidMds || '',
-          task.internalEta ? new Date(task.internalEta).toISOString().split('T')[0] : '',
-          task.clientEta ? new Date(task.clientEta).toISOString().split('T')[0] : '',
+          formatDate(task.internalEta),
+          formatDate(task.clientEta),
           task.deliveredVersion || '',
-          task.deliveredDate ? new Date(task.deliveredDate).toISOString().split('T')[0] : '',
+          formatDate(task.deliveredDate),
           shot.id, // Hidden
           task.id, // Hidden
         ]);
@@ -106,6 +128,10 @@ export function formatDataForSheets(shows: Show[]) {
           show.clientName || '',
           shot.shotName,
           shot.shotTag,
+          (shot as any).episode || '',
+          (shot as any).sequence || '',
+          (shot as any).turnover || '',
+          (shot as any).frames || '',
           shot.scopeOfWork || '',
           '',
           '',

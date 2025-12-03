@@ -948,13 +948,29 @@ export default function TrackerTable({ detailedView, onToggleDetailedView, hidde
       });
     }
 
-    // Filter by lead name
+    // Filter by lead name (considers department filter if active)
     if ((filters?.leadNames?.length ?? 0) > 0) {
+      const hasUnassignedFilter = filters.leadNames.includes('__UNASSIGNED__');
+      const otherLeadNames = filters.leadNames.filter(l => l !== '__UNASSIGNED__');
+      const hasDeptFilter = (filters?.departments?.length ?? 0) > 0;
+      
       rows = rows.filter(row => {
-        // Check if any task has one of the selected leads
-        return Object.values(row.tasks).some(task => 
-          task.leadName && filters.leadNames.includes(task.leadName)
-        );
+        // Check if any task matches the lead filter
+        return Object.entries(row.tasks).some(([deptKey, task]) => {
+          // If department filter is active, only check tasks in selected departments
+          if (hasDeptFilter && !filters.departments.some(dept => deptKey.includes(dept))) {
+            return false;
+          }
+          // Check for unassigned (no lead name)
+          if (hasUnassignedFilter && !task.leadName) {
+            return true;
+          }
+          // Check for specific lead names
+          if (otherLeadNames.length > 0 && task.leadName && otherLeadNames.includes(task.leadName)) {
+            return true;
+          }
+          return false;
+        });
       });
     }
 

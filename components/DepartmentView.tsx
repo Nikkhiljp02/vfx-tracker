@@ -114,9 +114,20 @@ export default function DepartmentView({ detailedView }: DepartmentViewProps) {
     }
 
     if ((filters?.leadNames?.length ?? 0) > 0) {
-      filteredTasks = filteredTasks.filter(t => 
-        t.task.leadName && filters.leadNames.includes(t.task.leadName)
-      );
+      const hasUnassignedFilter = filters.leadNames.includes('__UNASSIGNED__');
+      const otherLeadNames = filters.leadNames.filter(l => l !== '__UNASSIGNED__');
+      
+      filteredTasks = filteredTasks.filter(t => {
+        // Check for unassigned (no lead name)
+        if (hasUnassignedFilter && !t.task.leadName) {
+          return true;
+        }
+        // Check for specific lead names
+        if (otherLeadNames.length > 0 && t.task.leadName && otherLeadNames.includes(t.task.leadName)) {
+          return true;
+        }
+        return false;
+      });
     }
 
     if (filters?.shotTag) {

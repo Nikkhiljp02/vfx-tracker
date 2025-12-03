@@ -14,7 +14,87 @@ const statusColors: Record<string, { red: number; green: number; blue: number }>
   'C KB': { red: 1.0, green: 0.7, blue: 0.7 },        // Red/Pink
   'OMIT': { red: 0.6, green: 0.6, blue: 0.6 },        // Dark Gray
   'HOLD': { red: 1.0, green: 0.85, blue: 0.7 },       // Orange
+  'Int KB': { red: 1.0, green: 0.8, blue: 0.8 },      // Light Red
 };
+
+// Column indexes (0-based) after adding EP, SEQ, TO, Frames
+// Columns: Show Name(0), Client(1), Shot Name(2), Shot Tag(3), EP(4), SEQ(5), TO(6), Frames(7), 
+//          SOW(8), Department(9), Is Internal(10), Status(11), Lead Name(12), Bid(13), 
+//          Internal ETA(14), Client ETA(15), Delivered Version(16), Delivered Date(17),
+//          Shot ID(18), Task ID(19)
+const TOTAL_COLUMNS = 20;
+const STATUS_COLUMN_INDEX = 11;
+const HIDDEN_COLUMNS_START = 18;
+
+// Generate summary data from shows
+function generateSummaryData(shows: any[]): any[][] {
+  const summaryRows: any[][] = [];
+  
+  // Title row
+  summaryRows.push(['VFX TRACKER SUMMARY']);
+  summaryRows.push(['Last Updated:', new Date().toLocaleString()]);
+  summaryRows.push([]); // Empty row
+  
+  // Header row
+  summaryRows.push(['Show', 'Total Shots', 'YTS', 'WIP', 'Int App', 'AWF', 'C APP', 'C KB', 'OMIT', 'HOLD']);
+  
+  // Data rows for each show
+  shows.forEach(show => {
+    const statusCounts: Record<string, number> = {
+      'YTS': 0, 'WIP': 0, 'Int App': 0, 'AWF': 0, 'C APP': 0, 'C KB': 0, 'OMIT': 0, 'HOLD': 0
+    };
+    
+    // Count unique shots per status (use the highest priority status per shot)
+    const shotStatuses: Record<string, string> = {};
+    
+    show.shots?.forEach((shot: any) => {
+      shot.tasks?.forEach((task: any) => {
+        const currentStatus = shotStatuses[shot.id];
+        // Track the most advanced status for the shot
+        if (!currentStatus || getStatusPriority(task.status) > getStatusPriority(currentStatus)) {
+          shotStatuses[shot.id] = task.status;
+        }
+      });
+    });
+    
+    // Count statuses
+    Object.values(shotStatuses).forEach(status => {
+      if (statusCounts[status] !== undefined) {
+        statusCounts[status]++;
+      }
+    });
+    
+    const totalShots = show.shots?.length || 0;
+    
+    summaryRows.push([
+      show.showName,
+      totalShots,
+      statusCounts['YTS'],
+      statusCounts['WIP'],
+      statusCounts['Int App'],
+      statusCounts['AWF'],
+      statusCounts['C APP'],
+      statusCounts['C KB'],
+      statusCounts['OMIT'],
+      statusCounts['HOLD'],
+    ]);
+  });
+  
+  // Grand total row
+  summaryRows.push([]); // Empty row
+  const grandTotal = shows.reduce((acc, show) => acc + (show.shots?.length || 0), 0);
+  summaryRows.push(['GRAND TOTAL', grandTotal]);
+  
+  return summaryRows;
+}
+
+// Get status priority for determining shot overall status
+function getStatusPriority(status: string): number {
+  const priorities: Record<string, number> = {
+    'C APP': 8, 'AWF': 7, 'C KB': 6, 'Int App': 5, 'WIP': 4, 'YTS': 3, 'HOLD': 2, 'OMIT': 1
+  };
+  return priorities[status] || 0;
+}
 
 // Sync tracker data to Google Sheets (simple overwrite)
 export async function POST(req: NextRequest) {
@@ -82,75 +162,128 @@ export async function POST(req: NextRequest) {
     const rows = formatDataForSheets(shows);
     console.log('[Google Sheets Sync] Formatted rows:', rows.length);
 
+    // Generate summary data
+    const summaryRows = generateSummaryData(shows);
+
     // Create sheets client
     const sheets = google.sheets({ version: 'v4', auth });
 
-    // Clear existing data and write new data
-    try {
-      // First, try to clear the existing data
-      await sheets.spreadsheets.values.clear({
-        spreadsheetId,
-        range: 'A:Z', // Clear all columns
-      });
-      console.log('[Google Sheets Sync] Cleared existing data');
-    } catch (clearError: any) {
-      // If clear fails, the sheet might not exist or be empty - that's OK
-      console.log('[Google Sheets Sync] Clear failed (sheet might be new):', clearError.message);
+    // Get spreadsheet info to find sheets
+    const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
+    const existingSheets = spreadsheet.data.sheets || [];
+    
+    // Find or note the first sheet (main data sheet)
+    const mainSheet = existingSheets[0];
+    const mainSheetId = mainSheet?.properties?.sheetId || 0;
+    const mainSheetName = mainSheet?.properties?.title || 'Sheet1';
+    
+    // Check if Summary sheet exists
+    const summarySheet = existingSheets.find(s => s.properties?.title === 'Summary');
+    let summarySheetId = summarySheet?.properties?.sheetId;
+
+    // Create Summary sheet if it doesn't exist
+    if (!summarySheet) {
+      try {
+        const addSheetResponse = await sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          requestBody: {
+            requests: [{
+              addSheet: {
+                properties: {
+                  title: 'Summary',
+                  index: 0, // Put it first
+                }
+              }
+            }]
+          }
+        });
+        summarySheetId = addSheetResponse.data.replies?.[0]?.addSheet?.properties?.sheetId;
+        console.log('[Google Sheets Sync] Created Summary sheet');
+      } catch (e: any) {
+        console.log('[Google Sheets Sync] Could not create Summary sheet:', e.message);
+      }
     }
 
-    // Write new data
+    // Clear and write main data sheet
+    try {
+      await sheets.spreadsheets.values.clear({
+        spreadsheetId,
+        range: `${mainSheetName}!A:Z`,
+      });
+      console.log('[Google Sheets Sync] Cleared main sheet');
+    } catch (clearError: any) {
+      console.log('[Google Sheets Sync] Clear failed (might be empty):', clearError.message);
+    }
+
+    // Write main data
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: 'A1',
+      range: `${mainSheetName}!A1`,
       valueInputOption: 'USER_ENTERED',
-      requestBody: {
-        values: rows,
-      },
+      requestBody: { values: rows },
     });
-    console.log('[Google Sheets Sync] Data written successfully');
+    console.log('[Google Sheets Sync] Main data written');
 
-    // Apply comprehensive formatting
+    // Write Summary sheet
+    if (summarySheetId !== undefined) {
+      try {
+        await sheets.spreadsheets.values.clear({
+          spreadsheetId,
+          range: 'Summary!A:Z',
+        });
+        
+        await sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: 'Summary!A1',
+          valueInputOption: 'USER_ENTERED',
+          requestBody: { values: summaryRows },
+        });
+        console.log('[Google Sheets Sync] Summary data written');
+      } catch (e: any) {
+        console.log('[Google Sheets Sync] Summary write failed:', e.message);
+      }
+    }
+
+    const dataRowCount = rows.length;
+
+    // Apply formatting
     try {
-      // Get sheet ID (usually 0 for the first sheet)
-      const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
-      const sheetId = spreadsheet.data.sheets?.[0]?.properties?.sheetId || 0;
-      const dataRowCount = rows.length;
-
-      // Border style
+      // Border style - solid black for all borders
       const borderStyle = {
         style: 'SOLID',
         width: 1,
-        color: { red: 0.7, green: 0.7, blue: 0.7 },
+        color: { red: 0, green: 0, blue: 0 },
       };
 
-      // Build formatting requests
+      // Build formatting requests for main sheet
       const requests: any[] = [
         // Freeze first row
         {
           updateSheetProperties: {
-            properties: { sheetId, gridProperties: { frozenRowCount: 1 } },
+            properties: { sheetId: mainSheetId, gridProperties: { frozenRowCount: 1 } },
             fields: 'gridProperties.frozenRowCount',
           },
         },
         // Header row styling - dark blue with white text
         {
           repeatCell: {
-            range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 14 },
+            range: { sheetId: mainSheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: TOTAL_COLUMNS },
             cell: {
               userEnteredFormat: {
                 backgroundColor: { red: 0.15, green: 0.3, blue: 0.5 },
                 textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 }, fontSize: 10 },
                 horizontalAlignment: 'CENTER',
                 verticalAlignment: 'MIDDLE',
+                wrapStrategy: 'WRAP',
               },
             },
-            fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)',
+            fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)',
           },
         },
         // Center align all data cells
         {
           repeatCell: {
-            range: { sheetId, startRowIndex: 1, endRowIndex: dataRowCount, startColumnIndex: 0, endColumnIndex: 14 },
+            range: { sheetId: mainSheetId, startRowIndex: 1, endRowIndex: dataRowCount, startColumnIndex: 0, endColumnIndex: TOTAL_COLUMNS },
             cell: {
               userEnteredFormat: {
                 horizontalAlignment: 'CENTER',
@@ -160,10 +293,10 @@ export async function POST(req: NextRequest) {
             fields: 'userEnteredFormat(horizontalAlignment,verticalAlignment)',
           },
         },
-        // Add borders to all data cells
+        // Add ALL borders to data cells
         {
           updateBorders: {
-            range: { sheetId, startRowIndex: 0, endRowIndex: dataRowCount, startColumnIndex: 0, endColumnIndex: 14 },
+            range: { sheetId: mainSheetId, startRowIndex: 0, endRowIndex: dataRowCount, startColumnIndex: 0, endColumnIndex: HIDDEN_COLUMNS_START },
             top: borderStyle,
             bottom: borderStyle,
             left: borderStyle,
@@ -172,24 +305,24 @@ export async function POST(req: NextRequest) {
             innerVertical: borderStyle,
           },
         },
-        // Auto-resize columns
+        // Auto-resize all visible columns to fit content
         {
           autoResizeDimensions: {
-            dimensions: { sheetId, dimension: 'COLUMNS', startIndex: 0, endIndex: 14 },
+            dimensions: { sheetId: mainSheetId, dimension: 'COLUMNS', startIndex: 0, endIndex: HIDDEN_COLUMNS_START },
           },
         },
-        // Hide Shot ID and Task ID columns (O and P = columns 14 and 15)
+        // Hide Shot ID and Task ID columns
         {
           updateDimensionProperties: {
-            range: { sheetId, dimension: 'COLUMNS', startIndex: 14, endIndex: 16 },
+            range: { sheetId: mainSheetId, dimension: 'COLUMNS', startIndex: HIDDEN_COLUMNS_START, endIndex: TOTAL_COLUMNS },
             properties: { hiddenByUser: true },
             fields: 'hiddenByUser',
           },
         },
-        // Add dropdown validation for Status column (column H, index 7)
+        // Status dropdown validation
         {
           setDataValidation: {
-            range: { sheetId, startRowIndex: 1, endRowIndex: dataRowCount, startColumnIndex: 7, endColumnIndex: 8 },
+            range: { sheetId: mainSheetId, startRowIndex: 1, endRowIndex: dataRowCount, startColumnIndex: STATUS_COLUMN_INDEX, endColumnIndex: STATUS_COLUMN_INDEX + 1 },
             rule: {
               condition: {
                 type: 'ONE_OF_LIST',
@@ -197,6 +330,7 @@ export async function POST(req: NextRequest) {
                   { userEnteredValue: 'YTS' },
                   { userEnteredValue: 'WIP' },
                   { userEnteredValue: 'Int App' },
+                  { userEnteredValue: 'Int KB' },
                   { userEnteredValue: 'AWF' },
                   { userEnteredValue: 'C APP' },
                   { userEnteredValue: 'C KB' },
@@ -211,29 +345,77 @@ export async function POST(req: NextRequest) {
         },
       ];
 
-      // Apply basic formatting first
+      // Add Summary sheet formatting if it exists
+      if (summarySheetId !== undefined) {
+        requests.push(
+          // Summary title formatting
+          {
+            repeatCell: {
+              range: { sheetId: summarySheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 10 },
+              cell: {
+                userEnteredFormat: {
+                  textFormat: { bold: true, fontSize: 14 },
+                },
+              },
+              fields: 'userEnteredFormat(textFormat)',
+            },
+          },
+          // Summary header row formatting
+          {
+            repeatCell: {
+              range: { sheetId: summarySheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 0, endColumnIndex: 10 },
+              cell: {
+                userEnteredFormat: {
+                  backgroundColor: { red: 0.15, green: 0.3, blue: 0.5 },
+                  textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 }, fontSize: 10 },
+                  horizontalAlignment: 'CENTER',
+                },
+              },
+              fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)',
+            },
+          },
+          // Summary data borders
+          {
+            updateBorders: {
+              range: { sheetId: summarySheetId, startRowIndex: 3, endRowIndex: summaryRows.length, startColumnIndex: 0, endColumnIndex: 10 },
+              top: borderStyle,
+              bottom: borderStyle,
+              left: borderStyle,
+              right: borderStyle,
+              innerHorizontal: borderStyle,
+              innerVertical: borderStyle,
+            },
+          },
+          // Auto-resize Summary columns
+          {
+            autoResizeDimensions: {
+              dimensions: { sheetId: summarySheetId, dimension: 'COLUMNS', startIndex: 0, endIndex: 10 },
+            },
+          }
+        );
+      }
+
+      // Apply formatting
       await sheets.spreadsheets.batchUpdate({
         spreadsheetId,
         requestBody: { requests },
       });
-      console.log('[Google Sheets Sync] Basic formatting applied');
+      console.log('[Google Sheets Sync] Formatting applied');
 
-      // Now apply status color coding
-      // Read status values from column H
+      // Apply status color coding to main sheet
       const statusResponse = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: 'H2:H' + dataRowCount,
+        range: `${mainSheetName}!L2:L${dataRowCount}`, // Column L is Status (index 11)
       });
       const statusValues = statusResponse.data.values || [];
 
-      // Build color requests for each status
       const colorRequests: any[] = [];
       statusValues.forEach((row: string[], index: number) => {
         const status = row[0];
         if (status && statusColors[status]) {
           colorRequests.push({
             repeatCell: {
-              range: { sheetId, startRowIndex: index + 1, endRowIndex: index + 2, startColumnIndex: 7, endColumnIndex: 8 },
+              range: { sheetId: mainSheetId, startRowIndex: index + 1, endRowIndex: index + 2, startColumnIndex: STATUS_COLUMN_INDEX, endColumnIndex: STATUS_COLUMN_INDEX + 1 },
               cell: {
                 userEnteredFormat: {
                   backgroundColor: statusColors[status],
@@ -253,13 +435,11 @@ export async function POST(req: NextRequest) {
           spreadsheetId,
           requestBody: { requests: colorRequests },
         });
-        console.log('[Google Sheets Sync] Status colors applied:', colorRequests.length);
+        console.log('[Google Sheets Sync] Status colors applied');
       }
 
-      console.log('[Google Sheets Sync] All formatting complete');
     } catch (formatError: any) {
       console.error('[Google Sheets Sync] Formatting failed:', formatError.message);
-      // Log full error for debugging
       if (formatError.response?.data) {
         console.error('[Google Sheets Sync] Error details:', JSON.stringify(formatError.response.data));
       }

@@ -277,8 +277,18 @@ export default function FeedbackView({ prefilledData }: FeedbackViewProps) {
       }
 
       // Lead filter
-      if (selectedLeads.length > 0 && (!feedback.leadName || !selectedLeads.includes(feedback.leadName))) {
-        return false;
+      if (selectedLeads.length > 0) {
+        const hasUnassignedFilter = selectedLeads.includes('__UNASSIGNED__');
+        const otherLeadNames = selectedLeads.filter(l => l !== '__UNASSIGNED__');
+        
+        // Check for unassigned match
+        const matchesUnassigned = hasUnassignedFilter && !feedback.leadName;
+        // Check for specific lead name match
+        const matchesLeadName = otherLeadNames.length > 0 && feedback.leadName && otherLeadNames.includes(feedback.leadName);
+        
+        if (!matchesUnassigned && !matchesLeadName) {
+          return false;
+        }
       }
 
       // Department filter
@@ -633,8 +643,9 @@ export default function FeedbackView({ prefilledData }: FeedbackViewProps) {
                   value={selectedLeads}
                   onChange={(e) => setSelectedLeads(Array.from(e.target.selectedOptions, option => option.value))}
                   className="w-full border border-gray-300 rounded-lg p-2 text-sm"
-                  size={3}
+                  size={4}
                 >
+                  <option value="__UNASSIGNED__" className="italic">Unassigned</option>
                   {uniqueLeads.map(lead => (
                     <option key={lead} value={lead}>{lead}</option>
                   ))}
