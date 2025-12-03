@@ -154,16 +154,31 @@ export async function POST(req: NextRequest) {
     const auth = getGoogleAuth();
     auth.setCredentials(tokens);
 
-    // Get body data (shows)
-    const { shows } = await req.json();
-    console.log('[Google Sheets Sync] Shows count:', shows?.length);
+    // Fetch FRESH data from database instead of using potentially stale client data
+    const freshShows = await prisma.show.findMany({
+      where: { isActive: true },
+      include: {
+        shots: {
+          where: { isActive: true },
+          include: {
+            tasks: {
+              where: { isActive: true },
+              orderBy: { department: 'asc' }
+            }
+          },
+          orderBy: { shotName: 'asc' }
+        }
+      },
+      orderBy: { showName: 'asc' }
+    });
+    console.log('[Google Sheets Sync] Fresh shows count:', freshShows.length);
 
-    // Format data for sheets
-    const rows = formatDataForSheets(shows);
+    // Format data for sheets using FRESH database data
+    const rows = formatDataForSheets(freshShows as any);
     console.log('[Google Sheets Sync] Formatted rows:', rows.length);
 
     // Generate summary data
-    const summaryRows = generateSummaryData(shows);
+    const summaryRows = generateSummaryData(freshShows as any);
 
     // Create sheets client
     const sheets = google.sheets({ version: 'v4', auth });
@@ -172,16 +187,34 @@ export async function POST(req: NextRequest) {
     const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
     const existingSheets = spreadsheet.data.sheets || [];
     
-    // Find or note the first sheet (main data sheet)
-    const mainSheet = existingSheets[0];
-    const mainSheetId = mainSheet?.properties?.sheetId || 0;
-    const mainSheetName = mainSheet?.properties?.title || 'Sheet1';
-    
-    // Check if Summary sheet exists
+    // Find Summary sheet and main data sheet (not Summary)
     const summarySheet = existingSheets.find(s => s.properties?.title === 'Summary');
     let summarySheetId = summarySheet?.properties?.sheetId;
+    
+    // Find the main data sheet (first sheet that's NOT Summary)
+    // If Summary exists at index 0, we need the next sheet
+    let mainSheet = existingSheets.find(s => s.properties?.title !== 'Summary');
+    
+    // If no non-Summary sheet exists, we'll use whatever sheet is available (shouldn't happen normally)
+    if (!mainSheet && existingSheets.length > 0) {
+      mainSheet = existingSheets.find(s => s.properties?.title === 'Summary') ? existingSheets[1] : existingSheets[0];
+    }
+    
+    // Default sheet name - prefer "Tracker Data" or first available non-Summary sheet
+    let mainSheetName = mainSheet?.properties?.title || 'Sheet1';
+    let mainSheetId = mainSheet?.properties?.sheetId || 0;
+    
+    // If no suitable main sheet found, rename Summary won't work - just use Sheet1
+    if (mainSheetName === 'Summary') {
+      // All sheets are Summary? Create or use Sheet1
+      mainSheetName = 'Tracker Data';
+      // We'll create it below if needed
+    }
+    
+    console.log('[Google Sheets Sync] Main sheet:', mainSheetName, 'ID:', mainSheetId);
+    console.log('[Google Sheets Sync] Summary sheet ID:', summarySheetId);
 
-    // Create Summary sheet if it doesn't exist
+    // Create Summary sheet if it doesn't exist (at the END, not beginning)
     if (!summarySheet) {
       try {
         const addSheetResponse = await sheets.spreadsheets.batchUpdate({
@@ -191,7 +224,7 @@ export async function POST(req: NextRequest) {
               addSheet: {
                 properties: {
                   title: 'Summary',
-                  index: 0, // Put it first
+                  // Don't specify index - adds at end by default
                 }
               }
             }]
