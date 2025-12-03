@@ -4,8 +4,8 @@ import { LayoutGrid, Layers, Truck, Users, Activity } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 
 interface MobileNavProps {
-  activeView: 'tracker' | 'department' | 'delivery' | 'dashboard' | 'feedback' | 'resource-forecast' | 'award-sheet';
-  onViewChange: (view: 'tracker' | 'department' | 'delivery' | 'dashboard' | 'feedback' | 'resource-forecast' | 'award-sheet') => void;
+  activeView: 'tracker' | 'department' | 'delivery' | 'dashboard' | 'feedback' | 'resource-forecast';
+  onViewChange: (view: 'tracker' | 'department' | 'delivery' | 'dashboard' | 'feedback' | 'resource-forecast') => void;
 }
 
 export default function MobileNav({ activeView, onViewChange }: MobileNavProps) {
