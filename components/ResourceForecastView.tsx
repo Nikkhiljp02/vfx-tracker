@@ -1244,12 +1244,12 @@ export default function ResourceForecastView() {
         <table className="min-w-full border-collapse">
           <thead className="bg-slate-700 sticky top-0 z-30">
             <tr className="h-10">
-              <th className="sticky left-0 z-40 px-2 py-2 text-left text-xs font-semibold text-slate-200 uppercase border-r border-slate-500" style={{width: '80px', minWidth: '80px', backgroundColor: '#334155'}}>ID</th>
-              <th className="sticky z-40 px-2 py-2 text-left text-xs font-semibold text-slate-200 uppercase border-r border-slate-500" style={{left: '80px', width: '160px', minWidth: '160px', backgroundColor: '#334155'}}>Name</th>
-              <th className="sticky z-40 px-2 py-2 text-left text-xs font-semibold text-slate-200 uppercase border-r border-slate-500" style={{left: '240px', width: '120px', minWidth: '120px', backgroundColor: '#334155'}}>Designation</th>
-              <th className="sticky z-40 px-2 py-2 text-left text-xs font-semibold text-slate-200 uppercase border-r border-slate-500" style={{left: '360px', width: '120px', minWidth: '120px', backgroundColor: '#334155'}}>Reporting</th>
-              <th className="sticky z-40 px-2 py-2 text-left text-xs font-semibold text-slate-200 uppercase border-r border-slate-500" style={{left: '480px', width: '100px', minWidth: '100px', backgroundColor: '#334155'}}>Dept</th>
-              <th className="sticky z-40 px-2 py-2 text-left text-xs font-semibold text-slate-200 uppercase border-r-4 border-slate-400" style={{left: '580px', width: '80px', minWidth: '80px', backgroundColor: '#334155', boxShadow: '4px 0 8px rgba(0,0,0,0.3)'}}>Shift</th>
+              <th className="sticky left-0 z-40 px-2 py-2 text-left text-xs font-semibold text-slate-200 uppercase border-r border-slate-500" style={{width: '80px', minWidth: '80px', maxWidth: '80px', backgroundColor: '#334155'}}>ID</th>
+              <th className="sticky left-[80px] z-40 px-2 py-2 text-left text-xs font-semibold text-slate-200 uppercase border-r border-slate-500" style={{width: '160px', minWidth: '160px', maxWidth: '160px', backgroundColor: '#334155'}}>Name</th>
+              <th className="sticky left-[240px] z-40 px-2 py-2 text-left text-xs font-semibold text-slate-200 uppercase border-r border-slate-500" style={{width: '120px', minWidth: '120px', maxWidth: '120px', backgroundColor: '#334155'}}>Designation</th>
+              <th className="sticky left-[360px] z-40 px-2 py-2 text-left text-xs font-semibold text-slate-200 uppercase border-r border-slate-500" style={{width: '120px', minWidth: '120px', maxWidth: '120px', backgroundColor: '#334155'}}>Reporting</th>
+              <th className="sticky left-[480px] z-40 px-2 py-2 text-left text-xs font-semibold text-slate-200 uppercase border-r border-slate-500" style={{width: '100px', minWidth: '100px', maxWidth: '100px', backgroundColor: '#334155'}}>Dept</th>
+              <th className="sticky left-[580px] z-40 px-2 py-2 text-left text-xs font-semibold text-slate-200 uppercase border-r-4 border-slate-400" style={{width: '80px', minWidth: '80px', maxWidth: '80px', backgroundColor: '#334155', boxShadow: '4px 0 8px rgba(0,0,0,0.3)'}}>Shift</th>
               {dates.map((date: Date) => {
                 const weekend = isWeekend(date);
                 const working = isWorkingDay(date);
@@ -1284,8 +1284,8 @@ export default function ResourceForecastView() {
               <>
                 {filteredMembers.map((member: any) => (
                 <tr key={member.id} className="hover:bg-slate-700/50 h-10 border-b border-slate-700 transition-colors group">
-                  <td className="sticky left-0 z-20 px-2 py-2 text-xs border-r border-slate-600 font-medium text-slate-200 truncate" style={{width: '80px', minWidth: '80px', backgroundColor: '#1e293b'}}>{member.empId}</td>
-                  <td className="sticky z-20 px-2 py-2 text-xs border-r border-slate-600 text-slate-200 truncate" style={{left: '80px', width: '160px', minWidth: '160px', backgroundColor: '#1e293b'}}>
+                  <td className="sticky left-0 z-20 px-2 py-2 text-xs border-r border-slate-600 font-medium text-slate-200 truncate" style={{width: '80px', minWidth: '80px', maxWidth: '80px', backgroundColor: '#1e293b'}}>{member.empId}</td>
+                  <td className="sticky left-[80px] z-20 px-2 py-2 text-xs border-r border-slate-600 text-slate-200 truncate" style={{width: '160px', minWidth: '160px', maxWidth: '160px', backgroundColor: '#1e293b'}}>
                     <div className="flex items-center justify-between gap-1">
                       <span className="truncate">{member.empName}</span>
                       <button
@@ -1297,10 +1297,10 @@ export default function ResourceForecastView() {
                       </button>
                     </div>
                   </td>
-                  <td className="sticky z-20 px-2 py-2 text-xs border-r border-slate-600 text-slate-300 truncate" style={{left: '240px', width: '120px', minWidth: '120px', backgroundColor: '#1e293b'}}>{member.designation}</td>
-                  <td className="sticky z-20 px-2 py-2 text-xs border-r border-slate-600 text-slate-300 truncate" style={{left: '360px', width: '120px', minWidth: '120px', backgroundColor: '#1e293b'}}>{member.reportingTo || '-'}</td>
-                  <td className="sticky z-20 px-2 py-2 text-xs border-r border-slate-600 text-slate-300 truncate" style={{left: '480px', width: '100px', minWidth: '100px', backgroundColor: '#1e293b'}}>{member.department}</td>
-                  <td className="sticky z-20 px-2 py-2 text-xs border-r-4 border-slate-400 text-slate-300 truncate" style={{left: '580px', width: '80px', minWidth: '80px', backgroundColor: '#1e293b', boxShadow: '4px 0 8px rgba(0,0,0,0.3)'}}>{member.shift}</td>
+                  <td className="sticky left-[240px] z-20 px-2 py-2 text-xs border-r border-slate-600 text-slate-300 truncate" style={{width: '120px', minWidth: '120px', maxWidth: '120px', backgroundColor: '#1e293b'}}>{member.designation}</td>
+                  <td className="sticky left-[360px] z-20 px-2 py-2 text-xs border-r border-slate-600 text-slate-300 truncate" style={{width: '120px', minWidth: '120px', maxWidth: '120px', backgroundColor: '#1e293b'}}>{member.reportingTo || '-'}</td>
+                  <td className="sticky left-[480px] z-20 px-2 py-2 text-xs border-r border-slate-600 text-slate-300 truncate" style={{width: '100px', minWidth: '100px', maxWidth: '100px', backgroundColor: '#1e293b'}}>{member.department}</td>
+                  <td className="sticky left-[580px] z-20 px-2 py-2 text-xs border-r-4 border-slate-400 text-slate-300 truncate" style={{width: '80px', minWidth: '80px', maxWidth: '80px', backgroundColor: '#1e293b', boxShadow: '4px 0 8px rgba(0,0,0,0.3)'}}>{member.shift}</td>
                   {dates.map((date, dateIndex) => {
                     const dailyAlloc = getDailyAllocation(member, date);
                     const isEditing = editingCell?.memberId === member.id && editingCell?.dateIndex === dateIndex;
@@ -1374,9 +1374,12 @@ export default function ResourceForecastView() {
               
               {/* Utilization Totals Row */}
               <tr className="font-bold border-t-2 border-slate-500 sticky bottom-0 z-10" style={{backgroundColor: '#334155'}}>
-                <td colSpan={6} className="sticky left-0 z-20 px-2 py-3 text-xs text-amber-300 uppercase border-r-4 border-slate-400" style={{left: '0px', width: '660px', backgroundColor: '#334155', boxShadow: '4px 0 8px rgba(0,0,0,0.3)'}}>
-                  TOTAL UTILIZATION
-                </td>
+                <td className="sticky left-0 z-20 px-2 py-3 text-xs text-amber-300 uppercase border-r border-slate-500" style={{width: '80px', minWidth: '80px', maxWidth: '80px', backgroundColor: '#334155'}}>TOTAL</td>
+                <td className="sticky left-[80px] z-20 px-2 py-3 text-xs text-amber-300 uppercase border-r border-slate-500" style={{width: '160px', minWidth: '160px', maxWidth: '160px', backgroundColor: '#334155'}}>UTILIZATION</td>
+                <td className="sticky left-[240px] z-20 px-2 py-3 text-xs border-r border-slate-500" style={{width: '120px', minWidth: '120px', maxWidth: '120px', backgroundColor: '#334155'}}></td>
+                <td className="sticky left-[360px] z-20 px-2 py-3 text-xs border-r border-slate-500" style={{width: '120px', minWidth: '120px', maxWidth: '120px', backgroundColor: '#334155'}}></td>
+                <td className="sticky left-[480px] z-20 px-2 py-3 text-xs border-r border-slate-500" style={{width: '100px', minWidth: '100px', maxWidth: '100px', backgroundColor: '#334155'}}></td>
+                <td className="sticky left-[580px] z-20 px-2 py-3 text-xs border-r-4 border-slate-400" style={{width: '80px', minWidth: '80px', maxWidth: '80px', backgroundColor: '#334155', boxShadow: '4px 0 8px rgba(0,0,0,0.3)'}}></td>
                 {dates.map((date, idx) => {
                   const total = members.reduce((sum: number, m: any) => {
                     const alloc = getDailyAllocation(m, date);
