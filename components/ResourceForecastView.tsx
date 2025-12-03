@@ -1016,22 +1016,22 @@ export default function ResourceForecastView() {
   }, [members]);
 
   return (
-    <div className="h-full flex flex-col bg-[#0a0a0a]" onClick={() => setContextMenu(null)}>
+    <div className="h-full flex flex-col bg-slate-900" onClick={() => setContextMenu(null)}>
       {/* Context Menu */}
       {contextMenu && (
         <div
-          className="fixed bg-[#111111] border border-[#1a1a1a] shadow-xl z-[100] py-2 min-w-[250px]"
+          className="fixed bg-slate-800 border border-slate-600 shadow-xl z-[100] py-2 min-w-[250px]"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="px-4 py-2 text-xs text-gray-400 border-b border-[#1a1a1a] font-medium">
+          <div className="px-4 py-2 text-xs text-slate-300 border-b border-slate-600 font-medium">
             {contextMenu.cells.length} cell{contextMenu.cells.length > 1 ? 's' : ''} selected
           </div>
           <div className="p-3">
             <input
               type="text"
               placeholder="Enter shots (e.g., Shot1/Shot2)"
-              className="w-full px-3 py-2 bg-[#0a0a0a] border border-[#252525] text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500"
+              className="w-full px-3 py-2 bg-slate-700 border border-slate-500 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-cyan-400"
               value={bulkInputValue}
               onChange={(e) => setBulkInputValue(e.target.value)}
               onKeyDown={(e) => {
@@ -1045,14 +1045,14 @@ export default function ResourceForecastView() {
             />
           </div>
           <button
-            className="w-full px-4 py-2 text-left text-sm text-white hover:bg-[#1a1a1a] transition-colors flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm text-white hover:bg-slate-700 transition-colors flex items-center gap-2"
             onClick={handleBulkPaste}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
             Apply to Selected Cells
           </button>
           <button
-            className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-[#1a1a1a] transition-colors flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-slate-700 transition-colors flex items-center gap-2"
             onClick={() => {
               handleDeleteSelected();
               setContextMenu(null);
@@ -1062,7 +1062,7 @@ export default function ResourceForecastView() {
             Clear Selected Cells
           </button>
           <button
-            className="w-full px-4 py-2 text-left text-sm text-amber-400 hover:bg-[#1a1a1a] transition-colors flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm text-amber-400 hover:bg-slate-700 transition-colors flex items-center gap-2"
             onClick={() => {
               handleMarkLeave();
               setContextMenu(null);
@@ -1075,23 +1075,23 @@ export default function ResourceForecastView() {
       )}
 
       {/* Header */}
-      <div className="flex-none p-4 bg-[#111111] border-b border-[#1a1a1a]">
+      <div className="flex-none p-4 bg-slate-800 border-b border-slate-600">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
             <h1 className="text-lg font-semibold text-white">Resource Forecast</h1>
             {selectedCells.size > 0 && (
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-gray-400">{selectedCells.size} cells</span>
-                <button onClick={handleCopy} className="px-2 py-1 bg-[#1a1a1a] text-white text-xs hover:bg-[#252525] touch-manipulation" title="Copy">Copy</button>
-                <button onClick={handlePaste} disabled={copiedCells.size === 0} className="px-2 py-1 bg-[#1a1a1a] text-white text-xs hover:bg-[#252525] disabled:opacity-50 touch-manipulation" title="Paste">Paste</button>
+                <span className="text-xs text-slate-400">{selectedCells.size} cells</span>
+                <button onClick={handleCopy} className="px-2 py-1 bg-slate-700 text-white text-xs hover:bg-slate-600 touch-manipulation" title="Copy">Copy</button>
+                <button onClick={handlePaste} disabled={copiedCells.size === 0} className="px-2 py-1 bg-slate-700 text-white text-xs hover:bg-slate-600 disabled:opacity-50 touch-manipulation" title="Paste">Paste</button>
                 <button onClick={handleMarkLeave} className="px-2 py-1 bg-amber-600 text-white text-xs hover:bg-amber-500 touch-manipulation" title="Leave">Leave</button>
                 <button onClick={handleDeleteSelected} className="px-2 py-1 bg-red-600 text-white text-xs hover:bg-red-500 touch-manipulation" title="Delete">Del</button>
               </div>
             )}
           </div>
           <div className="flex gap-2 flex-wrap">
-            <button onClick={handleUndo} disabled={historyIndex <= 0} className="px-3 py-2 bg-[#1a1a1a] text-white text-xs hover:bg-[#252525] transition-colors disabled:opacity-50 touch-manipulation" title="Undo">↶</button>
-            <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="px-3 py-2 bg-[#1a1a1a] text-white text-xs hover:bg-[#252525] transition-colors disabled:opacity-50 touch-manipulation" title="Redo">↷</button>
+            <button onClick={handleUndo} disabled={historyIndex <= 0} className="px-3 py-2 bg-slate-700 text-white text-xs hover:bg-slate-600 transition-colors disabled:opacity-50 touch-manipulation" title="Undo">↶</button>
+            <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="px-3 py-2 bg-slate-700 text-white text-xs hover:bg-slate-600 transition-colors disabled:opacity-50 touch-manipulation" title="Redo">↷</button>
             <button onClick={exportToExcel} className="px-3 py-2 bg-emerald-600 text-white text-xs hover:bg-emerald-500 transition-colors touch-manipulation">📊<span className="hidden sm:inline ml-1">CSV</span></button>
             <button onClick={() => { setImportType('members'); setShowImportModal(true); }} className="px-4 py-2 bg-cyan-600 text-white text-xs hover:bg-cyan-500 transition-colors touch-manipulation"><span className="hidden sm:inline">Import </span>Members</button>
             <button onClick={() => { setImportType('allocations'); setShowImportModal(true); }} className="px-4 py-2 bg-purple-600 text-white text-xs hover:bg-purple-500 transition-colors touch-manipulation"><span className="hidden sm:inline">Import </span>Alloc</button>
@@ -1102,16 +1102,16 @@ export default function ResourceForecastView() {
               <button className="px-4 py-2 bg-amber-600 text-white text-xs hover:bg-amber-500 transition-colors touch-manipulation">
                 Bulk ▾
               </button>
-              <div className="absolute right-0 mt-1 w-48 md:w-56 bg-[#111111] border border-[#1a1a1a] shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+              <div className="absolute right-0 mt-1 w-48 md:w-56 bg-slate-800 border border-slate-600 shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
                 <button
                   onClick={() => setBulkMode('reassign')}
-                  className="w-full text-left px-4 py-2 text-xs text-white hover:bg-[#1a1a1a] transition-colors touch-manipulation"
+                  className="w-full text-left px-4 py-2 text-xs text-white hover:bg-slate-700 transition-colors touch-manipulation"
                 >
                   🔄 Bulk Reassign
                 </button>
                 <button
                   onClick={() => setBulkMode('copy')}
-                  className="w-full text-left px-4 py-2 text-xs text-white hover:bg-[#1a1a1a] transition-colors touch-manipulation"
+                  className="w-full text-left px-4 py-2 text-xs text-white hover:bg-slate-700 transition-colors touch-manipulation"
                 >
                   📋 Copy Week
                 </button>
@@ -1122,8 +1122,8 @@ export default function ResourceForecastView() {
 
         {/* Quick Filter Views */}
         {savedViews.filter(v => v.isQuickFilter).length > 0 && (
-          <div className="flex gap-2 items-center mb-3 pb-3 border-b border-[#1a1a1a]">
-            <span className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Quick Filters:</span>
+          <div className="flex gap-2 items-center mb-3 pb-3 border-b border-slate-600">
+            <span className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Quick Filters:</span>
             {savedViews.filter(v => v.isQuickFilter).map(view => (
               <button
                 key={view.id}
@@ -1131,7 +1131,7 @@ export default function ResourceForecastView() {
                 className={`px-3 py-1 text-xs font-medium transition-colors ${
                   activeViewId === view.id 
                     ? 'bg-cyan-500 text-black' 
-                    : 'bg-[#1a1a1a] text-gray-300 hover:bg-[#252525]'
+                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                 }`}
               >
                 {view.name}
@@ -1150,7 +1150,7 @@ export default function ResourceForecastView() {
                 const view = savedViews.find((v: any) => v.id === e.target.value);
                 if (view) applyView(view);
               }}
-              className="px-3 py-1 bg-gray-800 border border-gray-700 rounded text-white text-xs"
+              className="px-3 py-1 bg-slate-700 border border-slate-500 text-white text-xs"
             >
               <option value="">Select a view...</option>
               {savedViews.map((view: any) => (
@@ -1162,7 +1162,7 @@ export default function ResourceForecastView() {
             {activeViewId && (
               <button
                 onClick={() => deleteSavedView(activeViewId)}
-                className="px-2 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
+                className="px-2 py-1 bg-red-600 text-white text-xs hover:bg-red-500"
                 title="Delete this view"
               >
                 🗑️
@@ -1177,26 +1177,26 @@ export default function ResourceForecastView() {
             placeholder="🔍 Search..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="flex-1 min-w-[140px] sm:min-w-[200px] px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 touch-manipulation"
+            className="flex-1 min-w-[140px] sm:min-w-[200px] px-3 py-2 bg-slate-700 border border-slate-500 text-white text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-cyan-400 touch-manipulation"
           />
           
-          <select value={selectedDepartment} onChange={(e) => setSelectedDepartment(e.target.value)} className="px-2 md:px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 touch-manipulation">
+          <select value={selectedDepartment} onChange={(e) => setSelectedDepartment(e.target.value)} className="px-2 md:px-3 py-2 bg-slate-700 border border-slate-500 text-white text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 touch-manipulation">
             {departments.map((dept: string) => <option key={dept} value={dept}>{dept === 'all' ? 'All Depts' : dept}</option>)}
           </select>
           
-          <select value={selectedShift} onChange={(e) => setSelectedShift(e.target.value)} className="px-2 md:px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 touch-manipulation">
+          <select value={selectedShift} onChange={(e) => setSelectedShift(e.target.value)} className="px-2 md:px-3 py-2 bg-slate-700 border border-slate-500 text-white text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 touch-manipulation">
             <option value="all">All Shifts</option>
             <option value="Day">Day</option>
             <option value="Night">Night</option>
             <option value="General">General</option>
           </select>
 
-          <select value={selectedShow} onChange={(e) => setSelectedShow(e.target.value)} className="px-2 md:px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 touch-manipulation">
+          <select value={selectedShow} onChange={(e) => setSelectedShow(e.target.value)} className="px-2 md:px-3 py-2 bg-slate-700 border border-slate-500 text-white text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 touch-manipulation">
             <option value="all">All Shows</option>
             {availableShows.map((show: string) => <option key={show} value={show}>{show}</option>)}
           </select>
 
-          <select value={utilizationFilter} onChange={(e) => setUtilizationFilter(e.target.value as any)} className="px-2 md:px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 touch-manipulation">
+          <select value={utilizationFilter} onChange={(e) => setUtilizationFilter(e.target.value as any)} className="px-2 md:px-3 py-2 bg-slate-700 border border-slate-500 text-white text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 touch-manipulation">
             <option value="all">All Status</option>
             <option value="overallocated">⚠️ Overallocated</option>
             <option value="available">✅ Available</option>
@@ -1205,7 +1205,7 @@ export default function ResourceForecastView() {
 
           <button 
             onClick={() => setShowSaveViewModal(true)}
-            className="px-2 md:px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 active:bg-purple-800 transition-colors text-xs md:text-sm touch-manipulation"
+            className="px-2 md:px-3 py-2 bg-purple-600 text-white hover:bg-purple-500 active:bg-purple-400 transition-colors text-xs md:text-sm touch-manipulation"
             title="Save view"
           >
             💾<span className="hidden sm:inline ml-1">Save</span>
@@ -1214,27 +1214,27 @@ export default function ResourceForecastView() {
           {activeViewId && (
             <button 
               onClick={() => { setActiveViewId(null); setSelectedDepartment('all'); setSelectedShift('all'); setSelectedShow('all'); setUtilizationFilter('all'); setSearchQuery(''); }}
-              className="px-2 md:px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 active:bg-gray-500 transition-colors text-xs md:text-sm touch-manipulation"
+              className="px-2 md:px-3 py-2 bg-slate-600 text-white hover:bg-slate-500 active:bg-slate-400 transition-colors text-xs md:text-sm touch-manipulation"
             >
               ✕<span className="hidden sm:inline ml-1">Clear</span>
             </button>
           )}
 
           <div className="flex items-center gap-1 md:gap-2">
-            <button onClick={() => navigateDates(-7)} className="px-2 md:px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 active:bg-gray-600 text-white text-xs md:text-sm transition-colors touch-manipulation">&lt;</button>
-            <button onClick={() => setStartDate(new Date())} className="px-2 md:px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 active:bg-gray-600 text-white text-xs md:text-sm transition-colors touch-manipulation">Today</button>
-            <button onClick={() => navigateDates(7)} className="px-2 md:px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 active:bg-gray-600 text-white text-xs md:text-sm transition-colors touch-manipulation">&gt;</button>
+            <button onClick={() => navigateDates(-7)} className="px-2 md:px-3 py-2 bg-slate-700 border border-slate-500 hover:bg-slate-600 active:bg-slate-500 text-white text-xs md:text-sm transition-colors touch-manipulation">&lt;</button>
+            <button onClick={() => setStartDate(new Date())} className="px-2 md:px-3 py-2 bg-slate-700 border border-slate-500 hover:bg-slate-600 active:bg-slate-500 text-white text-xs md:text-sm transition-colors touch-manipulation">Today</button>
+            <button onClick={() => navigateDates(7)} className="px-2 md:px-3 py-2 bg-slate-700 border border-slate-500 hover:bg-slate-600 active:bg-slate-500 text-white text-xs md:text-sm transition-colors touch-manipulation">&gt;</button>
           </div>
 
-          <select value={dateRange} onChange={(e) => setDateRange(Number(e.target.value))} className="px-2 md:px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 touch-manipulation">
+          <select value={dateRange} onChange={(e) => setDateRange(Number(e.target.value))} className="px-2 md:px-3 py-2 bg-slate-700 border border-slate-500 text-white text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 touch-manipulation">
             <option value={14}>14 Days</option>
             <option value={30}>30 Days</option>
             <option value={60}>60 Days</option>
             <option value={90}>90 Days</option>
           </select>
 
-          <div className="hidden xl:block ml-auto text-xs text-gray-400">
-            <span className="font-medium">Tips:</span> Click+Drag | Right-click | Del | Ctrl+C/V | Ctrl+Z/Y
+          <div className="hidden xl:block ml-auto text-xs text-slate-400">
+            <span className="font-medium text-slate-300">Tips:</span> Click+Drag | Right-click | Del | Ctrl+C/V | Ctrl+Z/Y
           </div>
         </div>
       </div>
@@ -1242,14 +1242,14 @@ export default function ResourceForecastView() {
       {/* Grid */}
       <div className="flex-1 overflow-auto">
         <table className="min-w-full border-collapse">
-          <thead className="bg-gray-800 sticky top-0 z-30">
+          <thead className="bg-slate-700 sticky top-0 z-30">
             <tr className="h-10">
-              <th className="sticky left-0 z-40 px-2 py-2 text-left text-xs font-semibold text-gray-300 uppercase border-r border-gray-700" style={{width: '80px', minWidth: '80px', backgroundColor: '#1f2937'}}>ID</th>
-              <th className="sticky z-40 px-2 py-2 text-left text-xs font-semibold text-gray-300 uppercase border-r border-gray-700" style={{left: '80px', width: '160px', minWidth: '160px', backgroundColor: '#1f2937'}}>Name</th>
-              <th className="sticky z-40 px-2 py-2 text-left text-xs font-semibold text-gray-300 uppercase border-r border-gray-700" style={{left: '240px', width: '120px', minWidth: '120px', backgroundColor: '#1f2937'}}>Designation</th>
-              <th className="sticky z-40 px-2 py-2 text-left text-xs font-semibold text-gray-300 uppercase border-r border-gray-700" style={{left: '360px', width: '120px', minWidth: '120px', backgroundColor: '#1f2937'}}>Reporting</th>
-              <th className="sticky z-40 px-2 py-2 text-left text-xs font-semibold text-gray-300 uppercase border-r border-gray-700" style={{left: '480px', width: '100px', minWidth: '100px', backgroundColor: '#1f2937'}}>Dept</th>
-              <th className="sticky z-40 px-2 py-2 text-left text-xs font-semibold text-gray-300 uppercase border-r-4 border-gray-500" style={{left: '580px', width: '80px', minWidth: '80px', backgroundColor: '#1f2937', boxShadow: '4px 0 8px rgba(0,0,0,0.5)'}}>Shift</th>
+              <th className="sticky left-0 z-40 px-2 py-2 text-left text-xs font-semibold text-slate-200 uppercase border-r border-slate-500" style={{width: '80px', minWidth: '80px', backgroundColor: '#334155'}}>ID</th>
+              <th className="sticky z-40 px-2 py-2 text-left text-xs font-semibold text-slate-200 uppercase border-r border-slate-500" style={{left: '80px', width: '160px', minWidth: '160px', backgroundColor: '#334155'}}>Name</th>
+              <th className="sticky z-40 px-2 py-2 text-left text-xs font-semibold text-slate-200 uppercase border-r border-slate-500" style={{left: '240px', width: '120px', minWidth: '120px', backgroundColor: '#334155'}}>Designation</th>
+              <th className="sticky z-40 px-2 py-2 text-left text-xs font-semibold text-slate-200 uppercase border-r border-slate-500" style={{left: '360px', width: '120px', minWidth: '120px', backgroundColor: '#334155'}}>Reporting</th>
+              <th className="sticky z-40 px-2 py-2 text-left text-xs font-semibold text-slate-200 uppercase border-r border-slate-500" style={{left: '480px', width: '100px', minWidth: '100px', backgroundColor: '#334155'}}>Dept</th>
+              <th className="sticky z-40 px-2 py-2 text-left text-xs font-semibold text-slate-200 uppercase border-r-4 border-slate-400" style={{left: '580px', width: '80px', minWidth: '80px', backgroundColor: '#334155', boxShadow: '4px 0 8px rgba(0,0,0,0.3)'}}>Shift</th>
               {dates.map((date: Date) => {
                 const weekend = isWeekend(date);
                 const working = isWorkingDay(date);
@@ -1257,8 +1257,8 @@ export default function ResourceForecastView() {
                 return (
                   <th 
                     key={date.toISOString()} 
-                    className={`px-2 py-2 text-center text-xs font-semibold border-r border-gray-700 min-w-[100px] cursor-pointer select-none transition-colors ${
-                      weekend ? (working ? 'bg-blue-800/50 text-blue-200' : 'bg-red-900/50 text-red-300') : 'bg-gray-800 text-gray-300'
+                    className={`px-2 py-2 text-center text-xs font-semibold border-r border-slate-500 min-w-[100px] cursor-pointer select-none transition-colors ${
+                      weekend ? (working ? 'bg-blue-700/60 text-blue-100' : 'bg-rose-800/60 text-rose-200') : 'bg-slate-700 text-slate-200'
                     } hover:brightness-110`}
                     onDoubleClick={() => weekend && toggleWeekendWorking(date)}
                     title={weekend ? (working ? 'Weekend - Working (Double-click to disable)' : 'Weekend - Off (Double-click to enable)') : 'Weekday'}
@@ -1275,32 +1275,32 @@ export default function ResourceForecastView() {
               })}
             </tr>
           </thead>
-          <tbody className="bg-gray-900">
+          <tbody className="bg-slate-800">
             {loading ? (
-              <tr><td colSpan={6 + dates.length} className="px-4 py-8 text-center text-gray-500">Loading...</td></tr>
+              <tr><td colSpan={6 + dates.length} className="px-4 py-8 text-center text-slate-400">Loading...</td></tr>
             ) : members.length === 0 ? (
-              <tr><td colSpan={6 + dates.length} className="px-4 py-8 text-center text-gray-500">No members found</td></tr>
+              <tr><td colSpan={6 + dates.length} className="px-4 py-8 text-center text-slate-400">No members found</td></tr>
             ) : (
               <>
                 {filteredMembers.map((member: any) => (
-                <tr key={member.id} className="hover:bg-gray-800/50 h-10 border-b border-gray-800 transition-colors group">
-                  <td className="sticky left-0 z-20 px-2 py-2 text-xs border-r border-gray-700 font-medium text-gray-300 truncate" style={{width: '80px', minWidth: '80px', backgroundColor: '#111827'}}>{member.empId}</td>
-                  <td className="sticky z-20 px-2 py-2 text-xs border-r border-gray-700 text-gray-300 truncate" style={{left: '80px', width: '160px', minWidth: '160px', backgroundColor: '#111827'}}>
+                <tr key={member.id} className="hover:bg-slate-700/50 h-10 border-b border-slate-700 transition-colors group">
+                  <td className="sticky left-0 z-20 px-2 py-2 text-xs border-r border-slate-600 font-medium text-slate-200 truncate" style={{width: '80px', minWidth: '80px', backgroundColor: '#1e293b'}}>{member.empId}</td>
+                  <td className="sticky z-20 px-2 py-2 text-xs border-r border-slate-600 text-slate-200 truncate" style={{left: '80px', width: '160px', minWidth: '160px', backgroundColor: '#1e293b'}}>
                     <div className="flex items-center justify-between gap-1">
                       <span className="truncate">{member.empName}</span>
                       <button
                         onClick={() => setEditingMember(member)}
-                        className="opacity-0 group-hover:opacity-100 text-blue-400 hover:text-blue-300 transition-opacity flex-shrink-0"
+                        className="opacity-0 group-hover:opacity-100 text-cyan-400 hover:text-cyan-300 transition-opacity flex-shrink-0"
                         title="Edit member"
                       >
                         ✏️
                       </button>
                     </div>
                   </td>
-                  <td className="sticky z-20 px-2 py-2 text-xs border-r border-gray-700 text-gray-400 truncate" style={{left: '240px', width: '120px', minWidth: '120px', backgroundColor: '#111827'}}>{member.designation}</td>
-                  <td className="sticky z-20 px-2 py-2 text-xs border-r border-gray-700 text-gray-400 truncate" style={{left: '360px', width: '120px', minWidth: '120px', backgroundColor: '#111827'}}>{member.reportingTo || '-'}</td>
-                  <td className="sticky z-20 px-2 py-2 text-xs border-r border-gray-700 text-gray-400 truncate" style={{left: '480px', width: '100px', minWidth: '100px', backgroundColor: '#111827'}}>{member.department}</td>
-                  <td className="sticky z-20 px-2 py-2 text-xs border-r-4 border-gray-500 text-gray-400 truncate" style={{left: '580px', width: '80px', minWidth: '80px', backgroundColor: '#111827', boxShadow: '4px 0 8px rgba(0,0,0,0.5)'}}>{member.shift}</td>
+                  <td className="sticky z-20 px-2 py-2 text-xs border-r border-slate-600 text-slate-300 truncate" style={{left: '240px', width: '120px', minWidth: '120px', backgroundColor: '#1e293b'}}>{member.designation}</td>
+                  <td className="sticky z-20 px-2 py-2 text-xs border-r border-slate-600 text-slate-300 truncate" style={{left: '360px', width: '120px', minWidth: '120px', backgroundColor: '#1e293b'}}>{member.reportingTo || '-'}</td>
+                  <td className="sticky z-20 px-2 py-2 text-xs border-r border-slate-600 text-slate-300 truncate" style={{left: '480px', width: '100px', minWidth: '100px', backgroundColor: '#1e293b'}}>{member.department}</td>
+                  <td className="sticky z-20 px-2 py-2 text-xs border-r-4 border-slate-400 text-slate-300 truncate" style={{left: '580px', width: '80px', minWidth: '80px', backgroundColor: '#1e293b', boxShadow: '4px 0 8px rgba(0,0,0,0.3)'}}>{member.shift}</td>
                   {dates.map((date, dateIndex) => {
                     const dailyAlloc = getDailyAllocation(member, date);
                     const isEditing = editingCell?.memberId === member.id && editingCell?.dateIndex === dateIndex;
@@ -1311,22 +1311,22 @@ export default function ResourceForecastView() {
                     const isLeave = dailyAlloc.allocations.some((a: any) => a.isLeave);
                     const hasData = dailyAlloc.totalMD > 0;
                     
-                    let bgColor = 'bg-green-900/20'; // Default: Available (light green)
-                    if (isSelected) bgColor = 'bg-blue-600/40';
-                    else if (disabled) bgColor = 'bg-red-950/30';
-                    else if (isLeave) bgColor = 'bg-red-900/40'; // Leave: red
-                    else if (weekend && working) bgColor = 'bg-blue-950/30';
-                    else if (hasData && dailyAlloc.status === 'full') bgColor = 'bg-orange-900/40';
-                    else if (hasData && dailyAlloc.status === 'partial') bgColor = 'bg-yellow-900/40';
+                    let bgColor = 'bg-emerald-700/30'; // Default: Available (light green)
+                    if (isSelected) bgColor = 'bg-cyan-600/50';
+                    else if (disabled) bgColor = 'bg-rose-900/40';
+                    else if (isLeave) bgColor = 'bg-red-700/50'; // Leave: red
+                    else if (weekend && working) bgColor = 'bg-blue-800/40';
+                    else if (hasData && dailyAlloc.status === 'full') bgColor = 'bg-amber-700/50';
+                    else if (hasData && dailyAlloc.status === 'partial') bgColor = 'bg-yellow-700/40';
                     
                     const displayText = formatAllocationsToString(dailyAlloc.allocations);
                     
                     return (
                       <td 
                         key={date.toISOString()} 
-                        className={`px-1 py-1 text-center text-xs border-r border-gray-700 select-none transition-all relative ${bgColor} ${
-                          disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:ring-2 hover:ring-blue-400'
-                        } ${isSelected ? 'ring-1 ring-blue-500' : ''}`}
+                        className={`px-1 py-1 text-center text-xs border-r border-slate-600 select-none transition-all relative ${bgColor} ${
+                          disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:ring-2 hover:ring-cyan-400'
+                        } ${isSelected ? 'ring-1 ring-cyan-400' : ''}`}
                         onMouseDown={(e) => !disabled && handleCellMouseDown(member, dateIndex, e)}
                         onMouseEnter={() => !disabled && handleCellMouseEnter(member, dateIndex)}
                         onClick={() => !disabled && !isEditing && handleCellClick(member, dateIndex)}
@@ -1334,7 +1334,7 @@ export default function ResourceForecastView() {
                         title={disabled ? 'Weekend - Not working' : isLeave ? 'On Leave' : !hasData ? 'Available' : ''}
                       >
                         {disabled ? (
-                          <div className="text-[10px] text-red-400/60">OFF</div>
+                          <div className="text-[10px] text-rose-400/80">OFF</div>
                         ) : isEditing ? (
                           <input 
                             type="text" 
@@ -1342,25 +1342,25 @@ export default function ResourceForecastView() {
                             onChange={(e) => setEditValue(e.target.value)} 
                             onKeyDown={(e) => handleEditKeyDown(e, member, dateIndex)} 
                             placeholder="Shot1/Shot2" 
-                            className="w-full px-1 py-1 text-xs bg-gray-800 border-2 border-blue-500 rounded text-white focus:outline-none" 
+                            className="w-full px-1 py-1 text-xs bg-slate-700 border-2 border-cyan-400 text-white focus:outline-none" 
                             autoFocus 
                             onFocus={(e) => e.target.select()} 
                           />
                         ) : isLeave ? (
                           <div className="text-base font-bold text-red-400">A</div>
                         ) : !hasData ? (
-                          <div className="text-[10px] text-green-400/60 font-medium">Available</div>
+                          <div className="text-[10px] text-emerald-300/80 font-medium">Available</div>
                         ) : (
                           <div className="text-xs leading-tight">
-                            <div className="font-medium truncate text-gray-200">{displayText}</div>
-                            <div className="text-[10px] text-gray-500">({dailyAlloc.totalMD.toFixed(2)} MD)</div>
+                            <div className="font-medium truncate text-slate-100">{displayText}</div>
+                            <div className="text-[10px] text-slate-400">({dailyAlloc.totalMD.toFixed(2)} MD)</div>
                           </div>
                         )}
                         
                         {/* Drag-to-fill handle (Excel-style) */}
                         {isSelected && !disabled && !isEditing && hasData && (
                           <div
-                            className="absolute bottom-0 right-0 w-2 h-2 bg-blue-500 cursor-crosshair hover:bg-blue-400 border border-white"
+                            className="absolute bottom-0 right-0 w-2 h-2 bg-cyan-500 cursor-crosshair hover:bg-cyan-400 border border-white"
                             style={{ transform: 'translate(25%, 25%)' }}
                             onMouseDown={(e) => handleFillHandleMouseDown(member, dateIndex, e)}
                             title="Drag to fill"
@@ -1373,8 +1373,8 @@ export default function ResourceForecastView() {
               ))}
               
               {/* Utilization Totals Row */}
-              <tr className="font-bold border-t-2 border-gray-600 sticky bottom-0 z-10" style={{backgroundColor: '#1f2937'}}>
-                <td colSpan={6} className="sticky left-0 z-20 px-2 py-3 text-xs text-yellow-400 uppercase border-r-4 border-gray-500" style={{left: '0px', width: '660px', backgroundColor: '#1f2937', boxShadow: '4px 0 8px rgba(0,0,0,0.5)'}}>
+              <tr className="font-bold border-t-2 border-slate-500 sticky bottom-0 z-10" style={{backgroundColor: '#334155'}}>
+                <td colSpan={6} className="sticky left-0 z-20 px-2 py-3 text-xs text-amber-300 uppercase border-r-4 border-slate-400" style={{left: '0px', width: '660px', backgroundColor: '#334155', boxShadow: '4px 0 8px rgba(0,0,0,0.3)'}}>
                   TOTAL UTILIZATION
                 </td>
                 {dates.map((date, idx) => {
@@ -1387,11 +1387,11 @@ export default function ResourceForecastView() {
                   return (
                     <td 
                       key={idx} 
-                      className={`px-2 py-3 text-center text-xs border-r border-gray-700 ${
-                        weekend ? (working ? 'bg-blue-800/30' : 'bg-red-900/30') : 'bg-gray-800'
+                      className={`px-2 py-3 text-center text-xs border-r border-slate-600 ${
+                        weekend ? (working ? 'bg-blue-700/40' : 'bg-rose-800/40') : 'bg-slate-700'
                       }`}
                     >
-                      <span className="text-yellow-400">{total.toFixed(2)} MD</span>
+                      <span className="text-amber-300 font-semibold">{total.toFixed(2)} MD</span>
                     </td>
                   );
                 })}
@@ -1403,16 +1403,16 @@ export default function ResourceForecastView() {
       </div>
 
       {/* Footer Legend */}
-      <div className="flex-none bg-gray-800 border-t border-gray-700 p-4">
-        <div className="flex items-center gap-6 text-sm text-gray-300 flex-wrap">
-          <div className="flex items-center gap-2"><div className="w-4 h-4 bg-green-900/20 border border-gray-700 rounded"></div><span>Available (Light Green)</span></div>
-          <div className="flex items-center gap-2"><div className="w-4 h-4 bg-red-900/40 border border-gray-700 rounded"></div><span>Leave (Red with 'A')</span></div>
-          <div className="flex items-center gap-2"><div className="w-4 h-4 bg-yellow-900/40 border border-gray-700 rounded"></div><span>Partial (&lt;1.0 MD)</span></div>
-          <div className="flex items-center gap-2"><div className="w-4 h-4 bg-orange-900/40 border border-gray-700 rounded"></div><span>Full (1.0 MD)</span></div>
-          <div className="flex items-center gap-2"><div className="w-4 h-4 bg-blue-950/30 border border-gray-700 rounded"></div><span>Weekend (Working)</span></div>
-          <div className="flex items-center gap-2"><div className="w-4 h-4 bg-red-950/30 border border-gray-700 rounded"></div><span>Weekend (Off)</span></div>
-          <div className="flex items-center gap-2"><div className="w-4 h-4 bg-blue-600/40 border border-blue-500 rounded"></div><span>Selected</span></div>
-          <div className="flex items-center gap-2"><div className="w-2 h-2 bg-blue-500 border border-white rounded-sm"></div><span>Drag-to-Fill (Excel-style)</span></div>
+      <div className="flex-none bg-slate-800 border-t border-slate-600 p-4">
+        <div className="flex items-center gap-6 text-sm text-slate-300 flex-wrap">
+          <div className="flex items-center gap-2"><div className="w-4 h-4 bg-emerald-700/30 border border-slate-500"></div><span>Available</span></div>
+          <div className="flex items-center gap-2"><div className="w-4 h-4 bg-red-700/50 border border-slate-500"></div><span>Leave (A)</span></div>
+          <div className="flex items-center gap-2"><div className="w-4 h-4 bg-yellow-700/40 border border-slate-500"></div><span>Partial (&lt;1.0 MD)</span></div>
+          <div className="flex items-center gap-2"><div className="w-4 h-4 bg-amber-700/50 border border-slate-500"></div><span>Full (1.0 MD)</span></div>
+          <div className="flex items-center gap-2"><div className="w-4 h-4 bg-blue-800/40 border border-slate-500"></div><span>Weekend (Working)</span></div>
+          <div className="flex items-center gap-2"><div className="w-4 h-4 bg-rose-900/40 border border-slate-500"></div><span>Weekend (Off)</span></div>
+          <div className="flex items-center gap-2"><div className="w-4 h-4 bg-cyan-600/50 border border-cyan-400"></div><span>Selected</span></div>
+          <div className="flex items-center gap-2"><div className="w-2 h-2 bg-cyan-500 border border-white"></div><span>Drag-to-Fill</span></div>
         </div>
       </div>
 
@@ -1423,7 +1423,7 @@ export default function ResourceForecastView() {
       {/* Save View Modal */}
       {showSaveViewModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg shadow-xl border border-gray-700 p-6 w-[500px]">
+          <div className="bg-slate-800 shadow-xl border border-slate-600 p-6 w-[500px]">
             <h2 className="text-xl font-bold text-white mb-4">Save Current View</h2>
             
             <form onSubmit={async (e) => {
@@ -1443,8 +1443,8 @@ export default function ResourceForecastView() {
             }}>
               
               {/* Current Filter Summary */}
-              <div className="mb-4 p-3 bg-gray-900/50 rounded border border-gray-700">
-                <p className="text-sm text-gray-400 mb-2">Current Filters:</p>
+              <div className="mb-4 p-3 bg-slate-900/50 border border-slate-600">
+                <p className="text-sm text-slate-400 mb-2">Current Filters:</p>
                 <div className="text-sm text-white space-y-1">
                   {selectedDepartment !== 'all' && <div>• Department: {selectedDepartment}</div>}
                   {selectedShift !== 'all' && <div>• Shift: {selectedShift}</div>}
@@ -1453,34 +1453,34 @@ export default function ResourceForecastView() {
                   {searchQuery && <div>• Search: "{searchQuery}"</div>}
                   {(!selectedDepartment || selectedDepartment === 'all') && (!selectedShift || selectedShift === 'all') && 
                    (!selectedShow || selectedShow === 'all') && (!utilizationFilter || utilizationFilter === 'all') && !searchQuery && (
-                    <div className="text-gray-500">No filters applied</div>
+                    <div className="text-slate-400">No filters applied</div>
                   )}
                 </div>
               </div>
               
               {/* View Name */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  View Name <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  View Name <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="text"
                   name="name"
                   placeholder="e.g., My Team, Overallocated Artists, Compositing Dept"
-                  className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-500 text-white placeholder-slate-400 focus:border-cyan-400 focus:outline-none"
                   autoFocus
                 />
               </div>
               
               {/* Options */}
               <div className="space-y-3 mb-6">
-                <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
-                  <input type="checkbox" name="isPublic" className="w-4 h-4 rounded bg-gray-900 border-gray-700" />
+                <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                  <input type="checkbox" name="isPublic" className="w-4 h-4 bg-slate-700 border-slate-500" />
                   <span>Make this view public (visible to all users)</span>
                 </label>
                 
-                <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
-                  <input type="checkbox" name="isQuickFilter" className="w-4 h-4 rounded bg-gray-900 border-gray-700" />
+                <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                  <input type="checkbox" name="isQuickFilter" className="w-4 h-4 bg-slate-700 border-slate-500" />
                   <span>Add to Quick Filters bar (for frequent use)</span>
                 </label>
               </div>
@@ -1490,13 +1490,13 @@ export default function ResourceForecastView() {
                 <button
                   type="button"
                   onClick={() => setShowSaveViewModal(false)}
-                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition"
+                  className="px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition"
+                  className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white transition"
                 >
                   Save View
                 </button>
@@ -1509,7 +1509,7 @@ export default function ResourceForecastView() {
       {/* Bulk Reassign Modal */}
       {bulkMode === 'reassign' && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg shadow-xl border border-gray-700 p-6 w-[600px]">
+          <div className="bg-slate-800 shadow-xl border border-slate-600 p-6 w-[600px]">
             <h2 className="text-xl font-bold text-white mb-4">Bulk Reassign Allocations</h2>
             
             <form onSubmit={async (e) => {
@@ -1558,12 +1558,12 @@ export default function ResourceForecastView() {
               <div className="space-y-4 mb-6">
                 {/* From Artist */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Move allocations FROM <span className="text-red-500">*</span>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Move allocations FROM <span className="text-red-400">*</span>
                   </label>
                   <select
                     name="fromMember"
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-white focus:border-blue-500 focus:outline-none"
+                    className="w-full px-3 py-2 bg-slate-700 border border-slate-500 text-white focus:border-cyan-400 focus:outline-none"
                     defaultValue=""
                   >
                     <option value="" disabled>Select source artist...</option>
@@ -1577,12 +1577,12 @@ export default function ResourceForecastView() {
                 
                 {/* To Artist */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Move allocations TO <span className="text-red-500">*</span>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Move allocations TO <span className="text-red-400">*</span>
                   </label>
                   <select
                     name="toMember"
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-white focus:border-blue-500 focus:outline-none"
+                    className="w-full px-3 py-2 bg-slate-700 border border-slate-500 text-white focus:border-cyan-400 focus:outline-none"
                     defaultValue=""
                   >
                     <option value="" disabled>Select target artist...</option>
@@ -1596,26 +1596,26 @@ export default function ResourceForecastView() {
                 
                 {/* Date Range */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Date Range <span className="text-red-500">*</span>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Date Range <span className="text-red-400">*</span>
                   </label>
                   <select
                     name="dateRange"
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-white focus:border-blue-500 focus:outline-none"
+                    className="w-full px-3 py-2 bg-slate-700 border border-slate-500 text-white focus:border-cyan-400 focus:outline-none"
                     defaultValue="all"
                   >
                     <option value="all">All visible dates ({dates.length} days)</option>
                     <option value="current-week">Current week (7 days)</option>
                   </select>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-slate-400 mt-1">
                     All allocations in this range will be moved from source to target artist
                   </p>
                 </div>
               </div>
               
               {/* Warning */}
-              <div className="mb-6 p-3 bg-yellow-900/20 border border-yellow-700/50 rounded">
-                <p className="text-sm text-yellow-400">
+              <div className="mb-6 p-3 bg-amber-900/30 border border-amber-600/50">
+                <p className="text-sm text-amber-300">
                   ⚠️ This will delete allocations from the source artist and create them for the target artist. This action cannot be undone (except via manual undo).
                 </p>
               </div>
@@ -1625,13 +1625,13 @@ export default function ResourceForecastView() {
                 <button
                   type="button"
                   onClick={() => setBulkMode(null)}
-                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition"
+                  className="px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded transition"
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white transition"
                 >
                   Reassign Allocations
                 </button>
@@ -1644,7 +1644,7 @@ export default function ResourceForecastView() {
       {/* Bulk Copy Week Modal */}
       {bulkMode === 'copy' && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg shadow-xl border border-gray-700 p-6 w-[600px]">
+          <div className="bg-slate-800 shadow-xl border border-slate-600 p-6 w-[600px]">
             <h2 className="text-xl font-bold text-white mb-4">Bulk Copy Week Pattern</h2>
             
             <form onSubmit={async (e) => {
@@ -1673,12 +1673,12 @@ export default function ResourceForecastView() {
               <div className="space-y-4 mb-6">
                 {/* Artist Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Artist <span className="text-red-500">*</span>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Artist <span className="text-red-400">*</span>
                   </label>
                   <select
                     name="sourceMember"
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-white focus:border-blue-500 focus:outline-none"
+                    className="w-full px-3 py-2 bg-slate-700 border border-slate-500 text-white focus:border-cyan-400 focus:outline-none"
                     defaultValue=""
                   >
                     <option value="" disabled>Select artist...</option>
@@ -1692,38 +1692,38 @@ export default function ResourceForecastView() {
                 
                 {/* Source Week */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Copy FROM week starting <span className="text-red-500">*</span>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Copy FROM week starting <span className="text-red-400">*</span>
                   </label>
                   <input
                     type="date"
                     name="sourceWeekStart"
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-white focus:border-blue-500 focus:outline-none"
+                    className="w-full px-3 py-2 bg-slate-700 border border-slate-500 text-white focus:border-cyan-400 focus:outline-none"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-slate-400 mt-1">
                     Will copy 7 days starting from this date
                   </p>
                 </div>
                 
                 {/* Target Week */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Copy TO week starting <span className="text-red-500">*</span>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Copy TO week starting <span className="text-red-400">*</span>
                   </label>
                   <input
                     type="date"
                     name="targetWeekStart"
-                    className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-white focus:border-blue-500 focus:outline-none"
+                    className="w-full px-3 py-2 bg-slate-700 border border-slate-500 text-white focus:border-cyan-400 focus:outline-none"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-slate-400 mt-1">
                     Allocations will be created for 7 days starting from this date
                   </p>
                 </div>
               </div>
               
               {/* Info */}
-              <div className="mb-6 p-3 bg-blue-900/20 border border-blue-700/50 rounded">
-                <p className="text-sm text-blue-400">
+              <div className="mb-6 p-3 bg-cyan-900/30 border border-cyan-600/50">
+                <p className="text-sm text-cyan-300">
                   ℹ️ This will duplicate the allocation pattern from the source week to the target week for the selected artist. Existing allocations in the target week will be preserved.
                 </p>
               </div>
@@ -1733,13 +1733,13 @@ export default function ResourceForecastView() {
                 <button
                   type="button"
                   onClick={() => setBulkMode(null)}
-                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition"
+                  className="px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition"
+                  className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white transition"
                 >
                   Copy Week Pattern
                 </button>
