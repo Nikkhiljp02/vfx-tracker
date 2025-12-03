@@ -1,6 +1,134 @@
 import * as XLSX from 'xlsx';
 import { Show, Shot, Task } from './types';
 
+// Robust date parser that handles multiple formats
+// Supports: "2025-12-10", "12-Dec-25", "12-Dec", "10/12/2025", "10-12-2025", Excel serial numbers
+function parseFlexibleDate(value: any): Date | null {
+  if (!value) return null;
+  
+  // If it's already a valid Date object
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return value;
+  }
+  
+  // If it's an Excel serial number (number between 1 and 100000)
+  if (typeof value === 'number' && value > 0 && value < 100000) {
+    // Excel epoch starts from Dec 30, 1899
+    const excelEpoch = new Date(1899, 11, 30);
+    const result = new Date(excelEpoch.getTime() + value * 24 * 60 * 60 * 1000);
+    if (!isNaN(result.getTime())) {
+      return result;
+    }
+  }
+  
+  const str = value.toString().trim();
+  if (!str) return null;
+  
+  const months: Record<string, number> = {
+    'jan': 0, 'january': 0,
+    'feb': 1, 'february': 1,
+    'mar': 2, 'march': 2,
+    'apr': 3, 'april': 3,
+    'may': 4,
+    'jun': 5, 'june': 5,
+    'jul': 6, 'july': 6,
+    'aug': 7, 'august': 7,
+    'sep': 8, 'september': 8,
+    'oct': 9, 'october': 9,
+    'nov': 10, 'november': 10,
+    'dec': 11, 'december': 11,
+  };
+  
+  const currentYear = new Date().getFullYear();
+  
+  // Try different date patterns
+  let parsed: Date | null = null;
+  
+  // Pattern: "12-Dec-25" or "12-Dec-2025" or "12-Dec"
+  const ddMmmYyPattern = /^(\d{1,2})[-\/]([a-zA-Z]{3,9})(?:[-\/](\d{2,4}))?$/i;
+  let match = str.match(ddMmmYyPattern);
+  if (match) {
+    const day = parseInt(match[1]);
+    const monthStr = match[2].toLowerCase();
+    const month = months[monthStr];
+    let year = match[3] ? parseInt(match[3]) : currentYear;
+    if (year < 100) year += 2000; // Convert 25 to 2025
+    
+    if (month !== undefined && day >= 1 && day <= 31) {
+      parsed = new Date(year, month, day);
+    }
+  }
+  
+  // Pattern: "Dec-12-25" or "Dec-12-2025" or "Dec-12"
+  if (!parsed) {
+    const mmmDdYyPattern = /^([a-zA-Z]{3,9})[-\/](\d{1,2})(?:[-\/](\d{2,4}))?$/i;
+    match = str.match(mmmDdYyPattern);
+    if (match) {
+      const monthStr = match[1].toLowerCase();
+      const month = months[monthStr];
+      const day = parseInt(match[2]);
+      let year = match[3] ? parseInt(match[3]) : currentYear;
+      if (year < 100) year += 2000;
+      
+      if (month !== undefined && day >= 1 && day <= 31) {
+        parsed = new Date(year, month, day);
+      }
+    }
+  }
+  
+  // Pattern: "2025-12-10" (ISO format)
+  if (!parsed) {
+    const isoPattern = /^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/;
+    match = str.match(isoPattern);
+    if (match) {
+      const year = parseInt(match[1]);
+      const month = parseInt(match[2]) - 1;
+      const day = parseInt(match[3]);
+      parsed = new Date(year, month, day);
+    }
+  }
+  
+  // Pattern: "10/12/2025" or "10-12-2025" (DD/MM/YYYY)
+  if (!parsed) {
+    const ddMmYyyyPattern = /^(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})$/;
+    match = str.match(ddMmYyyyPattern);
+    if (match) {
+      const day = parseInt(match[1]);
+      const month = parseInt(match[2]) - 1;
+      let year = parseInt(match[3]);
+      if (year < 100) year += 2000;
+      parsed = new Date(year, month, day);
+    }
+  }
+  
+  // Try native Date parsing as last resort
+  if (!parsed) {
+    const nativeDate = new Date(str);
+    if (!isNaN(nativeDate.getTime()) && nativeDate.getFullYear() > 1970) {
+      parsed = nativeDate;
+    }
+  }
+  
+  // Validate the parsed date
+  if (parsed && !isNaN(parsed.getTime()) && parsed.getFullYear() >= 1970 && parsed.getFullYear() <= 2100) {
+    return parsed;
+  }
+  
+  return null;
+}
+
+// Format date to d-MMM-yy format (e.g., "4-Dec-25") for display
+function formatDateDisplay(date: Date | null): string {
+  if (!date || isNaN(date.getTime())) return '';
+  
+  const day = date.getDate();
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = months[date.getMonth()];
+  const year = date.getFullYear().toString().slice(-2);
+  
+  return `${day}-${month}-${year}`;
+}
+
 // Export tracker data to Excel
 export function exportToExcel(shows: Show[], filename: string = 'vfx_tracker_export.xlsx') {
   const workbook = XLSX.utils.book_new();
@@ -107,15 +235,32 @@ export function parseExcelFile(file: File): Promise<any[]> {
     reader.onload = (e) => {
       try {
         const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
+        // Use cellDates: true to parse dates as Date objects
+        const workbook = XLSX.read(data, { type: 'binary', cellDates: true });
         
         // Read the first sheet
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
         
-        // Convert to JSON
-        const jsonData = XLSX.utils.sheet_to_json(sheet);
-        resolve(jsonData);
+        // Convert to JSON - use raw: true to get native Date objects
+        const jsonData = XLSX.utils.sheet_to_json(sheet, { raw: true });
+        
+        // Process each row to parse dates properly
+        const processedData = jsonData.map((row: any) => {
+          const processedRow = { ...row };
+          
+          // Parse date fields using our flexible parser
+          ['Internal ETA', 'Client ETA', 'Delivered Date'].forEach(field => {
+            if (processedRow[field] !== undefined && processedRow[field] !== null && processedRow[field] !== '') {
+              const parsed = parseFlexibleDate(processedRow[field]);
+              processedRow[field] = parsed ? parsed.toISOString() : null;
+            }
+          });
+          
+          return processedRow;
+        });
+        
+        resolve(processedData);
       } catch (error) {
         reject(error);
       }
@@ -192,14 +337,18 @@ export function validateImportData(data: any[]): { valid: boolean; errors: strin
         show.departments.push(department);
       }
 
+      // Parse dates using flexible parser
+      const internalEtaParsed = parseFlexibleDate(row['Internal ETA']);
+      const clientEtaParsed = parseFlexibleDate(row['Client ETA']);
+
       const task = {
         department,
         isInternal: row['Is Internal']?.toString().toLowerCase() === 'yes',
         status: row['Status']?.toString().trim() || 'YTS',
         leadName: row['Lead Name']?.toString().trim() || null,
         bidMds: row['Bid (MDs)'] ? parseFloat(row['Bid (MDs)'].toString()) : null,
-        internalEta: row['Internal ETA'] ? row['Internal ETA'] : null,
-        clientEta: row['Client ETA'] ? row['Client ETA'] : null,
+        internalEta: internalEtaParsed ? internalEtaParsed.toISOString() : null,
+        clientEta: clientEtaParsed ? clientEtaParsed.toISOString() : null,
       };
 
       shot.tasks.push(task);
@@ -400,10 +549,20 @@ export function validateUpdateData(data: any[], existingShows: Show[]): {
         const bid = row['Bid (MDs)'];
         taskUpdateData.bidMds = bid ? parseFloat(bid.toString()) : null;
       }
-      if (row['Internal ETA'] !== undefined) taskUpdateData.internalEta = row['Internal ETA'] || null;
-      if (row['Client ETA'] !== undefined) taskUpdateData.clientEta = row['Client ETA'] || null;
+      // Parse dates using flexible parser
+      if (row['Internal ETA'] !== undefined) {
+        const parsed = parseFlexibleDate(row['Internal ETA']);
+        taskUpdateData.internalEta = parsed ? parsed.toISOString() : null;
+      }
+      if (row['Client ETA'] !== undefined) {
+        const parsed = parseFlexibleDate(row['Client ETA']);
+        taskUpdateData.clientEta = parsed ? parsed.toISOString() : null;
+      }
       if (row['Delivered Version'] !== undefined) taskUpdateData.deliveredVersion = row['Delivered Version']?.toString().trim() || null;
-      if (row['Delivered Date'] !== undefined) taskUpdateData.deliveredDate = row['Delivered Date'] || null;
+      if (row['Delivered Date'] !== undefined) {
+        const parsed = parseFlexibleDate(row['Delivered Date']);
+        taskUpdateData.deliveredDate = parsed ? parsed.toISOString() : null;
+      }
 
       if (Object.keys(taskUpdateData).length > 0) {
         updates.push({
