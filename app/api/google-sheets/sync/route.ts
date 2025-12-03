@@ -246,6 +246,33 @@ export async function POST(req: NextRequest) {
 
     const dataRowCount = rows.length;
 
+    // Column widths in pixels
+    // Columns: Show Name(0), Client(1), Shot Name(2), Shot Tag(3), EP(4), SEQ(5), TO(6), Frames(7), 
+    //          SOW(8), Department(9), Is Internal(10), Status(11), Lead Name(12), Bid(13), 
+    //          Internal ETA(14), Client ETA(15), Delivered Version(16), Delivered Date(17),
+    //          Shot ID(18), Task ID(19)
+    const columnWidths = [
+      120,  // Show Name
+      100,  // Client
+      100,  // Shot Name
+      80,   // Shot Tag
+      50,   // EP
+      50,   // SEQ
+      50,   // TO
+      60,   // Frames
+      150,  // SOW (Scope of Work)
+      90,   // Department
+      80,   // Is Internal
+      80,   // Status
+      100,  // Lead Name
+      70,   // Bid (MDs)
+      90,   // Internal ETA
+      90,   // Client ETA
+      100,  // Delivered Version
+      90,   // Delivered Date
+    ];
+    const SOW_COLUMN_INDEX = 8;
+
     // Apply formatting
     try {
       // Border style - solid black for all borders
@@ -264,17 +291,33 @@ export async function POST(req: NextRequest) {
             fields: 'gridProperties.frozenRowCount',
           },
         },
-        // Header row styling - dark blue with white text
+        // Set header row height to 35
+        {
+          updateDimensionProperties: {
+            range: { sheetId: mainSheetId, dimension: 'ROWS', startIndex: 0, endIndex: 1 },
+            properties: { pixelSize: 35 },
+            fields: 'pixelSize',
+          },
+        },
+        // Set all data rows height to 25
+        {
+          updateDimensionProperties: {
+            range: { sheetId: mainSheetId, dimension: 'ROWS', startIndex: 1, endIndex: dataRowCount },
+            properties: { pixelSize: 25 },
+            fields: 'pixelSize',
+          },
+        },
+        // Header row styling - dark blue with white text, NO WRAP (single line)
         {
           repeatCell: {
-            range: { sheetId: mainSheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: TOTAL_COLUMNS },
+            range: { sheetId: mainSheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: HIDDEN_COLUMNS_START },
             cell: {
               userEnteredFormat: {
                 backgroundColor: { red: 0.15, green: 0.3, blue: 0.5 },
                 textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 }, fontSize: 10 },
                 horizontalAlignment: 'CENTER',
                 verticalAlignment: 'MIDDLE',
-                wrapStrategy: 'WRAP',
+                wrapStrategy: 'CLIP', // No wrap - single line
               },
             },
             fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)',
@@ -283,7 +326,7 @@ export async function POST(req: NextRequest) {
         // Center align all data cells
         {
           repeatCell: {
-            range: { sheetId: mainSheetId, startRowIndex: 1, endRowIndex: dataRowCount, startColumnIndex: 0, endColumnIndex: TOTAL_COLUMNS },
+            range: { sheetId: mainSheetId, startRowIndex: 1, endRowIndex: dataRowCount, startColumnIndex: 0, endColumnIndex: HIDDEN_COLUMNS_START },
             cell: {
               userEnteredFormat: {
                 horizontalAlignment: 'CENTER',
@@ -293,7 +336,21 @@ export async function POST(req: NextRequest) {
             fields: 'userEnteredFormat(horizontalAlignment,verticalAlignment)',
           },
         },
-        // Add ALL borders to data cells
+        // SOW column - wrap text
+        {
+          repeatCell: {
+            range: { sheetId: mainSheetId, startRowIndex: 1, endRowIndex: dataRowCount, startColumnIndex: SOW_COLUMN_INDEX, endColumnIndex: SOW_COLUMN_INDEX + 1 },
+            cell: {
+              userEnteredFormat: {
+                wrapStrategy: 'WRAP',
+                horizontalAlignment: 'LEFT',
+                verticalAlignment: 'MIDDLE',
+              },
+            },
+            fields: 'userEnteredFormat(wrapStrategy,horizontalAlignment,verticalAlignment)',
+          },
+        },
+        // Add ALL borders to visible data cells
         {
           updateBorders: {
             range: { sheetId: mainSheetId, startRowIndex: 0, endRowIndex: dataRowCount, startColumnIndex: 0, endColumnIndex: HIDDEN_COLUMNS_START },
@@ -305,13 +362,7 @@ export async function POST(req: NextRequest) {
             innerVertical: borderStyle,
           },
         },
-        // Auto-resize all visible columns to fit content
-        {
-          autoResizeDimensions: {
-            dimensions: { sheetId: mainSheetId, dimension: 'COLUMNS', startIndex: 0, endIndex: HIDDEN_COLUMNS_START },
-          },
-        },
-        // Hide Shot ID and Task ID columns
+        // Hide Shot ID and Task ID columns ONLY
         {
           updateDimensionProperties: {
             range: { sheetId: mainSheetId, dimension: 'COLUMNS', startIndex: HIDDEN_COLUMNS_START, endIndex: TOTAL_COLUMNS },
@@ -319,7 +370,22 @@ export async function POST(req: NextRequest) {
             fields: 'hiddenByUser',
           },
         },
-        // Status dropdown validation
+        // Unhide all visible columns (0 to 17)
+        {
+          updateDimensionProperties: {
+            range: { sheetId: mainSheetId, dimension: 'COLUMNS', startIndex: 0, endIndex: HIDDEN_COLUMNS_START },
+            properties: { hiddenByUser: false },
+            fields: 'hiddenByUser',
+          },
+        },
+        // Clear ALL data validations first (removes any unwanted dropdowns like on Frames column)
+        {
+          setDataValidation: {
+            range: { sheetId: mainSheetId, startRowIndex: 1, endRowIndex: dataRowCount, startColumnIndex: 0, endColumnIndex: HIDDEN_COLUMNS_START },
+            rule: null, // This clears validation
+          },
+        },
+        // Status dropdown validation (ONLY for Status column, index 11)
         {
           setDataValidation: {
             range: { sheetId: mainSheetId, startRowIndex: 1, endRowIndex: dataRowCount, startColumnIndex: STATUS_COLUMN_INDEX, endColumnIndex: STATUS_COLUMN_INDEX + 1 },
@@ -344,6 +410,17 @@ export async function POST(req: NextRequest) {
           },
         },
       ];
+
+      // Set individual column widths
+      columnWidths.forEach((width, index) => {
+        requests.push({
+          updateDimensionProperties: {
+            range: { sheetId: mainSheetId, dimension: 'COLUMNS', startIndex: index, endIndex: index + 1 },
+            properties: { pixelSize: width },
+            fields: 'pixelSize',
+          },
+        });
+      });
 
       // Add Summary sheet formatting if it exists
       if (summarySheetId !== undefined) {
