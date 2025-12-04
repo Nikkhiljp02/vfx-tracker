@@ -5,7 +5,7 @@ import { auth } from '@/lib/auth';
 // GET single soft booking
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -18,8 +18,9 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const { id } = await params;
     const booking = await prisma.softBooking.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!booking) {
@@ -36,7 +37,7 @@ export async function GET(
 // PUT update soft booking
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -49,6 +50,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const { id } = await params;
     const body = await request.json();
     const {
       showName,
@@ -74,7 +76,7 @@ export async function PUT(
     }
 
     const booking = await prisma.softBooking.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         showName,
         managerName,
@@ -101,7 +103,7 @@ export async function PUT(
 // DELETE soft booking
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -114,8 +116,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const { id } = await params;
     await prisma.softBooking.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ success: true });
