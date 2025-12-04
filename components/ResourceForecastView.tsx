@@ -1958,7 +1958,7 @@ export default function ResourceForecastView() {
                   } else if (errorCount > 0) {
                     toast.error('Failed to create some allocations');
                   } else {
-                    toast.info('No available cells to book (all members already allocated)');
+                    toast('No available cells to book (all members already allocated)', { icon: 'ℹ️' });
                   }
                 } catch (error) {
                   console.error('Error creating allocations:', error);
