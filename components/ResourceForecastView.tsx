@@ -10,6 +10,7 @@ import { toast } from 'react-hot-toast';
 // Lazy load modals for better initial performance
 const ResourceImportModal = lazy(() => import('./ResourceImportModal'));
 const ResourceMemberForm = lazy(() => import('./ResourceMemberForm'));
+const SoftBookingModal = lazy(() => import('./SoftBookingModal'));
 
 // Type definitions
 interface ResourceMember {
@@ -119,6 +120,8 @@ export default function ResourceForecastView() {
   const [copiedCells, setCopiedCells] = useState<Map<string, string>>(new Map());
   const [fillHandleActive, setFillHandleActive] = useState(false);
   const [fillHandleCell, setFillHandleCell] = useState<{ memberId: string; dateIndex: number } | null>(null);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [quickBookingData, setQuickBookingData] = useState<{ showName?: string; managerName?: string } | null>(null);
 
   // Ref for virtual scrolling container
   const parentRef = useRef<HTMLDivElement>(null);
@@ -1071,6 +1074,18 @@ export default function ResourceForecastView() {
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             Mark as Leave
           </button>
+          <div className="border-t border-slate-600 my-1"></div>
+          <button
+            className="w-full px-4 py-2 text-left text-sm text-indigo-400 hover:bg-slate-700 transition-colors flex items-center gap-2"
+            onClick={() => {
+              setQuickBookingData({});
+              setShowBookingModal(true);
+              setContextMenu(null);
+            }}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+            Quick Book
+          </button>
         </div>
       )}
 
@@ -1096,6 +1111,7 @@ export default function ResourceForecastView() {
             <button onClick={() => { setImportType('members'); setShowImportModal(true); }} className="px-4 py-2 bg-cyan-600 text-white text-xs hover:bg-cyan-500 transition-colors touch-manipulation"><span className="hidden sm:inline">Import </span>Members</button>
             <button onClick={() => { setImportType('allocations'); setShowImportModal(true); }} className="px-4 py-2 bg-purple-600 text-white text-xs hover:bg-purple-500 transition-colors touch-manipulation"><span className="hidden sm:inline">Import </span>Alloc</button>
             <button onClick={() => setShowAddMemberModal(true)} className="px-4 py-2 bg-emerald-600 text-white text-xs hover:bg-emerald-500 transition-colors touch-manipulation">+ Member</button>
+            <button onClick={() => setShowBookingModal(true)} className="px-4 py-2 bg-indigo-600 text-white text-xs hover:bg-indigo-500 transition-colors touch-manipulation">📅 Book</button>
             
             {/* Bulk Operations Dropdown */}
             <div className="relative group">
@@ -1240,8 +1256,8 @@ export default function ResourceForecastView() {
       </div>
 
       {/* Grid */}
-      <div className="flex-1 overflow-auto">
-        <table className="min-w-full border-collapse">
+      <div className="flex-1 overflow-auto m-2">
+        <table className="min-w-full border-collapse rounded-lg overflow-hidden">
           <thead className="bg-slate-700 sticky top-0 z-30">
             <tr className="h-10">
               <th className="sticky left-0 z-40 px-2 py-2 text-left text-xs font-semibold text-slate-200 uppercase" style={{width: '80px', minWidth: '80px', maxWidth: '80px', backgroundColor: '#334155', borderRight: '1px solid #64748b'}}>ID</th>
@@ -1750,6 +1766,26 @@ export default function ResourceForecastView() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Soft Booking Modal */}
+      {showBookingModal && (
+        <Suspense fallback={<div className="fixed inset-0 bg-black/50 flex items-center justify-center"><div className="animate-spin w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full"></div></div>}>
+          <SoftBookingModal
+            isOpen={showBookingModal}
+            onClose={() => {
+              setShowBookingModal(false);
+              setQuickBookingData(null);
+            }}
+            onSuccess={() => {
+              setShowBookingModal(false);
+              setQuickBookingData(null);
+              toast.success('Booking created!');
+            }}
+            prefilledData={quickBookingData || undefined}
+            isSimplified={!!quickBookingData}
+          />
+        </Suspense>
       )}
     </div>
   );

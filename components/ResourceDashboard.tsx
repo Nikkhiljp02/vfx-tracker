@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, isSaturday, isSunday, startOfMonth, endOfMonth } from 'date-fns';
 import { useResourceMembers, useResourceAllocations } from '@/hooks/useQueryHooks';
-import { Users, Calendar, Clock, Award, BarChart3, TrendingUp, Activity, Zap, Target, AlertTriangle, CheckCircle, XCircle, ArrowUpRight, ArrowDownRight, Briefcase, UserCheck, UserX } from 'lucide-react';
+import { Users, Calendar, Clock, Award, BarChart3, TrendingUp, Activity, Zap, Target, AlertTriangle, CheckCircle, XCircle, ArrowUpRight, ArrowDownRight, Briefcase, UserCheck, UserX, BookCheck, Sliders } from 'lucide-react';
 
 export default function ResourceDashboard() {
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
@@ -16,6 +16,8 @@ export default function ResourceDashboard() {
   // React Query - instant caching
   const { data: members = [], isLoading: membersLoading } = useResourceMembers();
   const { data: allocations = [], isLoading: allocationsLoading } = useResourceAllocations(startDateStr, endDateStr);
+  const [softBookings, setSoftBookings] = useState<any[]>([]);
+  const [bookingsLoading, setBookingsLoading] = useState(false);
   const loading = membersLoading || allocationsLoading;
 
   // Load working weekends from localStorage and allocations
@@ -43,6 +45,24 @@ export default function ResourceDashboard() {
     
     setWorkingWeekends(weekendWorkingDates);
   }, [allocations, currentWeekStart]);
+
+  // Fetch soft bookings
+  useEffect(() => {
+    const fetchBookings = async () => {
+      setBookingsLoading(true);
+      try {
+        const res = await fetch('/api/resource/soft-bookings');
+        if (res.ok) {
+          const data = await res.json();
+          setSoftBookings(data);
+        }
+      } catch (error) {
+        console.error('Error fetching bookings:', error);
+      }
+      setBookingsLoading(false);
+    };
+    fetchBookings();
+  }, []);
 
   const weekDays = useMemo(() => {
     return eachDayOfInterval({ start: currentWeekStart, end: weekEnd });
@@ -285,7 +305,7 @@ export default function ResourceDashboard() {
             {/* Key Metrics Row */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Total Resources */}
-              <div className="bg-[#111111] border border-[#1a1a1a] p-4">
+              <div className="bg-[#111111] border border-[#1a1a1a] p-4 rounded-lg">
                 <div className="flex items-center justify-between mb-3">
                   <div className="w-10 h-10 bg-cyan-500/10 flex items-center justify-center">
                     <Users className="text-cyan-500" size={20} />
@@ -302,7 +322,7 @@ export default function ResourceDashboard() {
               </div>
 
               {/* Week Capacity */}
-              <div className="bg-[#111111] border border-[#1a1a1a] p-4">
+              <div className="bg-[#111111] border border-[#1a1a1a] p-4 rounded-lg">
                 <div className="flex items-center justify-between mb-3">
                   <div className="w-10 h-10 bg-purple-500/10 flex items-center justify-center">
                     <Target className="text-purple-500" size={20} />
@@ -319,7 +339,7 @@ export default function ResourceDashboard() {
               </div>
 
               {/* Allocated */}
-              <div className="bg-[#111111] border border-[#1a1a1a] p-4">
+              <div className="bg-[#111111] border border-[#1a1a1a] p-4 rounded-lg">
                 <div className="flex items-center justify-between mb-3">
                   <div className="w-10 h-10 bg-emerald-500/10 flex items-center justify-center">
                     <Activity className="text-emerald-500" size={20} />
@@ -331,7 +351,7 @@ export default function ResourceDashboard() {
               </div>
 
               {/* Available */}
-              <div className="bg-[#111111] border border-[#1a1a1a] p-4">
+              <div className="bg-[#111111] border border-[#1a1a1a] p-4 rounded-lg">
                 <div className="flex items-center justify-between mb-3">
                   <div className="w-10 h-10 bg-amber-500/10 flex items-center justify-center">
                     <Zap className="text-amber-500" size={20} />
@@ -344,7 +364,7 @@ export default function ResourceDashboard() {
             </div>
 
             {/* Occupancy Progress Bar */}
-            <div className="bg-[#111111] border border-[#1a1a1a] p-4">
+            <div className="bg-[#111111] border border-[#1a1a1a] p-4 rounded-lg">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <BarChart3 className="text-cyan-500" size={18} />
@@ -401,7 +421,7 @@ export default function ResourceDashboard() {
             {/* Two Column Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Department Performance */}
-              <div className="bg-[#111111] border border-[#1a1a1a] p-4">
+              <div className="bg-[#111111] border border-[#1a1a1a] p-4 rounded-lg">
                 <div className="flex items-center gap-2 mb-4">
                   <Briefcase className="text-cyan-500" size={18} />
                   <span className="text-sm font-semibold text-white">Department Performance</span>
@@ -444,7 +464,7 @@ export default function ResourceDashboard() {
               </div>
 
               {/* Critical Alerts */}
-              <div className="bg-[#111111] border border-[#1a1a1a] p-4">
+              <div className="bg-[#111111] border border-[#1a1a1a] p-4 rounded-lg">
                 <div className="flex items-center gap-2 mb-4">
                   <AlertTriangle className="text-amber-500" size={18} />
                   <span className="text-sm font-semibold text-white">Resource Status Overview</span>
@@ -506,7 +526,7 @@ export default function ResourceDashboard() {
             </div>
 
             {/* Active Shows */}
-            <div className="bg-[#111111] border border-[#1a1a1a] p-4">
+            <div className="bg-[#111111] border border-[#1a1a1a] p-4 rounded-lg">
               <div className="flex items-center gap-2 mb-4">
                 <Award className="text-cyan-500" size={18} />
                 <span className="text-sm font-semibold text-white">Top Active Shows This Week</span>
@@ -516,7 +536,7 @@ export default function ResourceDashboard() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
                   {showStats.map((show, idx) => (
-                    <div key={idx} className="bg-[#0a0a0a] border border-[#1a1a1a] p-4">
+                    <div key={idx} className="bg-[#0a0a0a] border border-[#1a1a1a] p-4 rounded-lg">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs text-gray-500">#{idx + 1}</span>
                         <span className="text-lg font-bold text-cyan-400">{show.totalMD.toFixed(1)} MD</span>
@@ -530,6 +550,88 @@ export default function ResourceDashboard() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+
+            {/* Soft Bookings Card */}
+            <div className="bg-[#111111] border border-[#1a1a1a] p-4 rounded-lg">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <BookCheck className="text-indigo-500" size={18} />
+                  <span className="text-sm font-semibold text-white">Soft Bookings</span>
+                  <span className="px-2 py-0.5 bg-indigo-500/10 text-indigo-400 text-xs font-semibold border border-indigo-500/20 rounded-full">
+                    {softBookings.length} Active
+                  </span>
+                </div>
+              </div>
+              {bookingsLoading ? (
+                <div className="flex items-center justify-center h-32">
+                  <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : softBookings.length === 0 ? (
+                <div className="text-center text-gray-500 py-8">
+                  <BookCheck className="mx-auto mb-2 opacity-50" size={32} />
+                  <p>No soft bookings yet</p>
+                  <p className="text-xs mt-1">Create bookings from the Forecast tab</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {softBookings.slice(0, 6).map((booking) => (
+                    <div key={booking.id} className="bg-[#0a0a0a] border border-[#1a1a1a] p-4 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-semibold text-white truncate" title={booking.showName}>
+                          {booking.showName}
+                        </span>
+                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                          booking.status === 'Confirmed' ? 'bg-emerald-500/20 text-emerald-400' :
+                          booking.status === 'Pending' ? 'bg-amber-500/20 text-amber-400' :
+                          booking.status === 'Cancelled' ? 'bg-red-500/20 text-red-400' :
+                          'bg-gray-500/20 text-gray-400'
+                        }`}>
+                          {booking.status}
+                        </span>
+                      </div>
+                      <div className="space-y-1.5 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500">Manager</span>
+                          <span className="text-gray-300">{booking.managerName}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500">Department</span>
+                          <span className="text-cyan-400 font-medium">{booking.department}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500">Man Days</span>
+                          <span className="text-emerald-400 font-bold">{booking.manDays} MD</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-500">Duration</span>
+                          <span className="text-gray-300">
+                            {format(new Date(booking.startDate), 'MMM dd')} - {format(new Date(booking.endDate), 'MMM dd')}
+                          </span>
+                        </div>
+                        {booking.splitEnabled && (
+                          <div className="pt-2 border-t border-[#1a1a1a] mt-2">
+                            <div className="flex items-center gap-1 mb-1">
+                              <Sliders className="text-gray-500" size={12} />
+                              <span className="text-gray-500">Designation Split</span>
+                            </div>
+                            <div className="flex gap-2">
+                              <span className="text-cyan-400">SR: {booking.srPercentage}%</span>
+                              <span className="text-amber-400">MID: {booking.midPercentage}%</span>
+                              <span className="text-emerald-400">JR: {booking.jrPercentage}%</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {softBookings.length > 6 && (
+                <div className="text-center mt-4">
+                  <span className="text-xs text-gray-500">+ {softBookings.length - 6} more bookings</span>
                 </div>
               )}
             </div>

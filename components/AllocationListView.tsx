@@ -180,19 +180,19 @@ export default function AllocationListView() {
 
         {/* Summary Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-          <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-3">
+          <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-3 rounded-lg">
             <div className="text-xs text-gray-500 uppercase tracking-wide">Allocations</div>
             <div className="text-xl font-bold text-white mt-1">{filteredAllocations.length}</div>
           </div>
-          <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-3">
+          <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-3 rounded-lg">
             <div className="text-xs text-gray-500 uppercase tracking-wide">Total MD</div>
             <div className="text-xl font-bold text-cyan-400 mt-1">{totalMD.toFixed(1)}</div>
           </div>
-          <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-3">
+          <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-3 rounded-lg">
             <div className="text-xs text-gray-500 uppercase tracking-wide">Artists</div>
             <div className="text-xl font-bold text-emerald-400 mt-1">{uniqueArtists}</div>
           </div>
-          <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-3">
+          <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-3 rounded-lg">
             <div className="text-xs text-gray-500 uppercase tracking-wide">Shows</div>
             <div className="text-xl font-bold text-amber-400 mt-1">{uniqueShows}</div>
           </div>

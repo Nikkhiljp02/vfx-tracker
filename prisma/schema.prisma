@@ -506,3 +506,36 @@ model Feedback {
   @@index([showName, shotName])
   @@map("feedbacks")
 }
+
+// Soft Booking - Pre-allocating resources for upcoming shows
+model SoftBooking {
+  id              String   @id @default(cuid())
+  showName        String   // Show name for booking
+  managerName     String   // Manager/Supervisor name
+  department      String   // Department (Comp, Paint, Roto, MMRA, etc.)
+  manDays         Float    // Total man-days to book
+  startDate       DateTime // Booking start date
+  endDate         DateTime // Booking end date
+  
+  // Split designation options
+  splitEnabled    Boolean  @default(false) // Whether to split by designation
+  srPercentage    Float?   @default(0)     // Senior percentage (0-100)
+  midPercentage   Float?   @default(0)     // Mid-level percentage (0-100)
+  jrPercentage    Float?   @default(0)     // Junior percentage (0-100)
+  
+  // Status tracking
+  status          String   @default("Pending") // Pending, Confirmed, Cancelled, Completed
+  notes           String?  // Optional notes
+  
+  // Metadata
+  createdBy       String?  // User who created the booking
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([showName])
+  @@index([department])
+  @@index([startDate, endDate])
+  @@index([status])
+  @@index([managerName])
+  @@map("soft_bookings")
+}

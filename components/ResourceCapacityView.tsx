@@ -179,19 +179,19 @@ export default function ResourceCapacityView() {
 
         {/* Summary Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-          <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-3">
+          <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-3 rounded-lg">
             <div className="text-xs text-gray-500 uppercase tracking-wide">Total Artists</div>
             <div className="text-xl font-bold text-white mt-1">{totalArtists}</div>
           </div>
-          <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-3">
+          <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-3 rounded-lg">
             <div className="text-xs text-gray-500 uppercase tracking-wide">Total Capacity</div>
             <div className="text-xl font-bold text-cyan-400 mt-1">{totalCapacity.toFixed(0)} MD</div>
           </div>
-          <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-3">
+          <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-3 rounded-lg">
             <div className="text-xs text-gray-500 uppercase tracking-wide">Allocated</div>
             <div className="text-xl font-bold text-amber-400 mt-1">{totalAllocated.toFixed(1)} MD</div>
           </div>
-          <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-3">
+          <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-3 rounded-lg">
             <div className="text-xs text-gray-500 uppercase tracking-wide">Available</div>
             <div className="text-xl font-bold text-emerald-400 mt-1">{totalAvailable.toFixed(1)} MD</div>
           </div>
