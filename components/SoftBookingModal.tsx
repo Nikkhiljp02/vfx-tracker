@@ -8,13 +8,14 @@ import { toast } from 'react-hot-toast';
 interface SoftBookingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (showName: string) => void;
   booking?: any; // For editing existing booking
   prefilledData?: {
     showName?: string;
     managerName?: string;
   };
   isSimplified?: boolean; // For right-click booking (only show name and manager)
+  selectedCellsCount?: number; // Number of cells selected for booking
 }
 
 const DEPARTMENTS = ['Comp', 'Paint', 'Roto', 'MMRA', 'Match Move', 'Prep', 'Layout', 'Animation'];
@@ -26,6 +27,7 @@ export default function SoftBookingModal({
   booking,
   prefilledData,
   isSimplified = false,
+  selectedCellsCount = 0,
 }: SoftBookingModalProps) {
   const [formData, setFormData] = useState({
     showName: '',
@@ -116,28 +118,37 @@ export default function SoftBookingModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.showName.trim()) {
+      toast.error('Please select a show');
+      return;
+    }
+    
     setLoading(true);
 
     try {
-      const url = booking
-        ? `/api/resource/soft-bookings/${booking.id}`
-        : '/api/resource/soft-bookings';
-      
-      const method = booking ? 'PUT' : 'POST';
-      
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
+      // Only save to soft_bookings if not just booking selected cells
+      if (!selectedCellsCount || selectedCellsCount === 0) {
+        const url = booking
+          ? `/api/resource/soft-bookings/${booking.id}`
+          : '/api/resource/soft-bookings';
+        
+        const method = booking ? 'PUT' : 'POST';
+        
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
 
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || 'Failed to save booking');
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.error || 'Failed to save booking');
+        }
       }
 
-      toast.success(booking ? 'Booking updated successfully!' : 'Booking created successfully!');
-      onSuccess();
+      toast.success(booking ? 'Booking updated!' : selectedCellsCount > 0 ? `${selectedCellsCount} cells booked!` : 'Booking created!');
+      onSuccess(formData.showName);
       onClose();
     } catch (error: any) {
       toast.error(error.message || 'Failed to save booking');
@@ -159,9 +170,14 @@ export default function SoftBookingModal({
             <div className="w-10 h-10 rounded-lg bg-cyan-600/20 flex items-center justify-center">
               <Calendar className="w-5 h-5 text-cyan-400" />
             </div>
-            <h2 className="text-lg font-semibold text-white">
-              {booking ? 'Edit Booking' : isSimplified ? 'Quick Book' : 'New Soft Booking'}
-            </h2>
+            <div>
+              <h2 className="text-lg font-semibold text-white">
+                {booking ? 'Edit Booking' : isSimplified ? 'Quick Book' : 'New Soft Booking'}
+              </h2>
+              {selectedCellsCount > 0 && (
+                <p className="text-xs text-cyan-400">{selectedCellsCount} cell(s) selected to book</p>
+              )}
+            </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-slate-700 rounded-lg transition-colors">
             <X className="w-5 h-5 text-slate-400" />

@@ -122,6 +122,7 @@ export default function ResourceForecastView() {
   const [fillHandleCell, setFillHandleCell] = useState<{ memberId: string; dateIndex: number } | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [quickBookingData, setQuickBookingData] = useState<{ showName?: string; managerName?: string } | null>(null);
+  const [bookingCells, setBookingCells] = useState<Array<{ memberId: string; date: Date }>>([]);
 
   // Ref for virtual scrolling container
   const parentRef = useRef<HTMLDivElement>(null);
@@ -1078,6 +1079,16 @@ export default function ResourceForecastView() {
           <button
             className="w-full px-4 py-2 text-left text-sm text-indigo-400 hover:bg-slate-700 transition-colors flex items-center gap-2"
             onClick={() => {
+              // Collect selected cells info
+              const cellsToBook: Array<{ memberId: string; date: Date }> = [];
+              for (const cellKey of Array.from(selectedCells)) {
+                const [memberId, dateIndexStr] = cellKey.split('-');
+                const dateIndex = parseInt(dateIndexStr);
+                if (dates[dateIndex]) {
+                  cellsToBook.push({ memberId, date: dates[dateIndex] });
+                }
+              }
+              setBookingCells(cellsToBook);
               setQuickBookingData({});
               setShowBookingModal(true);
               setContextMenu(null);
@@ -1111,7 +1122,19 @@ export default function ResourceForecastView() {
             <button onClick={() => { setImportType('members'); setShowImportModal(true); }} className="px-4 py-2 bg-cyan-600 text-white text-xs hover:bg-cyan-500 transition-colors touch-manipulation"><span className="hidden sm:inline">Import </span>Members</button>
             <button onClick={() => { setImportType('allocations'); setShowImportModal(true); }} className="px-4 py-2 bg-purple-600 text-white text-xs hover:bg-purple-500 transition-colors touch-manipulation"><span className="hidden sm:inline">Import </span>Alloc</button>
             <button onClick={() => setShowAddMemberModal(true)} className="px-4 py-2 bg-emerald-600 text-white text-xs hover:bg-emerald-500 transition-colors touch-manipulation">+ Member</button>
-            <button onClick={() => setShowBookingModal(true)} className="px-4 py-2 bg-indigo-600 text-white text-xs hover:bg-indigo-500 transition-colors touch-manipulation">📅 Book</button>
+            <button onClick={() => {
+              // Collect selected cells info for booking
+              const cellsToBook: Array<{ memberId: string; date: Date }> = [];
+              for (const cellKey of Array.from(selectedCells)) {
+                const [memberId, dateIndexStr] = cellKey.split('-');
+                const dateIndex = parseInt(dateIndexStr);
+                if (dates[dateIndex]) {
+                  cellsToBook.push({ memberId, date: dates[dateIndex] });
+                }
+              }
+              setBookingCells(cellsToBook);
+              setShowBookingModal(true);
+            }} className="px-4 py-2 bg-indigo-600 text-white text-xs hover:bg-indigo-500 transition-colors touch-manipulation">📅 Book</button>
             
             {/* Bulk Operations Dropdown */}
             <div className="relative group">
@@ -1776,14 +1799,58 @@ export default function ResourceForecastView() {
             onClose={() => {
               setShowBookingModal(false);
               setQuickBookingData(null);
+              setBookingCells([]);
             }}
-            onSuccess={() => {
+            onSuccess={async (showName: string) => {
+              // Create allocations for selected cells with "Booked: ShowName"
+              if (bookingCells.length > 0 && showName) {
+                try {
+                  const allocationPromises = bookingCells.map(async ({ memberId, date }) => {
+                    // First delete any existing allocations for this cell
+                    const member = members.find((m: any) => m.id === memberId);
+                    if (member) {
+                      const dailyAlloc = getDailyAllocation(member, date);
+                      await Promise.all(dailyAlloc.allocations.map((alloc: any) =>
+                        fetch(`/api/resource/allocations/${alloc.id}`, {
+                          method: 'DELETE',
+                          headers: { 'Cache-Control': 'no-cache' }
+                        })
+                      ));
+                    }
+                    
+                    // Create new allocation with "Booked: ShowName"
+                    return fetch('/api/resource/allocations', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        resourceId: memberId,
+                        showName: showName,
+                        shotName: `Booked: ${showName}`,
+                        allocationDate: date.toISOString(),
+                        manDays: 1.0,
+                        isLeave: false,
+                        isIdle: false,
+                        isWeekendWorking: false,
+                      }),
+                    });
+                  });
+                  
+                  await Promise.all(allocationPromises);
+                  triggerRefresh();
+                } catch (error) {
+                  console.error('Error creating allocations:', error);
+                }
+              }
+              
               setShowBookingModal(false);
               setQuickBookingData(null);
+              setBookingCells([]);
+              setSelectedCells(new Set());
               toast.success('Booking created!');
             }}
             prefilledData={quickBookingData || undefined}
             isSimplified={!!quickBookingData}
+            selectedCellsCount={bookingCells.length}
           />
         </Suspense>
       )}
