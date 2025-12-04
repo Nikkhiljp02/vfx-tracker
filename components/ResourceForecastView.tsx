@@ -1926,7 +1926,7 @@ export default function ResourceForecastView() {
                           endDate: maxDate.toISOString(),
                           splitEnabled: false,
                           notes: `Quick booked ${successCount} cells`,
-                          status: 'Allocated',
+                          status: 'Booked',
                         }),
                       });
                     } catch (sbError) {
@@ -1935,10 +1935,15 @@ export default function ResourceForecastView() {
                     }
                   }
                   
-                  // Invalidate ALL React Query caches for instant refresh
-                  await queryClient.invalidateQueries({ queryKey: ['resourceForecast'] });
-                  await queryClient.invalidateQueries({ queryKey: ['resourceAllocations'] });
-                  await queryClient.invalidateQueries({ queryKey: ['softBookings'] });
+                  // Invalidate ALL React Query caches and force immediate refetch
+                  await Promise.all([
+                    queryClient.invalidateQueries({ queryKey: ['resourceForecast'], refetchType: 'active' }),
+                    queryClient.invalidateQueries({ queryKey: ['resourceAllocations'], refetchType: 'active' }),
+                    queryClient.invalidateQueries({ queryKey: ['softBookings'], refetchType: 'active' }),
+                  ]);
+                  
+                  // Force refetch to update grid immediately
+                  await queryClient.refetchQueries({ queryKey: ['resourceForecast'] });
                   
                   if (successCount > 0) {
                     toast.success(`${successCount} cell(s) booked for ${showName}!`);
@@ -2080,7 +2085,7 @@ export default function ResourceForecastView() {
                     }
                   }
                   
-                  // Update soft_booking status to 'Allocated' if allocations were created
+                  // Update soft_booking status to 'Booked' if allocations were created
                   if (successCount > 0) {
                     try {
                       // Find the soft_booking record
@@ -2092,7 +2097,7 @@ export default function ResourceForecastView() {
                           await fetch(`/api/resource/soft-bookings/${matchingSB.id}`, {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ ...matchingSB, status: 'Allocated' }),
+                            body: JSON.stringify({ ...matchingSB, status: 'Booked' }),
                           });
                         }
                       }
@@ -2102,10 +2107,15 @@ export default function ResourceForecastView() {
                     }
                   }
                   
-                  // Invalidate ALL React Query caches for instant refresh
-                  await queryClient.invalidateQueries({ queryKey: ['resourceForecast'] });
-                  await queryClient.invalidateQueries({ queryKey: ['resourceAllocations'] });
-                  await queryClient.invalidateQueries({ queryKey: ['softBookings'] });
+                  // Invalidate ALL React Query caches and force immediate refetch
+                  await Promise.all([
+                    queryClient.invalidateQueries({ queryKey: ['resourceForecast'], refetchType: 'active' }),
+                    queryClient.invalidateQueries({ queryKey: ['resourceAllocations'], refetchType: 'active' }),
+                    queryClient.invalidateQueries({ queryKey: ['softBookings'], refetchType: 'active' }),
+                  ]);
+                  
+                  // Force refetch to update grid immediately
+                  await queryClient.refetchQueries({ queryKey: ['resourceForecast'] });
                   
                   if (successCount > 0) {
                     toast.success(`Booked ${manDays} MD for ${showName} (${department})!`);

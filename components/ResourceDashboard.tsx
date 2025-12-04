@@ -232,10 +232,29 @@ export default function ResourceDashboard() {
 
   // Combine soft bookings with booked allocations for display
   const allBookings = useMemo(() => {
-    // Filter out soft bookings that have corresponding allocations to avoid duplicates
+    // Merge allocations and soft bookings, preferring soft_booking status when available
     const bookedShowNames = new Set(bookedFromAllocations.map((b: any) => b.showName));
+    
+    // For shows with both allocations and soft_bookings, use soft_booking record with enriched data
+    const mergedBookings = bookedFromAllocations.map((allocBooking: any) => {
+      const matchingSB = softBookings.find((sb: any) => sb.showName === allocBooking.showName);
+      if (matchingSB) {
+        // Use soft_booking record but enrich with allocation data
+        return {
+          ...matchingSB,
+          manDays: allocBooking.manDays, // Use actual MD from allocations
+          startDate: allocBooking.startDate,
+          endDate: allocBooking.endDate,
+        };
+      }
+      // No soft_booking found - show as 'Booked' (legacy allocation-only)
+      return { ...allocBooking, status: 'Booked' };
+    });
+    
+    // Add soft bookings that don't have allocations yet
     const filteredSoftBookings = softBookings.filter((sb: any) => !bookedShowNames.has(sb.showName));
-    return [...bookedFromAllocations, ...filteredSoftBookings];
+    
+    return [...mergedBookings, ...filteredSoftBookings];
   }, [softBookings, bookedFromAllocations]);
 
   // Department statistics
@@ -691,6 +710,7 @@ export default function ResourceDashboard() {
                           {booking.showName}
                         </span>
                         <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                          booking.status === 'Booked' ? 'bg-cyan-500/20 text-cyan-400' :
                           booking.status === 'Allocated' ? 'bg-indigo-500/20 text-indigo-400' :
                           booking.status === 'Confirmed' ? 'bg-emerald-500/20 text-emerald-400' :
                           booking.status === 'Pending' ? 'bg-amber-500/20 text-amber-400' :
