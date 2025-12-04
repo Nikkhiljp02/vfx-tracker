@@ -63,12 +63,17 @@ export default function ResourceDashboard() {
         }
       }
       
-      // 2. Delete the soft booking record if it exists (not allocation-based)
-      if (!booking.isFromAllocations && booking.id && !booking.id.startsWith('alloc-')) {
-        await fetch(`/api/resource/soft-bookings/${booking.id}`, {
-          method: 'DELETE',
-          headers: { 'Cache-Control': 'no-cache' }
-        });
+      // 2. Delete ALL soft booking records with this showName
+      const softBookingsRes = await fetch('/api/resource/soft-bookings');
+      if (softBookingsRes.ok) {
+        const allSoftBookings = await softBookingsRes.json();
+        const matchingSoftBookings = allSoftBookings.filter((sb: any) => sb.showName === booking.showName);
+        for (const sb of matchingSoftBookings) {
+          await fetch(`/api/resource/soft-bookings/${sb.id}`, {
+            method: 'DELETE',
+            headers: { 'Cache-Control': 'no-cache' }
+          });
+        }
       }
       
       // 3. Invalidate all caches

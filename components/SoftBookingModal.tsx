@@ -12,6 +12,10 @@ interface BookingData {
   manDays: number;
   startDate: string;
   endDate: string;
+  splitEnabled: boolean;
+  srPercentage: number;
+  midPercentage: number;
+  jrPercentage: number;
 }
 
 interface SoftBookingModalProps {
@@ -164,6 +168,10 @@ export default function SoftBookingModal({
         manDays: formData.manDays,
         startDate: formData.startDate,
         endDate: formData.endDate,
+        splitEnabled: formData.splitEnabled,
+        srPercentage: formData.srPercentage,
+        midPercentage: formData.midPercentage,
+        jrPercentage: formData.jrPercentage,
       });
       onClose();
     } catch (error: any) {

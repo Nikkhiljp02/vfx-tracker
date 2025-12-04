@@ -1105,27 +1105,27 @@ export default function ResourceForecastView() {
       )}
 
       {/* Header */}
-      <div className="flex-none p-4 bg-slate-800 border-b border-slate-600">
+      <div className="flex-none p-4 bg-slate-800 border-b border-slate-600 rounded-t-lg">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
             <h1 className="text-lg font-semibold text-white">Resource Forecast</h1>
             {selectedCells.size > 0 && (
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs text-slate-400">{selectedCells.size} cells</span>
-                <button onClick={handleCopy} className="px-2 py-1 bg-slate-700 text-white text-xs hover:bg-slate-600 touch-manipulation" title="Copy">Copy</button>
-                <button onClick={handlePaste} disabled={copiedCells.size === 0} className="px-2 py-1 bg-slate-700 text-white text-xs hover:bg-slate-600 disabled:opacity-50 touch-manipulation" title="Paste">Paste</button>
-                <button onClick={handleMarkLeave} className="px-2 py-1 bg-amber-600 text-white text-xs hover:bg-amber-500 touch-manipulation" title="Leave">Leave</button>
-                <button onClick={handleDeleteSelected} className="px-2 py-1 bg-red-600 text-white text-xs hover:bg-red-500 touch-manipulation" title="Delete">Del</button>
+                <button onClick={handleCopy} className="px-2 py-1 bg-slate-700 text-white text-xs rounded hover:bg-slate-600 touch-manipulation" title="Copy">Copy</button>
+                <button onClick={handlePaste} disabled={copiedCells.size === 0} className="px-2 py-1 bg-slate-700 text-white text-xs rounded hover:bg-slate-600 disabled:opacity-50 touch-manipulation" title="Paste">Paste</button>
+                <button onClick={handleMarkLeave} className="px-2 py-1 bg-amber-600 text-white text-xs rounded hover:bg-amber-500 touch-manipulation" title="Leave">Leave</button>
+                <button onClick={handleDeleteSelected} className="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-500 touch-manipulation" title="Delete">Del</button>
               </div>
             )}
           </div>
           <div className="flex gap-2 flex-wrap">
-            <button onClick={handleUndo} disabled={historyIndex <= 0} className="px-3 py-2 bg-slate-700 text-white text-xs hover:bg-slate-600 transition-colors disabled:opacity-50 touch-manipulation" title="Undo">↶</button>
-            <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="px-3 py-2 bg-slate-700 text-white text-xs hover:bg-slate-600 transition-colors disabled:opacity-50 touch-manipulation" title="Redo">↷</button>
-            <button onClick={exportToExcel} className="px-3 py-2 bg-emerald-600 text-white text-xs hover:bg-emerald-500 transition-colors touch-manipulation">📊<span className="hidden sm:inline ml-1">CSV</span></button>
-            <button onClick={() => { setImportType('members'); setShowImportModal(true); }} className="px-4 py-2 bg-cyan-600 text-white text-xs hover:bg-cyan-500 transition-colors touch-manipulation"><span className="hidden sm:inline">Import </span>Members</button>
-            <button onClick={() => { setImportType('allocations'); setShowImportModal(true); }} className="px-4 py-2 bg-purple-600 text-white text-xs hover:bg-purple-500 transition-colors touch-manipulation"><span className="hidden sm:inline">Import </span>Alloc</button>
-            <button onClick={() => setShowAddMemberModal(true)} className="px-4 py-2 bg-emerald-600 text-white text-xs hover:bg-emerald-500 transition-colors touch-manipulation">+ Member</button>
+            <button onClick={handleUndo} disabled={historyIndex <= 0} className="px-3 py-2 bg-slate-700 text-white text-xs rounded hover:bg-slate-600 transition-colors disabled:opacity-50 touch-manipulation" title="Undo">↶</button>
+            <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="px-3 py-2 bg-slate-700 text-white text-xs rounded hover:bg-slate-600 transition-colors disabled:opacity-50 touch-manipulation" title="Redo">↷</button>
+            <button onClick={exportToExcel} className="px-3 py-2 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-500 transition-colors touch-manipulation">📊<span className="hidden sm:inline ml-1">CSV</span></button>
+            <button onClick={() => { setImportType('members'); setShowImportModal(true); }} className="px-4 py-2 bg-cyan-600 text-white text-xs rounded hover:bg-cyan-500 transition-colors touch-manipulation"><span className="hidden sm:inline">Import </span>Members</button>
+            <button onClick={() => { setImportType('allocations'); setShowImportModal(true); }} className="px-4 py-2 bg-purple-600 text-white text-xs rounded hover:bg-purple-500 transition-colors touch-manipulation"><span className="hidden sm:inline">Import </span>Alloc</button>
+            <button onClick={() => setShowAddMemberModal(true)} className="px-4 py-2 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-500 transition-colors touch-manipulation">+ Member</button>
             <button onClick={() => {
               // Collect selected cells info for booking
               const cellsToBook: Array<{ memberId: string; date: Date }> = [];
@@ -1138,14 +1138,14 @@ export default function ResourceForecastView() {
               }
               setBookingCells(cellsToBook);
               setShowBookingModal(true);
-            }} className="px-4 py-2 bg-indigo-600 text-white text-xs hover:bg-indigo-500 transition-colors touch-manipulation">📅 Book</button>
+            }} className="px-4 py-2 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-500 transition-colors touch-manipulation">📅 Book</button>
             
             {/* Bulk Operations Dropdown */}
             <div className="relative group">
-              <button className="px-4 py-2 bg-amber-600 text-white text-xs hover:bg-amber-500 transition-colors touch-manipulation">
+              <button className="px-4 py-2 bg-amber-600 text-white text-xs rounded hover:bg-amber-500 transition-colors touch-manipulation">
                 Bulk ▾
               </button>
-              <div className="absolute right-0 mt-1 w-48 md:w-56 bg-slate-800 border border-slate-600 shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+              <div className="absolute right-0 mt-1 w-48 md:w-56 bg-slate-800 border border-slate-600 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
                 <button
                   onClick={() => setBulkMode('reassign')}
                   className="w-full text-left px-4 py-2 text-xs text-white hover:bg-slate-700 transition-colors touch-manipulation"
@@ -1398,7 +1398,10 @@ export default function ResourceForecastView() {
                         ) : (
                           <div className="text-xs leading-tight">
                             <div className="font-medium truncate text-slate-100">{displayText}</div>
-                            <div className="text-[10px] text-slate-400">({dailyAlloc.totalMD.toFixed(2)} MD)</div>
+                            {/* Only show MD for non-booking allocations or partial bookings */}
+                            {!(displayText.startsWith('Booked:') && dailyAlloc.totalMD >= 1.0) && (
+                              <div className="text-[10px] text-slate-400">({dailyAlloc.totalMD.toFixed(2)} MD)</div>
+                            )}
                           </div>
                         )}
                         
@@ -1876,11 +1879,13 @@ export default function ResourceForecastView() {
                   toast.error('Failed to create allocations');
                 }
               } 
-              // CASE 2: No cells selected - booking from popup, create allocations for ALL department members in date range
+              // CASE 2: No cells selected - booking from popup, create allocations based on manDays and split
               else if (showName && department && startDate && endDate) {
                 try {
+                  const { manDays, splitEnabled, srPercentage, midPercentage, jrPercentage } = bookingData;
+                  
                   // Get members of the selected department
-                  const deptMembers = members.filter((m: any) => 
+                  let deptMembers = members.filter((m: any) => 
                     m.department === department && m.isActive
                   );
                   
@@ -1889,13 +1894,57 @@ export default function ResourceForecastView() {
                     return;
                   }
                   
+                  // If split enabled, filter by designation
+                  let targetMembers: any[] = [];
+                  if (splitEnabled) {
+                    // Calculate MD allocation per designation
+                    const srMD = Math.round(manDays * srPercentage / 100);
+                    const midMD = Math.round(manDays * midPercentage / 100);
+                    const jrMD = manDays - srMD - midMD; // Remaining to JR
+                    
+                    // Get members by designation
+                    const srMembers = deptMembers.filter((m: any) => 
+                      m.designation?.toLowerCase().includes('sr') || m.designation?.toLowerCase().includes('senior')
+                    );
+                    const midMembers = deptMembers.filter((m: any) => 
+                      m.designation?.toLowerCase().includes('mid') || 
+                      (!m.designation?.toLowerCase().includes('sr') && !m.designation?.toLowerCase().includes('senior') && 
+                       !m.designation?.toLowerCase().includes('jr') && !m.designation?.toLowerCase().includes('junior'))
+                    );
+                    const jrMembers = deptMembers.filter((m: any) => 
+                      m.designation?.toLowerCase().includes('jr') || m.designation?.toLowerCase().includes('junior')
+                    );
+                    
+                    // Add members with their MD quota
+                    for (let i = 0; i < srMD && i < srMembers.length; i++) {
+                      targetMembers.push({ member: srMembers[i], mdQuota: 1 });
+                    }
+                    for (let i = 0; i < midMD && i < midMembers.length; i++) {
+                      targetMembers.push({ member: midMembers[i], mdQuota: 1 });
+                    }
+                    for (let i = 0; i < jrMD && i < jrMembers.length; i++) {
+                      targetMembers.push({ member: jrMembers[i], mdQuota: 1 });
+                    }
+                    
+                    // If not enough members in designated category, use any available
+                    if (targetMembers.length < manDays) {
+                      const usedIds = new Set(targetMembers.map(t => t.member.id));
+                      const remaining = deptMembers.filter((m: any) => !usedIds.has(m.id));
+                      for (let i = 0; targetMembers.length < manDays && i < remaining.length; i++) {
+                        targetMembers.push({ member: remaining[i], mdQuota: 1 });
+                      }
+                    }
+                  } else {
+                    // No split - just use first N members based on manDays
+                    targetMembers = deptMembers.slice(0, Math.ceil(manDays)).map((m: any) => ({ member: m, mdQuota: 1 }));
+                  }
+                  
                   // Generate dates in range
                   const start = new Date(startDate);
                   const end = new Date(endDate);
                   const datesToBook: Date[] = [];
                   
                   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                    // Skip weekends unless they're working weekends
                     const dayOfWeek = d.getDay();
                     const dateKey = d.toISOString().split('T')[0];
                     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
@@ -1908,10 +1957,14 @@ export default function ResourceForecastView() {
                   
                   let successCount = 0;
                   let errorCount = 0;
+                  let remainingMD = manDays;
                   
-                  // Create allocations for each department member on each date
-                  for (const member of deptMembers) {
-                    for (const date of datesToBook) {
+                  // Allocate manDays across members and dates
+                  outerLoop:
+                  for (const date of datesToBook) {
+                    for (const { member } of targetMembers) {
+                      if (remainingMD <= 0) break outerLoop;
+                      
                       try {
                         // Check if member already has allocation on this date
                         const dailyAlloc = getDailyAllocation(member, date);
@@ -1920,6 +1973,8 @@ export default function ResourceForecastView() {
                         if (dailyAlloc.totalMD >= 1.0) {
                           continue;
                         }
+                        
+                        const allocMD = Math.min(1.0 - dailyAlloc.totalMD, remainingMD);
                         
                         // Create new allocation
                         const res = await fetch('/api/resource/allocations', {
@@ -1930,7 +1985,7 @@ export default function ResourceForecastView() {
                             showName: showName,
                             shotName: `Booked: ${showName}`,
                             allocationDate: date.toISOString(),
-                            manDays: Math.min(1.0 - dailyAlloc.totalMD, 1.0),
+                            manDays: allocMD,
                             isLeave: false,
                             isIdle: false,
                             isWeekendWorking: false,
@@ -1939,6 +1994,7 @@ export default function ResourceForecastView() {
                         
                         if (res.ok) {
                           successCount++;
+                          remainingMD -= allocMD;
                         } else {
                           errorCount++;
                         }
@@ -1954,7 +2010,7 @@ export default function ResourceForecastView() {
                   await queryClient.invalidateQueries({ queryKey: ['softBookings'] });
                   
                   if (successCount > 0) {
-                    toast.success(`Booked ${successCount} cells for ${showName} (${department})!`);
+                    toast.success(`Booked ${manDays} MD for ${showName} (${department})!`);
                   } else if (errorCount > 0) {
                     toast.error('Failed to create some allocations');
                   } else {
