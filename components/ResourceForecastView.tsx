@@ -754,6 +754,13 @@ export default function ResourceForecastView() {
     
     if (allocsToDelete.length > 0) {
       try {
+        // Check if any of these allocations are from bookings (shotName starts with "Booked:")
+        const bookingAllocs = allocsToDelete.filter((alloc: any) => alloc.shotName?.startsWith('Booked:'));
+        const showNamesFromBookings = new Set(bookingAllocs.map((alloc: any) => {
+          const match = alloc.shotName?.match(/Booked:\s*(.+)/);
+          return match ? match[1] : null;
+        }).filter(Boolean));
+        
         await Promise.all(allocsToDelete.map((alloc: any) =>
           deleteAllocation.mutateAsync(alloc.id).catch((err) => {
             // Ignore "not found" errors (P2025) - allocation might already be deleted
@@ -762,6 +769,43 @@ export default function ResourceForecastView() {
             }
           })
         ));
+        
+        // If we deleted booking allocations, check if there are any remaining allocations for those shows
+        // If not, cancel the soft_booking
+        if (showNamesFromBookings.size > 0) {
+          const allocsRes = await fetch('/api/resource/allocations');
+          if (allocsRes.ok) {
+            const allAllocations = await allocsRes.json();
+            
+            for (const showName of showNamesFromBookings) {
+              const remainingBookingAllocs = allAllocations.filter((a: any) => 
+                a.shotName?.startsWith(`Booked: ${showName}`)
+              );
+              
+              // If no more allocations for this show, cancel the soft_booking
+              if (remainingBookingAllocs.length === 0) {
+                const softBookingsRes = await fetch('/api/resource/soft-bookings');
+                if (softBookingsRes.ok) {
+                  const allSoftBookings = await softBookingsRes.json();
+                  const matchingSoftBookings = allSoftBookings.filter((sb: any) => 
+                    sb.showName === showName && sb.status !== 'Cancelled'
+                  );
+                  
+                  for (const sb of matchingSoftBookings) {
+                    await fetch(`/api/resource/soft-bookings/${sb.id}`, {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ status: 'Cancelled' }),
+                    });
+                  }
+                }
+              }
+            }
+            
+            // Invalidate soft bookings cache
+            await queryClient.invalidateQueries({ queryKey: ['softBookings'] });
+          }
+        }
       } catch (error) {
         console.error('Error deleting allocations:', error);
         toast.error('Failed to delete existing allocations');
@@ -1863,6 +1907,34 @@ export default function ResourceForecastView() {
                     }
                   }
                   
+                  // Create a soft_booking record for Summary tracking
+                  if (successCount > 0) {
+                    try {
+                      const minDate = new Date(Math.min(...bookingCells.map(c => c.date.getTime())));
+                      const maxDate = new Date(Math.max(...bookingCells.map(c => c.date.getTime())));
+                      const firstMember = members.find((m: any) => m.id === bookingCells[0].memberId);
+                      
+                      await fetch('/api/resource/soft-bookings', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          showName,
+                          managerName: managerName || '-',
+                          department: firstMember?.department || 'Unknown',
+                          manDays: successCount,
+                          startDate: minDate.toISOString(),
+                          endDate: maxDate.toISOString(),
+                          splitEnabled: false,
+                          notes: `Quick booked ${successCount} cells`,
+                          status: 'Allocated',
+                        }),
+                      });
+                    } catch (sbError) {
+                      console.error('Error creating soft booking for tracking:', sbError);
+                      // Non-critical
+                    }
+                  }
+                  
                   // Invalidate ALL React Query caches for instant refresh
                   await queryClient.invalidateQueries({ queryKey: ['resourceForecast'] });
                   await queryClient.invalidateQueries({ queryKey: ['resourceAllocations'] });
@@ -1995,12 +2067,38 @@ export default function ResourceForecastView() {
                         if (res.ok) {
                           successCount++;
                           remainingMD -= allocMD;
+                          console.log(`✓ Allocated ${allocMD} MD to ${member.empName} on ${date.toLocaleDateString()}`);
                         } else {
+                          const errorData = await res.json();
+                          console.error(`✗ Failed to allocate to ${member.empName}:`, errorData);
                           errorCount++;
                         }
                       } catch (err) {
+                        console.error('Allocation error:', err);
                         errorCount++;
                       }
+                    }
+                  }
+                  
+                  // Update soft_booking status to 'Allocated' if allocations were created
+                  if (successCount > 0) {
+                    try {
+                      // Find the soft_booking record
+                      const sbRes = await fetch('/api/resource/soft-bookings');
+                      if (sbRes.ok) {
+                        const allSB = await sbRes.json();
+                        const matchingSB = allSB.find((sb: any) => sb.showName === showName && sb.department === department);
+                        if (matchingSB) {
+                          await fetch(`/api/resource/soft-bookings/${matchingSB.id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ ...matchingSB, status: 'Allocated' }),
+                          });
+                        }
+                      }
+                    } catch (sbError) {
+                      console.error('Error updating soft booking status:', sbError);
+                      // Non-critical, continue
                     }
                   }
                   
