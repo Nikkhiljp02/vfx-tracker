@@ -4,7 +4,8 @@ import { useState, useMemo, useEffect } from 'react';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, isSaturday, isSunday, startOfMonth, endOfMonth } from 'date-fns';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useResourceMembers, useResourceAllocations } from '@/hooks/useQueryHooks';
-import { Users, Calendar, Clock, Award, BarChart3, TrendingUp, Activity, Zap, Target, AlertTriangle, CheckCircle, XCircle, ArrowUpRight, ArrowDownRight, Briefcase, UserCheck, UserX, BookCheck, Sliders } from 'lucide-react';
+import { Users, Calendar, Clock, Award, BarChart3, TrendingUp, Activity, Zap, Target, AlertTriangle, CheckCircle, XCircle, ArrowUpRight, ArrowDownRight, Briefcase, UserCheck, UserX, BookCheck, Sliders, Minus } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 export default function ResourceDashboard() {
   const queryClient = useQueryClient();
@@ -31,7 +32,58 @@ export default function ResourceDashboard() {
     refetchOnWindowFocus: true,
   });
   
+  const [deletingBookingId, setDeletingBookingId] = useState<string | null>(null);
   const loading = membersLoading || allocationsLoading;
+
+  // Delete booking and its associated allocations
+  const handleDeleteBooking = async (booking: any) => {
+    if (deletingBookingId) return; // Prevent double-click
+    
+    const confirmDelete = window.confirm(
+      `Delete booking for "${booking.showName}"?\n\nThis will also remove all associated allocations from the Forecast and revert cells to "Available".`
+    );
+    
+    if (!confirmDelete) return;
+    
+    setDeletingBookingId(booking.id);
+    
+    try {
+      // 1. Fetch ALL allocations with this showName that are "Booked:" type (not just current week)
+      const allocsRes = await fetch(`/api/resource/allocations?showName=${encodeURIComponent(booking.showName)}`);
+      if (allocsRes.ok) {
+        const allAllocations = await allocsRes.json();
+        const bookedAllocs = allAllocations.filter((a: any) => a.shotName?.startsWith('Booked:'));
+        
+        // Delete all booked allocations
+        for (const alloc of bookedAllocs) {
+          await fetch(`/api/resource/allocations/${alloc.id}`, {
+            method: 'DELETE',
+            headers: { 'Cache-Control': 'no-cache' }
+          });
+        }
+      }
+      
+      // 2. Delete the soft booking record if it exists (not allocation-based)
+      if (!booking.isFromAllocations && booking.id && !booking.id.startsWith('alloc-')) {
+        await fetch(`/api/resource/soft-bookings/${booking.id}`, {
+          method: 'DELETE',
+          headers: { 'Cache-Control': 'no-cache' }
+        });
+      }
+      
+      // 3. Invalidate all caches
+      await queryClient.invalidateQueries({ queryKey: ['softBookings'] });
+      await queryClient.invalidateQueries({ queryKey: ['resourceAllocations'] });
+      await queryClient.invalidateQueries({ queryKey: ['resourceForecast'] });
+      
+      toast.success(`Booking "${booking.showName}" deleted successfully!`);
+    } catch (error) {
+      console.error('Error deleting booking:', error);
+      toast.error('Failed to delete booking');
+    } finally {
+      setDeletingBookingId(null);
+    }
+  };
 
   // Load working weekends from localStorage and allocations
   useEffect(() => {
@@ -614,7 +666,21 @@ export default function ResourceDashboard() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {allBookings.slice(0, 6).map((booking: any) => (
-                    <div key={booking.id} className="bg-[#0a0a0a] border border-[#1a1a1a] p-4 rounded-lg">
+                    <div key={booking.id} className="bg-[#0a0a0a] border border-[#1a1a1a] p-4 rounded-lg relative group">
+                      {/* Delete button - top left corner */}
+                      <button
+                        onClick={() => handleDeleteBooking(booking)}
+                        disabled={deletingBookingId === booking.id}
+                        className="absolute -top-2 -left-2 w-6 h-6 bg-red-600 hover:bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed z-10"
+                        title="Delete booking"
+                      >
+                        {deletingBookingId === booking.id ? (
+                          <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                          <Minus size={14} className="text-white" />
+                        )}
+                      </button>
+                      
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-semibold text-white truncate" title={booking.showName}>
                           {booking.showName}

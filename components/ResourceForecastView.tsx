@@ -1808,23 +1808,17 @@ export default function ResourceForecastView() {
               setQuickBookingData(null);
               setBookingCells([]);
             }}
-            onSuccess={async (showName: string, managerName?: string) => {
-              // Create allocations for selected cells with "Booked: ShowName"
+            onSuccess={async (bookingData) => {
+              const { showName, managerName, department, manDays, startDate, endDate } = bookingData;
+              
+              // CASE 1: Cells were selected - create allocations for those specific cells
               if (bookingCells.length > 0 && showName) {
                 try {
                   let successCount = 0;
                   let errorCount = 0;
                   
-                  // Track date range for soft booking record
-                  let minDate: Date | null = null;
-                  let maxDate: Date | null = null;
-                  
                   for (const { memberId, date } of bookingCells) {
                     try {
-                      // Track date range
-                      if (!minDate || date < minDate) minDate = date;
-                      if (!maxDate || date > maxDate) maxDate = date;
-                      
                       // First delete any existing allocations for this cell
                       const member = members.find((m: any) => m.id === memberId);
                       if (member) {
@@ -1866,29 +1860,6 @@ export default function ResourceForecastView() {
                     }
                   }
                   
-                  // Also create a soft booking record to track manager name and other details
-                  if (successCount > 0 && minDate && maxDate) {
-                    try {
-                      await fetch('/api/resource/soft-bookings', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          showName,
-                          managerName: managerName || '-',
-                          department: members.find((m: any) => bookingCells.some(c => c.memberId === m.id))?.department || 'Unknown',
-                          manDays: successCount,
-                          startDate: minDate.toISOString(),
-                          endDate: maxDate.toISOString(),
-                          splitEnabled: false,
-                          notes: `Booked ${successCount} cells via Forecast`,
-                        }),
-                      });
-                    } catch (sbError) {
-                      console.error('Error creating soft booking record:', sbError);
-                      // Not critical - allocations were created
-                    }
-                  }
-                  
                   // Invalidate ALL React Query caches for instant refresh
                   await queryClient.invalidateQueries({ queryKey: ['resourceForecast'] });
                   await queryClient.invalidateQueries({ queryKey: ['resourceAllocations'] });
@@ -1904,11 +1875,95 @@ export default function ResourceForecastView() {
                   console.error('Error creating allocations:', error);
                   toast.error('Failed to create allocations');
                 }
-              } else {
-                // No cells selected - soft booking was created in modal, just refresh
-                await queryClient.invalidateQueries({ queryKey: ['softBookings'] });
-                await queryClient.invalidateQueries({ queryKey: ['resourceAllocations'] });
-                toast.success('Booking saved to Summary!');
+              } 
+              // CASE 2: No cells selected - booking from popup, create allocations for ALL department members in date range
+              else if (showName && department && startDate && endDate) {
+                try {
+                  // Get members of the selected department
+                  const deptMembers = members.filter((m: any) => 
+                    m.department === department && m.isActive
+                  );
+                  
+                  if (deptMembers.length === 0) {
+                    toast.error(`No active members found in ${department} department`);
+                    return;
+                  }
+                  
+                  // Generate dates in range
+                  const start = new Date(startDate);
+                  const end = new Date(endDate);
+                  const datesToBook: Date[] = [];
+                  
+                  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                    // Skip weekends unless they're working weekends
+                    const dayOfWeek = d.getDay();
+                    const dateKey = d.toISOString().split('T')[0];
+                    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                    const isWorkingWeekend = workingWeekends.has(dateKey);
+                    
+                    if (!isWeekend || isWorkingWeekend) {
+                      datesToBook.push(new Date(d));
+                    }
+                  }
+                  
+                  let successCount = 0;
+                  let errorCount = 0;
+                  
+                  // Create allocations for each department member on each date
+                  for (const member of deptMembers) {
+                    for (const date of datesToBook) {
+                      try {
+                        // Check if member already has allocation on this date
+                        const dailyAlloc = getDailyAllocation(member, date);
+                        
+                        // Skip if fully allocated
+                        if (dailyAlloc.totalMD >= 1.0) {
+                          continue;
+                        }
+                        
+                        // Create new allocation
+                        const res = await fetch('/api/resource/allocations', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            resourceId: member.id,
+                            showName: showName,
+                            shotName: `Booked: ${showName}`,
+                            allocationDate: date.toISOString(),
+                            manDays: Math.min(1.0 - dailyAlloc.totalMD, 1.0),
+                            isLeave: false,
+                            isIdle: false,
+                            isWeekendWorking: false,
+                          }),
+                        });
+                        
+                        if (res.ok) {
+                          successCount++;
+                        } else {
+                          errorCount++;
+                        }
+                      } catch (err) {
+                        errorCount++;
+                      }
+                    }
+                  }
+                  
+                  // Invalidate ALL React Query caches for instant refresh
+                  await queryClient.invalidateQueries({ queryKey: ['resourceForecast'] });
+                  await queryClient.invalidateQueries({ queryKey: ['resourceAllocations'] });
+                  await queryClient.invalidateQueries({ queryKey: ['softBookings'] });
+                  
+                  if (successCount > 0) {
+                    toast.success(`Booked ${successCount} cells for ${showName} (${department})!`);
+                  } else if (errorCount > 0) {
+                    toast.error('Failed to create some allocations');
+                  } else {
+                    toast.info('No available cells to book (all members already allocated)');
+                  }
+                } catch (error) {
+                  console.error('Error creating allocations:', error);
+                  toast.error('Failed to create allocations');
+                }
               }
               
               setShowBookingModal(false);

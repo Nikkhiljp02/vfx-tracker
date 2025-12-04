@@ -5,10 +5,19 @@ import { X, Calendar, Users, Briefcase, Clock, Sliders } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'react-hot-toast';
 
+interface BookingData {
+  showName: string;
+  managerName: string;
+  department: string;
+  manDays: number;
+  startDate: string;
+  endDate: string;
+}
+
 interface SoftBookingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (showName: string, managerName?: string) => void;
+  onSuccess: (bookingData: BookingData) => void;
   booking?: any; // For editing existing booking
   prefilledData?: {
     showName?: string;
@@ -148,7 +157,14 @@ export default function SoftBookingModal({
       }
 
       toast.success(booking ? 'Booking updated!' : selectedCellsCount > 0 ? `${selectedCellsCount} cells booked!` : 'Booking created!');
-      onSuccess(formData.showName, formData.managerName);
+      onSuccess({
+        showName: formData.showName,
+        managerName: formData.managerName,
+        department: formData.department,
+        manDays: formData.manDays,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+      });
       onClose();
     } catch (error: any) {
       toast.error(error.message || 'Failed to save booking');
