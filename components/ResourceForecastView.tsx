@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useResourceContext } from '@/lib/resourceContext';
 import { useResourceForecast, useBulkAddAllocations, useAddAllocation, useUpdateAllocation, useDeleteAllocation } from '@/hooks/useQueryHooks';
 import { toast } from 'react-hot-toast';
@@ -54,6 +55,7 @@ interface DailyAllocation {
 }
 
 export default function ResourceForecastView() {
+  const queryClient = useQueryClient();
   const { triggerRefresh } = useResourceContext();
   const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
   const [selectedShift, setSelectedShift] = useState<string>('all');
@@ -1348,12 +1350,14 @@ export default function ResourceForecastView() {
                     const working = isWorkingDay(date);
                     const disabled = weekend && !working;
                     const isLeave = dailyAlloc.allocations.some((a: any) => a.isLeave);
+                    const isBooked = dailyAlloc.allocations.some((a: any) => a.shotName?.startsWith('Booked:'));
                     const hasData = dailyAlloc.totalMD > 0;
                     
                     let bgColor = 'bg-emerald-700/30'; // Default: Available (light green)
                     if (isSelected) bgColor = 'bg-cyan-600/50';
                     else if (disabled) bgColor = 'bg-rose-900/40';
                     else if (isLeave) bgColor = 'bg-red-700/50'; // Leave: red
+                    else if (isBooked) bgColor = 'bg-indigo-600/50'; // Booked: indigo/purple
                     else if (weekend && working) bgColor = 'bg-blue-800/40';
                     else if (hasData && dailyAlloc.status === 'full') bgColor = 'bg-amber-700/50';
                     else if (hasData && dailyAlloc.status === 'partial') bgColor = 'bg-yellow-700/40';
@@ -1448,6 +1452,7 @@ export default function ResourceForecastView() {
       <div className="flex-none bg-slate-800 border-t border-slate-600 p-4">
         <div className="flex items-center gap-6 text-sm text-slate-300 flex-wrap">
           <div className="flex items-center gap-2"><div className="w-4 h-4 bg-emerald-700/30 border border-slate-500"></div><span>Available</span></div>
+          <div className="flex items-center gap-2"><div className="w-4 h-4 bg-indigo-600/50 border border-slate-500"></div><span>Booked</span></div>
           <div className="flex items-center gap-2"><div className="w-4 h-4 bg-red-700/50 border border-slate-500"></div><span>Leave (A)</span></div>
           <div className="flex items-center gap-2"><div className="w-4 h-4 bg-yellow-700/40 border border-slate-500"></div><span>Partial (&lt;1.0 MD)</span></div>
           <div className="flex items-center gap-2"><div className="w-4 h-4 bg-amber-700/50 border border-slate-500"></div><span>Full (1.0 MD)</span></div>
@@ -1836,17 +1841,24 @@ export default function ResourceForecastView() {
                   });
                   
                   await Promise.all(allocationPromises);
-                  triggerRefresh();
+                  
+                  // Invalidate React Query cache for instant refresh
+                  queryClient.invalidateQueries({ queryKey: ['resourceForecast'] });
+                  queryClient.invalidateQueries({ queryKey: ['resourceAllocations'] });
+                  
+                  toast.success(`${bookingCells.length} cell(s) booked for ${showName}!`);
                 } catch (error) {
                   console.error('Error creating allocations:', error);
+                  toast.error('Failed to create allocations');
                 }
+              } else {
+                toast.success('Booking saved!');
               }
               
               setShowBookingModal(false);
               setQuickBookingData(null);
               setBookingCells([]);
               setSelectedCells(new Set());
-              toast.success('Booking created!');
             }}
             prefilledData={quickBookingData || undefined}
             isSimplified={!!quickBookingData}
