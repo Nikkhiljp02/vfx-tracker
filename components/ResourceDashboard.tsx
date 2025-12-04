@@ -2,10 +2,12 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, isSaturday, isSunday, startOfMonth, endOfMonth } from 'date-fns';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useResourceMembers, useResourceAllocations } from '@/hooks/useQueryHooks';
 import { Users, Calendar, Clock, Award, BarChart3, TrendingUp, Activity, Zap, Target, AlertTriangle, CheckCircle, XCircle, ArrowUpRight, ArrowDownRight, Briefcase, UserCheck, UserX, BookCheck, Sliders } from 'lucide-react';
 
 export default function ResourceDashboard() {
+  const queryClient = useQueryClient();
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [workingWeekends, setWorkingWeekends] = useState<Set<string>>(new Set());
   
@@ -16,8 +18,19 @@ export default function ResourceDashboard() {
   // React Query - instant caching
   const { data: members = [], isLoading: membersLoading } = useResourceMembers();
   const { data: allocations = [], isLoading: allocationsLoading } = useResourceAllocations(startDateStr, endDateStr);
-  const [softBookings, setSoftBookings] = useState<any[]>([]);
-  const [bookingsLoading, setBookingsLoading] = useState(false);
+  
+  // Soft Bookings with React Query for cache sync
+  const { data: softBookings = [], isLoading: bookingsLoading } = useQuery({
+    queryKey: ['softBookings'],
+    queryFn: async () => {
+      const res = await fetch('/api/resource/soft-bookings');
+      if (!res.ok) throw new Error('Failed to fetch bookings');
+      return res.json();
+    },
+    staleTime: 30 * 1000, // 30 seconds
+    refetchOnWindowFocus: true,
+  });
+  
   const loading = membersLoading || allocationsLoading;
 
   // Load working weekends from localStorage and allocations
@@ -45,24 +58,6 @@ export default function ResourceDashboard() {
     
     setWorkingWeekends(weekendWorkingDates);
   }, [allocations, currentWeekStart]);
-
-  // Fetch soft bookings
-  useEffect(() => {
-    const fetchBookings = async () => {
-      setBookingsLoading(true);
-      try {
-        const res = await fetch('/api/resource/soft-bookings');
-        if (res.ok) {
-          const data = await res.json();
-          setSoftBookings(data);
-        }
-      } catch (error) {
-        console.error('Error fetching bookings:', error);
-      }
-      setBookingsLoading(false);
-    };
-    fetchBookings();
-  }, []);
 
   const weekDays = useMemo(() => {
     return eachDayOfInterval({ start: currentWeekStart, end: weekEnd });
@@ -144,6 +139,45 @@ export default function ResourceDashboard() {
       isOverUtilized,
     };
   }, [members, allocations, weekDays, workingWeekends]);
+
+  // Extract "Booked:" allocations and group by showName for display
+  const bookedFromAllocations = useMemo(() => {
+    const bookedAllocs = allocations.filter((a: any) => a.shotName?.startsWith('Booked:'));
+    
+    // Group by showName
+    const groupedByShow = bookedAllocs.reduce((acc: any, alloc: any) => {
+      const showName = alloc.showName;
+      if (!acc[showName]) {
+        acc[showName] = {
+          id: `alloc-${showName}`,
+          showName,
+          managerName: '-',
+          department: members.find((m: any) => m.id === alloc.resourceId)?.department || 'Unknown',
+          manDays: 0,
+          startDate: new Date(alloc.allocationDate),
+          endDate: new Date(alloc.allocationDate),
+          status: 'Allocated',
+          splitEnabled: false,
+          isFromAllocations: true,
+        };
+      }
+      acc[showName].manDays += alloc.manDays;
+      const allocDate = new Date(alloc.allocationDate);
+      if (allocDate < acc[showName].startDate) acc[showName].startDate = allocDate;
+      if (allocDate > acc[showName].endDate) acc[showName].endDate = allocDate;
+      return acc;
+    }, {});
+    
+    return Object.values(groupedByShow);
+  }, [allocations, members]);
+
+  // Combine soft bookings with booked allocations for display
+  const allBookings = useMemo(() => {
+    // Filter out soft bookings that have corresponding allocations to avoid duplicates
+    const bookedShowNames = new Set(bookedFromAllocations.map((b: any) => b.showName));
+    const filteredSoftBookings = softBookings.filter((sb: any) => !bookedShowNames.has(sb.showName));
+    return [...bookedFromAllocations, ...filteredSoftBookings];
+  }, [softBookings, bookedFromAllocations]);
 
   // Department statistics
   const departmentStats = useMemo(() => {
@@ -559,9 +593,9 @@ export default function ResourceDashboard() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <BookCheck className="text-indigo-500" size={18} />
-                  <span className="text-sm font-semibold text-white">Soft Bookings</span>
+                  <span className="text-sm font-semibold text-white">Bookings</span>
                   <span className="px-2 py-0.5 bg-indigo-500/10 text-indigo-400 text-xs font-semibold border border-indigo-500/20 rounded-full">
-                    {softBookings.length} Active
+                    {allBookings.length} Active
                   </span>
                 </div>
               </div>
@@ -569,21 +603,30 @@ export default function ResourceDashboard() {
                 <div className="flex items-center justify-center h-32">
                   <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
                 </div>
-              ) : softBookings.length === 0 ? (
+              ) : allBookings.length === 0 ? (
                 <div className="text-center text-gray-500 py-8">
                   <BookCheck className="mx-auto mb-2 opacity-50" size={32} />
-                  <p>No soft bookings yet</p>
-                  <p className="text-xs mt-1">Create bookings from the Forecast tab</p>
+                  <p>No bookings yet</p>
+                  <p className="text-xs mt-1">Select cells in Forecast and click Book</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {softBookings.slice(0, 6).map((booking) => (
+                  {allBookings.slice(0, 6).map((booking: any) => (
                     <div key={booking.id} className="bg-[#0a0a0a] border border-[#1a1a1a] p-4 rounded-lg">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-semibold text-white truncate" title={booking.showName}>
                           {booking.showName}
                         </span>
                         <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                          booking.status === 'Allocated' ? 'bg-indigo-500/20 text-indigo-400' :
+                          booking.status === 'Confirmed' ? 'bg-emerald-500/20 text-emerald-400' :
+                          booking.status === 'Pending' ? 'bg-amber-500/20 text-amber-400' :
+                          booking.status === 'Cancelled' ? 'bg-red-500/20 text-red-400' :
+                          'bg-gray-500/20 text-gray-400'
+                        }`}>
+                          {booking.status}
+                        </span>
+                      </div>
                           booking.status === 'Confirmed' ? 'bg-emerald-500/20 text-emerald-400' :
                           booking.status === 'Pending' ? 'bg-amber-500/20 text-amber-400' :
                           booking.status === 'Cancelled' ? 'bg-red-500/20 text-red-400' :
@@ -629,9 +672,9 @@ export default function ResourceDashboard() {
                   ))}
                 </div>
               )}
-              {softBookings.length > 6 && (
+              {allBookings.length > 6 && (
                 <div className="text-center mt-4">
-                  <span className="text-xs text-gray-500">+ {softBookings.length - 6} more bookings</span>
+                  <span className="text-xs text-gray-500">+ {allBookings.length - 6} more bookings</span>
                 </div>
               )}
             </div>

@@ -900,8 +900,10 @@ export default function ResourceForecastView() {
     
     await Promise.all(deletePromises);
     
-    // Trigger dashboard refresh
-    triggerRefresh();
+    // Invalidate React Query cache for instant refresh
+    queryClient.invalidateQueries({ queryKey: ['resourceForecast'] });
+    queryClient.invalidateQueries({ queryKey: ['resourceAllocations'] });
+    queryClient.invalidateQueries({ queryKey: ['softBookings'] });
     
     // Broadcast change to other views
     const bc = new BroadcastChannel('resource-updates');
@@ -1852,7 +1854,9 @@ export default function ResourceForecastView() {
                   toast.error('Failed to create allocations');
                 }
               } else {
-                toast.success('Booking saved!');
+                // No cells selected - soft booking was created in modal, just refresh
+                queryClient.invalidateQueries({ queryKey: ['softBookings'] });
+                toast.success('Booking saved to Summary!');
               }
               
               setShowBookingModal(false);
