@@ -627,14 +627,6 @@ export default function ResourceDashboard() {
                           {booking.status}
                         </span>
                       </div>
-                          booking.status === 'Confirmed' ? 'bg-emerald-500/20 text-emerald-400' :
-                          booking.status === 'Pending' ? 'bg-amber-500/20 text-amber-400' :
-                          booking.status === 'Cancelled' ? 'bg-red-500/20 text-red-400' :
-                          'bg-gray-500/20 text-gray-400'
-                        }`}>
-                          {booking.status}
-                        </span>
-                      </div>
                       <div className="space-y-1.5 text-xs">
                         <div className="flex items-center justify-between">
                           <span className="text-gray-500">Manager</span>
