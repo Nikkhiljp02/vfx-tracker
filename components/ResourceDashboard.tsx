@@ -148,11 +148,13 @@ export default function ResourceDashboard() {
     const groupedByShow = bookedAllocs.reduce((acc: any, alloc: any) => {
       const showName = alloc.showName;
       if (!acc[showName]) {
+        // Try to find matching soft booking for manager name
+        const matchingSoftBooking = softBookings.find((sb: any) => sb.showName === showName);
         acc[showName] = {
           id: `alloc-${showName}`,
           showName,
-          managerName: '-',
-          department: members.find((m: any) => m.id === alloc.resourceId)?.department || 'Unknown',
+          managerName: matchingSoftBooking?.managerName || '-',
+          department: matchingSoftBooking?.department || members.find((m: any) => m.id === alloc.resourceId)?.department || 'Unknown',
           manDays: 0,
           startDate: new Date(alloc.allocationDate),
           endDate: new Date(alloc.allocationDate),
@@ -169,7 +171,7 @@ export default function ResourceDashboard() {
     }, {});
     
     return Object.values(groupedByShow);
-  }, [allocations, members]);
+  }, [allocations, members, softBookings]);
 
   // Combine soft bookings with booked allocations for display
   const allBookings = useMemo(() => {

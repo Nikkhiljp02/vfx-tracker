@@ -1808,54 +1808,106 @@ export default function ResourceForecastView() {
               setQuickBookingData(null);
               setBookingCells([]);
             }}
-            onSuccess={async (showName: string) => {
+            onSuccess={async (showName: string, managerName?: string) => {
               // Create allocations for selected cells with "Booked: ShowName"
               if (bookingCells.length > 0 && showName) {
                 try {
-                  const allocationPromises = bookingCells.map(async ({ memberId, date }) => {
-                    // First delete any existing allocations for this cell
-                    const member = members.find((m: any) => m.id === memberId);
-                    if (member) {
-                      const dailyAlloc = getDailyAllocation(member, date);
-                      await Promise.all(dailyAlloc.allocations.map((alloc: any) =>
-                        fetch(`/api/resource/allocations/${alloc.id}`, {
-                          method: 'DELETE',
-                          headers: { 'Cache-Control': 'no-cache' }
-                        })
-                      ));
+                  let successCount = 0;
+                  let errorCount = 0;
+                  
+                  // Track date range for soft booking record
+                  let minDate: Date | null = null;
+                  let maxDate: Date | null = null;
+                  
+                  for (const { memberId, date } of bookingCells) {
+                    try {
+                      // Track date range
+                      if (!minDate || date < minDate) minDate = date;
+                      if (!maxDate || date > maxDate) maxDate = date;
+                      
+                      // First delete any existing allocations for this cell
+                      const member = members.find((m: any) => m.id === memberId);
+                      if (member) {
+                        const dailyAlloc = getDailyAllocation(member, date);
+                        for (const alloc of dailyAlloc.allocations) {
+                          await fetch(`/api/resource/allocations/${alloc.id}`, {
+                            method: 'DELETE',
+                            headers: { 'Cache-Control': 'no-cache' }
+                          });
+                        }
+                      }
+                      
+                      // Create new allocation with "Booked: ShowName"
+                      const res = await fetch('/api/resource/allocations', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          resourceId: memberId,
+                          showName: showName,
+                          shotName: `Booked: ${showName}`,
+                          allocationDate: date.toISOString(),
+                          manDays: 1.0,
+                          isLeave: false,
+                          isIdle: false,
+                          isWeekendWorking: false,
+                        }),
+                      });
+                      
+                      if (res.ok) {
+                        successCount++;
+                      } else {
+                        const errorData = await res.json();
+                        console.error('Allocation error:', errorData);
+                        errorCount++;
+                      }
+                    } catch (cellError) {
+                      console.error('Error processing cell:', cellError);
+                      errorCount++;
                     }
-                    
-                    // Create new allocation with "Booked: ShowName"
-                    return fetch('/api/resource/allocations', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        resourceId: memberId,
-                        showName: showName,
-                        shotName: `Booked: ${showName}`,
-                        allocationDate: date.toISOString(),
-                        manDays: 1.0,
-                        isLeave: false,
-                        isIdle: false,
-                        isWeekendWorking: false,
-                      }),
-                    });
-                  });
+                  }
                   
-                  await Promise.all(allocationPromises);
+                  // Also create a soft booking record to track manager name and other details
+                  if (successCount > 0 && minDate && maxDate) {
+                    try {
+                      await fetch('/api/resource/soft-bookings', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          showName,
+                          managerName: managerName || '-',
+                          department: members.find((m: any) => bookingCells.some(c => c.memberId === m.id))?.department || 'Unknown',
+                          manDays: successCount,
+                          startDate: minDate.toISOString(),
+                          endDate: maxDate.toISOString(),
+                          splitEnabled: false,
+                          notes: `Booked ${successCount} cells via Forecast`,
+                        }),
+                      });
+                    } catch (sbError) {
+                      console.error('Error creating soft booking record:', sbError);
+                      // Not critical - allocations were created
+                    }
+                  }
                   
-                  // Invalidate React Query cache for instant refresh
-                  queryClient.invalidateQueries({ queryKey: ['resourceForecast'] });
-                  queryClient.invalidateQueries({ queryKey: ['resourceAllocations'] });
+                  // Invalidate ALL React Query caches for instant refresh
+                  await queryClient.invalidateQueries({ queryKey: ['resourceForecast'] });
+                  await queryClient.invalidateQueries({ queryKey: ['resourceAllocations'] });
+                  await queryClient.invalidateQueries({ queryKey: ['softBookings'] });
                   
-                  toast.success(`${bookingCells.length} cell(s) booked for ${showName}!`);
+                  if (successCount > 0) {
+                    toast.success(`${successCount} cell(s) booked for ${showName}!`);
+                  }
+                  if (errorCount > 0) {
+                    toast.error(`${errorCount} cell(s) failed to book`);
+                  }
                 } catch (error) {
                   console.error('Error creating allocations:', error);
                   toast.error('Failed to create allocations');
                 }
               } else {
                 // No cells selected - soft booking was created in modal, just refresh
-                queryClient.invalidateQueries({ queryKey: ['softBookings'] });
+                await queryClient.invalidateQueries({ queryKey: ['softBookings'] });
+                await queryClient.invalidateQueries({ queryKey: ['resourceAllocations'] });
                 toast.success('Booking saved to Summary!');
               }
               

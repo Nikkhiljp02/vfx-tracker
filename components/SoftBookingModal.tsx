@@ -8,7 +8,7 @@ import { toast } from 'react-hot-toast';
 interface SoftBookingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (showName: string) => void;
+  onSuccess: (showName: string, managerName?: string) => void;
   booking?: any; // For editing existing booking
   prefilledData?: {
     showName?: string;
@@ -148,7 +148,7 @@ export default function SoftBookingModal({
       }
 
       toast.success(booking ? 'Booking updated!' : selectedCellsCount > 0 ? `${selectedCellsCount} cells booked!` : 'Booking created!');
-      onSuccess(formData.showName);
+      onSuccess(formData.showName, formData.managerName);
       onClose();
     } catch (error: any) {
       toast.error(error.message || 'Failed to save booking');
