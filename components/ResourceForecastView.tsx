@@ -1367,16 +1367,7 @@ export default function ResourceForecastView() {
                 <tr key={member.id} className="hover:bg-slate-700/50 h-10 border-b border-slate-700 transition-colors group">
                   <td className="sticky left-0 z-20 px-2 py-2 text-xs font-medium text-slate-200 truncate" style={{width: '80px', minWidth: '80px', maxWidth: '80px', backgroundColor: '#1e293b', borderRight: '1px solid #475569'}}>{member.empId}</td>
                   <td className="sticky left-[80px] z-20 px-2 py-2 text-xs text-slate-200 truncate" style={{width: '160px', minWidth: '160px', maxWidth: '160px', backgroundColor: '#1e293b', borderRight: '1px solid #475569'}}>
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="truncate">{member.empName}</span>
-                      <button
-                        onClick={() => setEditingMember(member)}
-                        className="opacity-0 group-hover:opacity-100 text-cyan-400 hover:text-cyan-300 transition-opacity flex-shrink-0"
-                        title="Edit member"
-                      >
-                        ✏️
-                      </button>
-                    </div>
+                    <span className="truncate">{member.empName}</span>
                   </td>
                   <td className="sticky left-[240px] z-20 px-2 py-2 text-xs text-slate-300 truncate" style={{width: '120px', minWidth: '120px', maxWidth: '120px', backgroundColor: '#1e293b', borderRight: '1px solid #475569'}}>{member.designation}</td>
                   <td className="sticky left-[360px] z-20 px-2 py-2 text-xs text-slate-300 truncate" style={{width: '120px', minWidth: '120px', maxWidth: '120px', backgroundColor: '#1e293b', borderRight: '1px solid #475569'}}>{member.reportingTo || '-'}</td>
