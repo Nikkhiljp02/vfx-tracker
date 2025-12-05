@@ -146,7 +146,7 @@ async function generateExcelReport(data: any, metrics: string[]): Promise<Buffer
   worksheet.getColumn(2).width = 20;
 
   const buffer = await workbook.xlsx.writeBuffer();
-  return Buffer.from(buffer);
+  return buffer as Buffer;
 }
 
 function generateCSVReport(data: any, metrics: string[]): string {
