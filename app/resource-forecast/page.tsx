@@ -8,13 +8,14 @@ import AllocationListView from '@/components/AllocationListView';
 import ResourceDashboard from '@/components/ResourceDashboard';
 import ResourceCapacityView from '@/components/ResourceCapacityView';
 import AwardSheetViewOptimized from '@/components/AwardSheetViewOptimized';
+import CapacityPlanningDashboard from '@/components/CapacityPlanningDashboard';
 import { ResourceProvider } from '@/lib/resourceContext';
-import { LayoutDashboard, CalendarDays, ListTodo, BarChart3, Trophy } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, ListTodo, BarChart3, Trophy, PieChart } from 'lucide-react';
 
 export default function ResourceForecastPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'forecast' | 'allocations' | 'capacity' | 'award'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'forecast' | 'allocations' | 'capacity' | 'award' | 'capacityPlanning'>('dashboard');
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -58,6 +59,7 @@ export default function ResourceForecastPage() {
     { id: 'forecast', label: 'Resource Forecast', icon: CalendarDays, shortLabel: 'Forecast' },
     { id: 'allocations', label: 'Allocations', icon: ListTodo, shortLabel: 'Allocations' },
     { id: 'capacity', label: 'Resource Capacity', icon: BarChart3, shortLabel: 'Capacity' },
+    { id: 'capacityPlanning', label: 'Capacity Planning', icon: PieChart, shortLabel: 'Planning' },
     { id: 'award', label: 'Award Sheet', icon: Trophy, shortLabel: 'Award' },
   ];
 
@@ -110,6 +112,8 @@ export default function ResourceForecastPage() {
             <AllocationListView />
           ) : activeTab === 'capacity' ? (
             <ResourceCapacityView />
+          ) : activeTab === 'capacityPlanning' ? (
+            <CapacityPlanningDashboard />
           ) : (
             <AwardSheetViewOptimized />
           )}

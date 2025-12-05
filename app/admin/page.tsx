@@ -159,6 +159,15 @@ export default function AdminDashboard() {
       statLabel: "Shots This Week",
     },
     {
+      title: "Custom Reports Builder",
+      description: "Design, schedule, and export custom analytics reports",
+      icon: FileText,
+      href: "/admin/reports",
+      color: "bg-indigo-500",
+      stat: "📊",
+      statLabel: "Report Builder",
+    },
+    {
       title: "Permissions Manager",
       description: "Configure role-based permissions",
       icon: Shield,
