@@ -132,6 +132,15 @@ export default function AdminDashboard() {
       statLabel: "Active Shows",
     },
     {
+      title: "Employee Roster",
+      description: "Manage all employees - Artists, Leads, Supervisors, Production",
+      icon: Users,
+      href: "/admin/roster",
+      color: "bg-cyan-500",
+      stat: stats?.resources.total || 0,
+      statLabel: "Total Employees",
+    },
+    {
       title: "Activity Logs",
       description: "View and search all system activities",
       icon: Activity,

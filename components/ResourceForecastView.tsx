@@ -9,8 +9,6 @@ import { useResourceForecast, useBulkAddAllocations, useAddAllocation, useUpdate
 import { toast } from 'react-hot-toast';
 
 // Lazy load modals for better initial performance
-const ResourceImportModal = lazy(() => import('./ResourceImportModal'));
-const ResourceMemberForm = lazy(() => import('./ResourceMemberForm'));
 const SoftBookingModal = lazy(() => import('./SoftBookingModal'));
 
 // Type definitions
@@ -61,10 +59,8 @@ export default function ResourceForecastView() {
   const [selectedShift, setSelectedShift] = useState<string>('all');
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [dateRange, setDateRange] = useState(30);
-  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
-  const [editingMember, setEditingMember] = useState<ResourceMember | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [importType, setImportType] = useState<'members' | 'allocations'>('members');
+  const [importType, setImportType] = useState<'allocations'>('allocations');
   
   // Advanced filtering
   const [selectedShow, setSelectedShow] = useState<string>('all');
@@ -1167,9 +1163,7 @@ export default function ResourceForecastView() {
             <button onClick={handleUndo} disabled={historyIndex <= 0} className="px-3 py-2 bg-slate-700 text-white text-xs rounded hover:bg-slate-600 transition-colors disabled:opacity-50 touch-manipulation" title="Undo">↶</button>
             <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="px-3 py-2 bg-slate-700 text-white text-xs rounded hover:bg-slate-600 transition-colors disabled:opacity-50 touch-manipulation" title="Redo">↷</button>
             <button onClick={exportToExcel} className="px-3 py-2 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-500 transition-colors touch-manipulation">📊<span className="hidden sm:inline ml-1">CSV</span></button>
-            <button onClick={() => { setImportType('members'); setShowImportModal(true); }} className="px-4 py-2 bg-cyan-600 text-white text-xs rounded hover:bg-cyan-500 transition-colors touch-manipulation"><span className="hidden sm:inline">Import </span>Members</button>
             <button onClick={() => { setImportType('allocations'); setShowImportModal(true); }} className="px-4 py-2 bg-purple-600 text-white text-xs rounded hover:bg-purple-500 transition-colors touch-manipulation"><span className="hidden sm:inline">Import </span>Alloc</button>
-            <button onClick={() => setShowAddMemberModal(true)} className="px-4 py-2 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-500 transition-colors touch-manipulation">+ Member</button>
             <button onClick={() => {
               // Collect selected cells info for booking
               const cellsToBook: Array<{ memberId: string; date: Date }> = [];
@@ -1512,8 +1506,6 @@ export default function ResourceForecastView() {
         </div>
       </div>
 
-      {showAddMemberModal && <ResourceMemberForm isOpen={showAddMemberModal} onClose={() => setShowAddMemberModal(false)} onSuccess={() => setShowAddMemberModal(false)} />}
-      {editingMember && <ResourceMemberForm isOpen={true} onClose={() => setEditingMember(null)} onSuccess={() => setEditingMember(null)} member={editingMember} />}
       {showImportModal && <ResourceImportModal isOpen={showImportModal} onClose={() => setShowImportModal(false)} onSuccess={() => setShowImportModal(false)} type={importType} />}
       
       {/* Save View Modal */}

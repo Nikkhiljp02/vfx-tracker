@@ -18,7 +18,11 @@ export function useResourceMembers(department?: string, shift?: string, isActive
       
       const res = await fetch(`/api/resource/members?${params}`);
       if (!res.ok) throw new Error('Failed to fetch members');
-      return res.json();
+      const allMembers = await res.json();
+      
+      // Filter to show only Artists in Resource Forecast (exclude Leads, Supervisors, Production)
+      const artistsOnly = allMembers.filter((member: any) => member.employeeType === 'Artist');
+      return artistsOnly;
     },
     staleTime: 30 * 1000, // 30 seconds - quick refresh for updates
     refetchOnWindowFocus: true,

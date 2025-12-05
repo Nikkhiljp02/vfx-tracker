@@ -388,10 +388,11 @@ model ResourceMember {
   id              String   @id @default(cuid())
   empId           String   @unique // Employee ID
   empName         String   // Employee Name
-  designation     String   // Artist, Lead, Supervisor, etc.
+  designation     String   // Senior Artist, Mid Artist, Junior Artist, Lead, Supervisor, etc.
   reportingTo     String?  // Name of reporting manager
-  department      String   // Paint, Roto, Comp, MMRA, etc.
+  department      String   // Paint, Roto, Comp, MMRA, Production, etc.
   shift           String   @default("Day") // Day, Night, Flexible
+  employeeType    String   @default("Artist") // Artist, Lead, Supervisor, Production (determines if shown in Resource Forecast)
   isActive        Boolean  @default(true)
   createdDate     DateTime @default(now())
   updatedDate     DateTime @updatedAt
@@ -402,6 +403,7 @@ model ResourceMember {
   @@index([department])
   @@index([isActive])
   @@index([empId])
+  @@index([employeeType])
   @@map("resource_members")
 }
 

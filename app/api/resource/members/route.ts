@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
         reportingTo: true,
         department: true,
         shift: true,
+        employeeType: true,
         isActive: true,
         createdDate: true,
         updatedDate: true,
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { empId, empName, designation, reportingTo, department, shift } = body;
+    const { empId, empName, designation, reportingTo, department, shift, employeeType, isActive } = body;
 
     if (!empId || !empName || !designation || !department) {
       return NextResponse.json(
@@ -103,6 +104,8 @@ export async function POST(request: NextRequest) {
         reportingTo,
         department,
         shift: shift || 'Day',
+        employeeType: employeeType || 'Artist',
+        isActive: isActive !== undefined ? isActive : true,
       },
     });
 
