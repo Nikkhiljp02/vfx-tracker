@@ -102,7 +102,7 @@ async function generateReportData(metrics: string[], filters: any[], dateRange: 
   return data;
 }
 
-async function generateExcelReport(data: any, metrics: string[]): Promise<Buffer> {
+async function generateExcelReport(data: any, metrics: string[]) {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('Report');
 
@@ -145,8 +145,7 @@ async function generateExcelReport(data: any, metrics: string[]): Promise<Buffer
   worksheet.getColumn(1).width = 30;
   worksheet.getColumn(2).width = 20;
 
-  const buffer = await workbook.xlsx.writeBuffer();
-  return buffer as Buffer;
+  return await workbook.xlsx.writeBuffer();
 }
 
 function generateCSVReport(data: any, metrics: string[]): string {
