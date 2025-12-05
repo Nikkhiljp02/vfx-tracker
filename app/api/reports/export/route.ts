@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     if (exportFormat === 'excel') {
       const buffer = await generateExcelReport(reportData, metrics);
-      return new NextResponse(buffer, {
+      return new NextResponse(new Uint8Array(buffer), {
         headers: {
           'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
           'Content-Disposition': `attachment; filename="report-${Date.now()}.xlsx"`,
