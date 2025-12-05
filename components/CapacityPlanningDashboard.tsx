@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useResourceMembers, useResourceAllocations, useSoftBookings } from '@/hooks/useQueryHooks';
+import { useResourceMembers, useResourceAllocations } from '@/hooks/useQueryHooks';
 import { format, startOfMonth, endOfMonth, eachWeekOfInterval, addMonths, subMonths } from 'date-fns';
 
 // Glass morphism card component
@@ -49,9 +49,8 @@ export default function CapacityPlanningDashboard() {
 
   const { data: members, isLoading: membersLoading } = useResourceMembers();
   const { data: allocations, isLoading: allocationsLoading } = useResourceAllocations();
-  const { data: bookings, isLoading: bookingsLoading } = useSoftBookings();
 
-  const isLoading = membersLoading || allocationsLoading || bookingsLoading;
+  const isLoading = membersLoading || allocationsLoading;
 
   // Calculate working days in month
   const workingDaysInMonth = useMemo(() => {
