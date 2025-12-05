@@ -60,7 +60,7 @@ async function generateReportData(metrics: string[], filters: any[], dateRange: 
 
   // Fetch shows
   if (metrics.includes('m1')) {
-    data.totalShows = await prisma.show.count({ where: { isActive: true } });
+    data.totalShows = await prisma.show.count({ where: { status: 'Active' } });
   }
 
   // Fetch shots
