@@ -1497,7 +1497,22 @@ export default function ResourceForecastView() {
         </div>
       </div>
 
-      {showImportModal && <ResourceImportModal isOpen={showImportModal} onClose={() => setShowImportModal(false)} onSuccess={() => setShowImportModal(false)} type={importType} />}
+      {/* Import Allocations Modal */}
+      {showImportModal && (
+        <Suspense fallback={<div>Loading...</div>}>
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-slate-800 p-6 rounded-lg shadow-xl max-w-2xl w-full">
+              <h2 className="text-xl font-bold text-white mb-4">Import Allocations</h2>
+              <p className="text-slate-300 mb-4">Upload Excel file with allocation data</p>
+              <div className="flex gap-2">
+                <button onClick={() => setShowImportModal(false)} className="px-4 py-2 bg-slate-600 text-white rounded hover:bg-slate-500">
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </Suspense>
+      )}
       
       {/* Save View Modal */}
       {showSaveViewModal && (
