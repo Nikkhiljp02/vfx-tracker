@@ -893,7 +893,7 @@ export default function ResourceForecastView() {
             a.shotName === affected.shotName && !a.isLeave && !a.isIdle
           );
           
-          const affectedPromises = affectedAllocs.map(async (alloc) => {
+          const affectedPromises = affectedAllocs.map(async (alloc: ResourceAllocation) => {
             const currentDate = new Date(alloc.allocationDate);
             const newDate = getNextWorkingDay(currentDate, affected.shiftDays || shiftDays);
 
