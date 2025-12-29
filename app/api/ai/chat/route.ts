@@ -115,24 +115,16 @@ Important guidelines:
 Current date: ${new Date().toISOString().split('T')[0]}`
   });
 
-  // Convert history to Gemini format
-  // Filter out initial assistant messages and ensure history starts with user message
-  const validHistory = history.filter((msg: any) => {
-    // Skip assistant messages that appear before any user message
-    const firstUserIndex = history.findIndex((m: any) => m.role === 'user');
-    const currentIndex = history.indexOf(msg);
-    
-    // If this is before the first user message and it's an assistant message, skip it
-    if (firstUserIndex !== -1 && currentIndex < firstUserIndex && msg.role === 'assistant') {
-      return false;
-    }
-    return true;
-  });
-
-  const geminiHistory = validHistory.map((msg: any) => ({
-    role: msg.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: msg.content }]
-  }));
+  // Convert history to Gemini format, but skip if it starts with assistant message
+  let geminiHistory: any[] = [];
+  
+  // Only use history if it starts with a user message
+  if (history.length > 0 && history[0].role === 'user') {
+    geminiHistory = history.map((msg: any) => ({
+      role: msg.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: msg.content }]
+    }));
+  }
 
   const chat = model.startChat({ history: geminiHistory });
   let result = await chat.sendMessage(message);
