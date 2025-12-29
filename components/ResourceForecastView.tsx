@@ -69,6 +69,9 @@ export default function ResourceForecastView() {
   const [savedViews, setSavedViews] = useState<any[]>([]);
   const [activeViewId, setActiveViewId] = useState<string | null>(null);
   
+  // Display mode toggle: 'shot' shows shot numbers, 'show' shows show names
+  const [displayMode, setDisplayMode] = useState<'shot' | 'show'>('shot');
+  
   // Bulk operations
   const [bulkMode, setBulkMode] = useState<'fill' | 'copy' | 'reassign' | null>(null);
   const [bulkSourceMember, setBulkSourceMember] = useState<string | null>(null);
@@ -424,17 +427,27 @@ export default function ResourceForecastView() {
     return result;
   };
 
-  const formatAllocationsToString = (allocations: ResourceAllocation[]): string => {
+  const formatAllocationsToString = (allocations: ResourceAllocation[], mode: 'shot' | 'show' = 'shot'): string => {
     const shots = allocations.filter((a: any) => !a.isLeave && !a.isIdle);
     if (shots.length === 0) return '';
     
     const firstMD = shots[0].manDays;
     const allEqual = shots.every((s: any) => Math.abs(s.manDays - firstMD) < 0.001);
     
-    if (allEqual && shots.length > 1 && Math.abs(firstMD - 1.0 / shots.length) < 0.001) {
-      return shots.map((s: any) => s.shotName).join('/');
+    if (mode === 'show') {
+      // Display show names instead of shot names
+      if (allEqual && shots.length > 1 && Math.abs(firstMD - 1.0 / shots.length) < 0.001) {
+        return shots.map((s: any) => s.showName || s.shotName).join('/');
+      } else {
+        return shots.map((s: any) => `${s.showName || s.shotName}:${s.manDays}`).join('/');
+      }
     } else {
-      return shots.map((s: any) => `${s.shotName}:${s.manDays}`).join('/');
+      // Display shot names (original behavior)
+      if (allEqual && shots.length > 1 && Math.abs(firstMD - 1.0 / shots.length) < 0.001) {
+        return shots.map((s: any) => s.shotName).join('/');
+      } else {
+        return shots.map((s: any) => `${s.shotName}:${s.manDays}`).join('/');
+      }
     }
   };
 
@@ -1284,6 +1297,29 @@ export default function ResourceForecastView() {
             <option value="partial">🟡 Partial</option>
           </select>
 
+          {/* Show/Shot Display Toggle */}
+          <div className="flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg">
+            <span className={`text-xs font-medium transition-colors ${displayMode === 'show' ? 'text-blue-400' : 'text-gray-500'}`}>
+              Show
+            </span>
+            <button
+              onClick={() => setDisplayMode(displayMode === 'shot' ? 'show' : 'shot')}
+              className={`relative w-12 h-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                displayMode === 'shot' ? 'bg-gray-600' : 'bg-blue-600'
+              }`}
+              title={`Currently showing ${displayMode === 'shot' ? 'shot numbers' : 'show names'}. Click to toggle.`}
+            >
+              <span
+                className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                  displayMode === 'shot' ? 'translate-x-0' : 'translate-x-6'
+                }`}
+              />
+            </button>
+            <span className={`text-xs font-medium transition-colors ${displayMode === 'shot' ? 'text-blue-400' : 'text-gray-500'}`}>
+              Shot
+            </span>
+          </div>
+
           <button 
             onClick={() => setShowSaveViewModal(true)}
             className="px-2 md:px-3 py-2 bg-purple-600 text-white hover:bg-purple-500 active:bg-purple-400 transition-colors text-xs md:text-sm touch-manipulation"
@@ -1393,7 +1429,7 @@ export default function ResourceForecastView() {
                     else if (hasData && dailyAlloc.status === 'full') bgColor = 'bg-amber-700/50';
                     else if (hasData && dailyAlloc.status === 'partial') bgColor = 'bg-yellow-700/40';
                     
-                    const displayText = formatAllocationsToString(dailyAlloc.allocations);
+                    const displayText = formatAllocationsToString(dailyAlloc.allocations, displayMode);
                     
                     return (
                       <td 

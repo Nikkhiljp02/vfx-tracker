@@ -338,7 +338,12 @@ WHERE schemaname = 'public'
 5. add_performance_indexes.sql           ← Performance boost
 ```
 
-## Support
+## Support# Set your Supabase connection strings
+$env:DATABASE_URL="your-supabase-pooler-url"
+$env:DIRECT_URL="your-supabase-direct-url"
+
+# Push schema to Supabase
+npx prisma db push
 
 If you encounter issues:
 1. Check Supabase logs in Dashboard → Logs
