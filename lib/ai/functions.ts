@@ -4,29 +4,31 @@
  */
 
 import { prisma } from '@/lib/prisma';
+import { SchemaType } from '@google/generative-ai';
+import type { FunctionDeclaration } from '@google/generative-ai';
 
 // Function definitions for AI (Gemini format)
-export const aiFunctionDeclarations = [
+export const aiFunctionDeclarations: FunctionDeclaration[] = [
   {
     name: "get_resource_forecast",
     description: "Get resource allocation forecast for a date range. Returns employee allocations with shows, shots, and man-days.",
     parameters: {
-      type: "object" as const,
+      type: SchemaType.OBJECT,
       properties: {
         startDate: {
-          type: "string" as const,
+          type: SchemaType.STRING,
           description: "Start date in YYYY-MM-DD format"
         },
         endDate: {
-          type: "string" as const,
+          type: SchemaType.STRING,
           description: "End date in YYYY-MM-DD format"
         },
         department: {
-          type: "string" as const,
+          type: SchemaType.STRING,
           description: "Filter by department (optional). e.g., 'Animation', 'Compositing'"
         },
         shift: {
-          type: "string" as const,
+          type: SchemaType.STRING,
           description: "Filter by shift (optional). e.g., 'Day', 'Night'"
         }
       },
@@ -37,14 +39,14 @@ export const aiFunctionDeclarations = [
     name: "get_available_resources",
     description: "Find employees who are available (not fully allocated) on a specific date or date range.",
     parameters: {
-      type: "object" as const,
+      type: SchemaType.OBJECT,
       properties: {
         date: {
-          type: "string" as const,
+          type: SchemaType.STRING,
           description: "Date to check availability in YYYY-MM-DD format"
         },
         department: {
-          type: "string" as const,
+          type: SchemaType.STRING,
           description: "Filter by department (optional)"
         }
       },
@@ -55,14 +57,14 @@ export const aiFunctionDeclarations = [
     name: "get_overallocated_resources",
     description: "Find employees who are overallocated (total man-days > 1.0) on any day in a date range.",
     parameters: {
-      type: "object" as const,
+      type: SchemaType.OBJECT,
       properties: {
         startDate: {
-          type: "string" as const,
+          type: SchemaType.STRING,
           description: "Start date in YYYY-MM-DD format"
         },
         endDate: {
-          type: "string" as const,
+          type: SchemaType.STRING,
           description: "End date in YYYY-MM-DD format"
         }
       },
@@ -73,10 +75,10 @@ export const aiFunctionDeclarations = [
     name: "get_show_allocations",
     description: "Get all resource allocations for a specific show with timeline and employee details.",
     parameters: {
-      type: "object" as const,
+      type: SchemaType.OBJECT,
       properties: {
         showName: {
-          type: "string" as const,
+          type: SchemaType.STRING,
           description: "Name of the show"
         }
       },
@@ -87,18 +89,18 @@ export const aiFunctionDeclarations = [
     name: "get_employee_schedule",
     description: "Get detailed schedule for a specific employee including all allocations, leaves, and availability.",
     parameters: {
-      type: "object" as const,
+      type: SchemaType.OBJECT,
       properties: {
         employeeName: {
-          type: "string" as const,
+          type: SchemaType.STRING,
           description: "Employee name to get schedule for"
         },
         startDate: {
-          type: "string" as const,
+          type: SchemaType.STRING,
           description: "Start date in YYYY-MM-DD format"
         },
         endDate: {
-          type: "string" as const,
+          type: SchemaType.STRING,
           description: "End date in YYYY-MM-DD format"
         }
       },
@@ -109,18 +111,18 @@ export const aiFunctionDeclarations = [
     name: "get_department_utilization",
     description: "Calculate utilization statistics for a department including total capacity, allocated hours, and availability.",
     parameters: {
-      type: "object" as const,
+      type: SchemaType.OBJECT,
       properties: {
         department: {
-          type: "string" as const,
+          type: SchemaType.STRING,
           description: "Department name"
         },
         startDate: {
-          type: "string" as const,
+          type: SchemaType.STRING,
           description: "Start date in YYYY-MM-DD format"
         },
         endDate: {
-          type: "string" as const,
+          type: SchemaType.STRING,
           description: "End date in YYYY-MM-DD format"
         }
       },

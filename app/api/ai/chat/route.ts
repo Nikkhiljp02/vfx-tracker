@@ -4,6 +4,15 @@ import Groq from 'groq-sdk';
 import { auth } from '@/lib/auth';
 import { aiFunctionDeclarations, executeAIFunction } from '@/lib/ai/functions';
 
+type GeminiModelListItem = {
+  name?: string;
+  supportedGenerationMethods?: string[];
+};
+
+type GeminiModelListResponse = {
+  models?: GeminiModelListItem[];
+};
+
 // Initialize AI clients
 const genAI = process.env.GOOGLE_AI_KEY 
   ? new GoogleGenerativeAI(process.env.GOOGLE_AI_KEY)
@@ -12,6 +21,83 @@ const genAI = process.env.GOOGLE_AI_KEY
 const groq = process.env.GROQ_API_KEY
   ? new Groq({ apiKey: process.env.GROQ_API_KEY })
   : null;
+
+const GEMINI_MODEL_CACHE_TTL_MS = 30 * 60 * 1000;
+let geminiModelCache:
+  | { model: string; apiVersion: 'v1' | 'v1beta'; fetchedAt: number }
+  | null = null;
+
+async function listGeminiModels(apiKey: string, apiVersion: 'v1' | 'v1beta'): Promise<GeminiModelListItem[]> {
+  const url = `https://generativelanguage.googleapis.com/${apiVersion}/models?key=${encodeURIComponent(apiKey)}`;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    cache: 'no-store',
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    const err = new Error(`ListModels failed (${apiVersion}): ${res.status} ${res.statusText} ${text}`);
+    (err as any).status = res.status;
+    throw err;
+  }
+
+  const data = (await res.json().catch(() => ({}))) as GeminiModelListResponse;
+  return Array.isArray(data.models) ? data.models : [];
+}
+
+function pickPreferredGeminiModel(models: GeminiModelListItem[]): string | null {
+  const supported = models
+    .map((m) => (typeof m.name === 'string' ? m.name : ''))
+    .filter(Boolean)
+    .filter((name) => name.startsWith('models/'));
+
+  const shortNames = supported.map((name) => name.replace(/^models\//, ''));
+
+  const preferences: RegExp[] = [
+    /^gemini-2\.0-flash$/i,
+    /^gemini-2\.0-flash-?lite$/i,
+    /^gemini-2\.0-flash/i,
+    /^gemini-1\.5-flash/i,
+    /^gemini-1\.5-pro/i,
+    /^gemini/i,
+  ];
+
+  for (const pref of preferences) {
+    const found = shortNames.find((n) => pref.test(n));
+    if (found) return found;
+  }
+
+  return shortNames[0] ?? null;
+}
+
+async function resolveGeminiModelName(): Promise<{ model: string; apiVersion: 'v1' | 'v1beta' }> {
+  const apiKey = process.env.GOOGLE_AI_KEY;
+  if (!apiKey) throw new Error('Gemini not configured');
+
+  if (geminiModelCache && Date.now() - geminiModelCache.fetchedAt < GEMINI_MODEL_CACHE_TTL_MS) {
+    return { model: geminiModelCache.model, apiVersion: geminiModelCache.apiVersion };
+  }
+
+  const versions: Array<'v1' | 'v1beta'> = ['v1', 'v1beta'];
+  let lastError: unknown = null;
+
+  for (const apiVersion of versions) {
+    try {
+      const models = await listGeminiModels(apiKey, apiVersion);
+      const picked = pickPreferredGeminiModel(models);
+      if (!picked) continue;
+
+      geminiModelCache = { model: picked, apiVersion, fetchedAt: Date.now() };
+      console.log(`[AI] Gemini model auto-selected: ${picked} (${apiVersion})`);
+      return { model: picked, apiVersion };
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Unable to resolve Gemini model');
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -52,17 +138,17 @@ export async function POST(request: NextRequest) {
         });
       } catch (error: any) {
         console.error('Gemini error:', error);
-        
-        // If rate limited and Groq is available, fallback
-        if (error.message?.includes('rate') && groq) {
-          console.log('Falling back to Groq due to rate limit');
+
+        // If Groq is available, fallback for better uptime
+        if (groq) {
+          console.log('Falling back to Groq after Gemini error');
           const response = await processWithGroq(message, conversationHistory, user.id);
-          return NextResponse.json({ 
+          return NextResponse.json({
             message: response,
             provider: 'groq'
           });
         }
-        
+
         throw error;
       }
     } 
@@ -90,8 +176,11 @@ export async function POST(request: NextRequest) {
 async function processWithGemini(message: string, history: any[], userId: string): Promise<string> {
   if (!genAI) throw new Error('Gemini not configured');
 
+  const { model: resolvedModel } = await resolveGeminiModelName();
+
   const model = genAI.getGenerativeModel({ 
-    model: "gemini-pro",
+    model: resolvedModel,
+    tools: [{ functionDeclarations: aiFunctionDeclarations }],
     systemInstruction: `You are an AI Resource Manager for a VFX production studio. You help manage resource allocations, schedules, and forecasts.
 
 Current capabilities:
@@ -111,7 +200,7 @@ Important guidelines:
 
 Current date: ${new Date().toISOString().split('T')[0]}
 
-Note: You cannot access live data directly. When users ask about specific resources, let them know you need the AI functions to be configured properly. For now, provide general guidance about resource management.`
+If a user asks for “today/this week/this month”, ask for an explicit date range before calling functions.`
   });
 
   // Convert history to Gemini format, but skip if it starts with assistant message
@@ -126,8 +215,35 @@ Note: You cannot access live data directly. When users ask about specific resour
   }
 
   const chat = model.startChat({ history: geminiHistory });
-  const result = await chat.sendMessage(message);
-  
+
+  // First turn: user message
+  let result = await chat.sendMessage(message);
+
+  // Function-calling loop (read-only). Cap to prevent infinite cycles.
+  for (let step = 0; step < 6; step++) {
+    const calls = result.response.functionCalls?.();
+    if (!calls || calls.length === 0) {
+      break;
+    }
+
+    const functionResponseParts = [] as Array<{ functionResponse: { name: string; response: object } }>;
+
+    for (const call of calls) {
+      const functionName = call.name;
+      const args = call.args ?? {};
+      const response = await executeAIFunction(functionName, args, userId);
+      functionResponseParts.push({
+        functionResponse: {
+          name: functionName,
+          response: response ?? { error: 'No response' },
+        },
+      });
+    }
+
+    // Send all function responses in one function-role message
+    result = await chat.sendMessage(functionResponseParts);
+  }
+
   return result.response.text();
 }
 
