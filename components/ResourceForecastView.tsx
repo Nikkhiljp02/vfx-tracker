@@ -865,14 +865,12 @@ export default function ResourceForecastView() {
         return updateAllocation.mutateAsync({
           id: alloc.id,
           data: {
-            resourceId: alloc.resourceId,
             showName: alloc.showName,
             shotName: alloc.shotName,
             allocationDate: newDate.toISOString(),
             manDays: alloc.manDays,
             isLeave: alloc.isLeave,
             isIdle: alloc.isIdle,
-            isWeekendWorking: alloc.isWeekendWorking,
             notes: alloc.notes,
           },
         });
