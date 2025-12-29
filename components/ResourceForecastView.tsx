@@ -736,6 +736,7 @@ export default function ResourceForecastView() {
     // Get all allocations from selected cells
     const allocationsToShift: ResourceAllocation[] = [];
     const memberDatePairs: Array<{ memberId: string; date: Date }> = [];
+    const memberIds = new Set<string>();
 
     for (const cellKey of Array.from(selectedCells)) {
       const [memberId, dateIndexStr] = cellKey.split('-');
@@ -744,6 +745,7 @@ export default function ResourceForecastView() {
       const date = dates[dateIndex];
 
       if (member && date) {
+        memberIds.add(memberId);
         const dailyAlloc = getDailyAllocation(member, date);
         const nonLeaveAllocs = dailyAlloc.allocations.filter((a: any) => !a.isLeave && !a.isIdle);
         allocationsToShift.push(...nonLeaveAllocs);
@@ -753,6 +755,12 @@ export default function ResourceForecastView() {
 
     if (allocationsToShift.length === 0) {
       toast.error('No allocations found in selected cells');
+      return;
+    }
+
+    // Ensure all selected cells are from the same employee
+    if (memberIds.size > 1) {
+      toast.error('Please select cells from only one employee row');
       return;
     }
 
@@ -767,50 +775,51 @@ export default function ResourceForecastView() {
   const analyzeShiftImpact = (targetAllocs: ResourceAllocation[], days: number): Array<{ shotName: string; currentStart: Date; newStart: Date }> => {
     const affected: Array<{ shotName: string; currentStart: Date; newStart: Date }> = [];
     
+    if (targetAllocs.length === 0) return affected;
+
+    // Get the employee/resource ID from the first allocation (all should be from same employee)
+    const resourceId = targetAllocs[0].resourceId;
+    
+    // Find the member to work with
+    const member = members.find((m: any) => m.id === resourceId);
+    if (!member) return affected;
+
     // Get unique shot names from target allocations
     const targetShots = new Set(targetAllocs.map(a => a.shotName));
     
-    for (const shotName of targetShots) {
-      // Find all allocations for this shot across all members
-      const shotAllocsForAllMembers = members.flatMap((member: any) => 
-        member.allocations.filter((a: any) => a.shotName === shotName && !a.isLeave)
-      );
+    // Find the date range being shifted
+    const targetDates = targetAllocs.map((a: ResourceAllocation) => new Date(a.allocationDate));
+    const targetStartDate = new Date(Math.min(...targetDates.map((d: Date) => d.getTime())));
+    const targetEndDate = new Date(Math.max(...targetDates.map((d: Date) => d.getTime())));
 
-      if (shotAllocsForAllMembers.length === 0) continue;
+    // Calculate where the shifted range will be
+    const shiftedStartDate = getNextWorkingDay(targetStartDate, days);
+    const shiftedEndDate = getNextWorkingDay(targetEndDate, days);
 
-      // Find current start and end dates
-      const allocationDates = shotAllocsForAllMembers.map((a: ResourceAllocation) => new Date(a.allocationDate));
-      const currentStart = new Date(Math.min(...allocationDates.map((d: Date) => d.getTime())));
-      const currentEnd = new Date(Math.max(...allocationDates.map((d: Date) => d.getTime())));
+    // Check for allocations in this employee's row that come AFTER the current selection
+    // and will be impacted by the shift
+    for (const alloc of member.allocations) {
+      // Skip if it's a leave, idle, or part of the target shots
+      if (alloc.isLeave || alloc.isIdle || targetShots.has(alloc.shotName)) continue;
 
-      // Calculate new start date
-      const newStart = getNextWorkingDay(currentStart, days);
-
-      // Check if any other shots will be affected (overlap with new range)
-      for (const member of members) {
-        for (const alloc of member.allocations) {
-          if (alloc.shotName === shotName || alloc.isLeave) continue;
-
-          const allocDate = new Date(alloc.allocationDate);
-          
-          // If this allocation falls within the new range, it will be affected
-          if (allocDate >= newStart && allocDate <= getNextWorkingDay(currentEnd, days)) {
-            const existingAffected = affected.find(a => a.shotName === alloc.shotName);
-            if (!existingAffected) {
-              // Find start date for this affected shot
-              const affectedShotAllocs = members.flatMap((m: any) => 
-                m.allocations.filter((a: any) => a.shotName === alloc.shotName)
-              );
-              const affectedDates = affectedShotAllocs.map((a: ResourceAllocation) => new Date(a.allocationDate));
-              const affectedStart = new Date(Math.min(...affectedDates.map((d: Date) => d.getTime())));
-              const affectedNewStart = getNextWorkingDay(affectedStart, days);
-              
-              affected.push({
-                shotName: alloc.shotName,
-                currentStart: affectedStart,
-                newStart: affectedNewStart,
-              });
-            }
+      const allocDate = new Date(alloc.allocationDate);
+      
+      // If this allocation is after the current selection and will overlap with shifted range
+      if (allocDate > targetEndDate && allocDate >= shiftedStartDate && allocDate <= shiftedEndDate) {
+        const existingAffected = affected.find(a => a.shotName === alloc.shotName);
+        if (!existingAffected) {
+          // Find start date for this affected shot (only for this employee)
+          const affectedShotAllocs = member.allocations.filter((a: any) => a.shotName === alloc.shotName && !a.isLeave);
+          if (affectedShotAllocs.length > 0) {
+            const affectedDates = affectedShotAllocs.map((a: ResourceAllocation) => new Date(a.allocationDate));
+            const affectedStart = new Date(Math.min(...affectedDates.map((d: Date) => d.getTime())));
+            const affectedNewStart = getNextWorkingDay(affectedStart, days);
+            
+            affected.push({
+              shotName: alloc.shotName,
+              currentStart: affectedStart,
+              newStart: affectedNewStart,
+            });
           }
         }
       }
@@ -827,7 +836,15 @@ export default function ResourceForecastView() {
     toast.loading('Shifting allocations...');
 
     try {
-      // Get unique shot names to shift
+      // Get the employee/resource ID from the first allocation
+      const resourceId = shiftTargetAllocations[0].resourceId;
+      const member = members.find((m: any) => m.id === resourceId);
+      if (!member) {
+        toast.error('Employee not found');
+        return;
+      }
+
+      // Get unique shot names to shift (only from the selected allocations)
       const shotsToShift = new Set(shiftTargetAllocations.map(a => a.shotName));
       
       // Also shift affected shots if user confirmed
@@ -835,11 +852,9 @@ export default function ResourceForecastView() {
         affectedAllocations.forEach(a => shotsToShift.add(a.shotName));
       }
 
-      // For each shot, find all its allocations and shift them
+      // For each shot, find its allocations ONLY for this specific employee and shift them
       for (const shotName of shotsToShift) {
-        const shotAllocs = members.flatMap((member: any) =>
-          member.allocations.filter((a: any) => a.shotName === shotName && !a.isLeave)
-        );
+        const shotAllocs = member.allocations.filter((a: any) => a.shotName === shotName && !a.isLeave && !a.isIdle);
 
         // Update each allocation
         for (const alloc of shotAllocs) {
@@ -858,7 +873,7 @@ export default function ResourceForecastView() {
       }
 
       toast.dismiss();
-      toast.success(`Successfully shifted ${shotsToShift.size} shot(s) by ${shiftDays} day(s)`);
+      toast.success(`Successfully shifted ${shotsToShift.size} shot(s) by ${shiftDays} day(s) for ${member.empName}`);
       setShowShiftModal(false);
       setSelectedCells(new Set());
       triggerRefresh(); // Refresh data
