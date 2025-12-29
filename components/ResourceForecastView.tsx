@@ -124,6 +124,10 @@ export default function ResourceForecastView() {
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [quickBookingData, setQuickBookingData] = useState<{ showName?: string; managerName?: string } | null>(null);
   const [bookingCells, setBookingCells] = useState<Array<{ memberId: string; date: Date }>>([]);
+  const [showShiftModal, setShowShiftModal] = useState(false);
+  const [shiftDays, setShiftDays] = useState<number>(1);
+  const [shiftTargetAllocations, setShiftTargetAllocations] = useState<ResourceAllocation[]>([]);
+  const [affectedAllocations, setAffectedAllocations] = useState<Array<{ shotName: string; currentStart: Date; newStart: Date }>>([]);
 
   // Ref for virtual scrolling container
   const parentRef = useRef<HTMLDivElement>(null);
@@ -702,6 +706,169 @@ export default function ResourceForecastView() {
     setSelectedCells(new Set());
   };
 
+  // Function to calculate next working day considering weekend settings
+  const getNextWorkingDay = (date: Date, daysToAdd: number): Date => {
+    let currentDate = new Date(date);
+    let remainingDays = daysToAdd;
+    
+    while (remainingDays > 0) {
+      currentDate.setDate(currentDate.getDate() + 1);
+      const dateKey = currentDate.toISOString().split('T')[0];
+      const isWeekendDay = isWeekend(currentDate);
+      const isWorking = workingWeekends.has(dateKey);
+      
+      // Count this day if it's a weekday OR a working weekend
+      if (!isWeekendDay || isWorking) {
+        remainingDays--;
+      }
+    }
+    
+    return currentDate;
+  };
+
+  // Function to initiate shift allocation
+  const handleInitiateShift = () => {
+    if (selectedCells.size === 0) {
+      toast.error('Please select cells to shift');
+      return;
+    }
+
+    // Get all allocations from selected cells
+    const allocationsToShift: ResourceAllocation[] = [];
+    const memberDatePairs: Array<{ memberId: string; date: Date }> = [];
+
+    for (const cellKey of Array.from(selectedCells)) {
+      const [memberId, dateIndexStr] = cellKey.split('-');
+      const dateIndex = parseInt(dateIndexStr);
+      const member = members.find((m: any) => m.id === memberId);
+      const date = dates[dateIndex];
+
+      if (member && date) {
+        const dailyAlloc = getDailyAllocation(member, date);
+        const nonLeaveAllocs = dailyAlloc.allocations.filter((a: any) => !a.isLeave && !a.isIdle);
+        allocationsToShift.push(...nonLeaveAllocs);
+        memberDatePairs.push({ memberId, date });
+      }
+    }
+
+    if (allocationsToShift.length === 0) {
+      toast.error('No allocations found in selected cells');
+      return;
+    }
+
+    setShiftTargetAllocations(allocationsToShift);
+    setShiftDays(1);
+    setAffectedAllocations([]);
+    setShowShiftModal(true);
+    setContextMenu(null);
+  };
+
+  // Function to analyze which allocations will be affected by the shift
+  const analyzeShiftImpact = (targetAllocs: ResourceAllocation[], days: number): Array<{ shotName: string; currentStart: Date; newStart: Date }> => {
+    const affected: Array<{ shotName: string; currentStart: Date; newStart: Date }> = [];
+    
+    // Get unique shot names from target allocations
+    const targetShots = new Set(targetAllocs.map(a => a.shotName));
+    
+    for (const shotName of targetShots) {
+      // Find all allocations for this shot across all members
+      const shotAllocsForAllMembers = members.flatMap((member: any) => 
+        member.allocations.filter((a: any) => a.shotName === shotName && !a.isLeave)
+      );
+
+      if (shotAllocsForAllMembers.length === 0) continue;
+
+      // Find current start and end dates
+      const allocationDates = shotAllocsForAllMembers.map((a: ResourceAllocation) => new Date(a.allocationDate));
+      const currentStart = new Date(Math.min(...allocationDates.map((d: Date) => d.getTime())));
+      const currentEnd = new Date(Math.max(...allocationDates.map((d: Date) => d.getTime())));
+
+      // Calculate new start date
+      const newStart = getNextWorkingDay(currentStart, days);
+
+      // Check if any other shots will be affected (overlap with new range)
+      for (const member of members) {
+        for (const alloc of member.allocations) {
+          if (alloc.shotName === shotName || alloc.isLeave) continue;
+
+          const allocDate = new Date(alloc.allocationDate);
+          
+          // If this allocation falls within the new range, it will be affected
+          if (allocDate >= newStart && allocDate <= getNextWorkingDay(currentEnd, days)) {
+            const existingAffected = affected.find(a => a.shotName === alloc.shotName);
+            if (!existingAffected) {
+              // Find start date for this affected shot
+              const affectedShotAllocs = members.flatMap((m: any) => 
+                m.allocations.filter((a: any) => a.shotName === alloc.shotName)
+              );
+              const affectedDates = affectedShotAllocs.map((a: ResourceAllocation) => new Date(a.allocationDate));
+              const affectedStart = new Date(Math.min(...affectedDates.map((d: Date) => d.getTime())));
+              const affectedNewStart = getNextWorkingDay(affectedStart, days);
+              
+              affected.push({
+                shotName: alloc.shotName,
+                currentStart: affectedStart,
+                newStart: affectedNewStart,
+              });
+            }
+          }
+        }
+      }
+    }
+
+    return affected;
+  };
+
+  // Function to execute the shift
+  const handleExecuteShift = async () => {
+    if (shiftTargetAllocations.length === 0) return;
+
+    saveToHistory();
+    toast.loading('Shifting allocations...');
+
+    try {
+      // Get unique shot names to shift
+      const shotsToShift = new Set(shiftTargetAllocations.map(a => a.shotName));
+      
+      // Also shift affected shots if user confirmed
+      if (affectedAllocations.length > 0) {
+        affectedAllocations.forEach(a => shotsToShift.add(a.shotName));
+      }
+
+      // For each shot, find all its allocations and shift them
+      for (const shotName of shotsToShift) {
+        const shotAllocs = members.flatMap((member: any) =>
+          member.allocations.filter((a: any) => a.shotName === shotName && !a.isLeave)
+        );
+
+        // Update each allocation
+        for (const alloc of shotAllocs) {
+          const currentDate = new Date(alloc.allocationDate);
+          const newDate = getNextWorkingDay(currentDate, shiftDays);
+
+          await fetch(`/api/resource/allocations/${alloc.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...alloc,
+              allocationDate: newDate.toISOString(),
+            }),
+          });
+        }
+      }
+
+      toast.dismiss();
+      toast.success(`Successfully shifted ${shotsToShift.size} shot(s) by ${shiftDays} day(s)`);
+      setShowShiftModal(false);
+      setSelectedCells(new Set());
+      triggerRefresh(); // Refresh data
+    } catch (error) {
+      console.error('Error shifting allocations:', error);
+      toast.dismiss();
+      toast.error('Failed to shift allocations');
+    }
+  };
+
   const exportToExcel = () => {
     const rows: any[][] = [];
     
@@ -1131,6 +1298,13 @@ export default function ResourceForecastView() {
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             Mark as Leave
+          </button>
+          <button
+            className="w-full px-4 py-2 text-left text-sm text-cyan-400 hover:bg-slate-700 transition-colors flex items-center gap-2"
+            onClick={handleInitiateShift}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
+            Shift Allocation
           </button>
           <div className="border-t border-slate-600 my-1"></div>
           <button
@@ -2174,6 +2348,106 @@ export default function ResourceForecastView() {
             selectedCellsCount={bookingCells.length}
           />
         </Suspense>
+      )}
+
+      {/* Shift Allocation Modal */}
+      {showShiftModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[200]" onClick={() => setShowShiftModal(false)}>
+          <div className="bg-slate-800 rounded-lg shadow-2xl border border-slate-600 p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+                <svg className="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
+                Shift Allocation
+              </h2>
+              <button onClick={() => setShowShiftModal(false)} className="text-slate-400 hover:text-white text-2xl">&times;</button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Shots to shift */}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Shots to Shift:</label>
+                <div className="bg-slate-700 rounded p-3 text-sm text-white">
+                  {Array.from(new Set(shiftTargetAllocations.map(a => a.shotName))).join(', ')}
+                </div>
+              </div>
+
+              {/* Days to shift input */}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Shift by (days):
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={shiftDays}
+                  onChange={(e) => {
+                    const days = parseInt(e.target.value);
+                    if (days > 0) {
+                      setShiftDays(days);
+                      // Re-analyze impact with new days
+                      const affected = analyzeShiftImpact(shiftTargetAllocations, days);
+                      setAffectedAllocations(affected);
+                    }
+                  }}
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-500 rounded text-white focus:outline-none focus:border-cyan-400"
+                />
+                <p className="text-xs text-slate-400 mt-1">
+                  Note: Weekends with working disabled will be skipped automatically
+                </p>
+              </div>
+
+              {/* Preview impact */}
+              <button
+                onClick={() => {
+                  const affected = analyzeShiftImpact(shiftTargetAllocations, shiftDays);
+                  setAffectedAllocations(affected);
+                }}
+                className="w-full px-4 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-500 transition-colors flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                Analyze Impact
+              </button>
+
+              {/* Show affected allocations */}
+              {affectedAllocations.length > 0 && (
+                <div className="bg-amber-900/20 border border-amber-700/50 rounded p-4">
+                  <h3 className="text-sm font-medium text-amber-400 mb-2 flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    Warning: Other shots will also be shifted
+                  </h3>
+                  <div className="space-y-2 text-sm text-slate-300">
+                    {affectedAllocations.map((affected, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-slate-700/50 p-2 rounded">
+                        <span className="font-medium">{affected.shotName}</span>
+                        <span className="text-xs text-slate-400">
+                          {affected.currentStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} 
+                          {' → '}
+                          {affected.newStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Action buttons */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowShiftModal(false)}
+                  className="flex-1 px-4 py-2 bg-slate-700 text-white rounded hover:bg-slate-600 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleExecuteShift}
+                  className="flex-1 px-4 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-500 transition-colors font-medium"
+                >
+                  Shift {shiftDays} Day{shiftDays !== 1 ? 's' : ''}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
