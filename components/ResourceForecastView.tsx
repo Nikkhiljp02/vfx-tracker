@@ -7,6 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useResourceContext } from '@/lib/resourceContext';
 import { useResourceForecast, useBulkAddAllocations, useAddAllocation, useUpdateAllocation, useDeleteAllocation } from '@/hooks/useQueryHooks';
 import { toast } from 'react-hot-toast';
+import AIResourceChat from './AIResourceChat';
 
 // Lazy load modals for better initial performance
 const SoftBookingModal = lazy(() => import('./SoftBookingModal'));
@@ -71,6 +72,9 @@ export default function ResourceForecastView() {
   
   // Display mode toggle: 'shot' shows shot numbers, 'show' shows show names
   const [displayMode, setDisplayMode] = useState<'shot' | 'show'>('shot');
+  
+  // AI Chat state
+  const [showAIChat, setShowAIChat] = useState(false);
   
   // Bulk operations
   const [bulkMode, setBulkMode] = useState<'fill' | 'copy' | 'reassign' | null>(null);
@@ -1410,6 +1414,10 @@ export default function ResourceForecastView() {
           <div className="flex gap-2 flex-wrap">
             <button onClick={handleUndo} disabled={historyIndex <= 0} className="px-3 py-2 bg-slate-700 text-white text-xs rounded hover:bg-slate-600 transition-colors disabled:opacity-50 touch-manipulation" title="Undo">↶</button>
             <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="px-3 py-2 bg-slate-700 text-white text-xs rounded hover:bg-slate-600 transition-colors disabled:opacity-50 touch-manipulation" title="Redo">↷</button>
+            <button onClick={() => setShowAIChat(true)} className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs rounded hover:from-indigo-500 hover:to-purple-500 transition-all shadow-md touch-manipulation flex items-center gap-2">
+              <span className="text-base">🤖</span>
+              <span className="hidden sm:inline font-semibold">AI Assistant</span>
+            </button>
             <button onClick={exportToExcel} className="px-3 py-2 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-500 transition-colors touch-manipulation">📊<span className="hidden sm:inline ml-1">CSV</span></button>
             <button onClick={() => { setImportType('allocations'); setShowImportModal(true); }} className="px-4 py-2 bg-purple-600 text-white text-xs rounded hover:bg-purple-500 transition-colors touch-manipulation"><span className="hidden sm:inline">Import </span>Alloc</button>
             <button onClick={() => {
@@ -2510,6 +2518,9 @@ export default function ResourceForecastView() {
           </div>
         </div>
       )}
+
+      {/* AI Resource Chat */}
+      <AIResourceChat isOpen={showAIChat} onClose={() => setShowAIChat(false)} />
     </div>
   );
 }
