@@ -91,7 +91,7 @@ async function processWithGemini(message: string, history: any[], userId: string
   if (!genAI) throw new Error('Gemini not configured');
 
   const model = genAI.getGenerativeModel({ 
-    model: "gemini-1.5-flash-latest",
+    model: "gemini-1.5-flash-002",
     tools: [{
       functionDeclarations: aiFunctionDeclarations as any
     }],
