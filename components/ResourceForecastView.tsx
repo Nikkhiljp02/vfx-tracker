@@ -862,7 +862,7 @@ export default function ResourceForecastView() {
         const currentDate = new Date(alloc.allocationDate);
         const newDate = getNextWorkingDay(currentDate, shiftDays);
 
-        return updateAllocationMutation.mutateAsync({
+        return updateAllocation.mutateAsync({
           id: alloc.id,
           data: {
             resourceId: alloc.resourceId,
