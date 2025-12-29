@@ -833,53 +833,61 @@ export default function ResourceForecastView() {
     if (shiftTargetAllocations.length === 0) return;
 
     saveToHistory();
-    toast.loading('Shifting allocations...');
+    const loadingToast = toast.loading('Shifting allocations...');
 
     try {
       // Get the employee/resource ID from the first allocation
       const resourceId = shiftTargetAllocations[0].resourceId;
       const member = members.find((m: any) => m.id === resourceId);
       if (!member) {
+        toast.dismiss(loadingToast);
         toast.error('Employee not found');
         return;
       }
 
-      // Get unique shot names to shift (only from the selected allocations)
-      const shotsToShift = new Set(shiftTargetAllocations.map(a => a.shotName));
+      // Collect all allocations to shift: target allocations + affected allocations
+      const allocationsToShift = [...shiftTargetAllocations];
       
-      // Also shift affected shots if user confirmed
+      // If there are affected allocations, add all allocations for those shots
       if (affectedAllocations.length > 0) {
-        affectedAllocations.forEach(a => shotsToShift.add(a.shotName));
+        const affectedShotNames = new Set(affectedAllocations.map(a => a.shotName));
+        const affectedAllocs = member.allocations.filter((a: any) => 
+          affectedShotNames.has(a.shotName) && !a.isLeave && !a.isIdle
+        );
+        allocationsToShift.push(...affectedAllocs);
       }
 
-      // For each shot, find its allocations ONLY for this specific employee and shift them
-      for (const shotName of shotsToShift) {
-        const shotAllocs = member.allocations.filter((a: any) => a.shotName === shotName && !a.isLeave && !a.isIdle);
+      // Shift each allocation by the specified days
+      const updatePromises = allocationsToShift.map(async (alloc) => {
+        const currentDate = new Date(alloc.allocationDate);
+        const newDate = getNextWorkingDay(currentDate, shiftDays);
 
-        // Update each allocation
-        for (const alloc of shotAllocs) {
-          const currentDate = new Date(alloc.allocationDate);
-          const newDate = getNextWorkingDay(currentDate, shiftDays);
+        return updateAllocationMutation.mutateAsync({
+          id: alloc.id,
+          data: {
+            resourceId: alloc.resourceId,
+            showName: alloc.showName,
+            shotName: alloc.shotName,
+            allocationDate: newDate.toISOString(),
+            manDays: alloc.manDays,
+            isLeave: alloc.isLeave,
+            isIdle: alloc.isIdle,
+            isWeekendWorking: alloc.isWeekendWorking,
+            notes: alloc.notes,
+          },
+        });
+      });
 
-          await fetch(`/api/resource/allocations/${alloc.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              ...alloc,
-              allocationDate: newDate.toISOString(),
-            }),
-          });
-        }
-      }
+      await Promise.all(updatePromises);
 
-      toast.dismiss();
-      toast.success(`Successfully shifted ${shotsToShift.size} shot(s) by ${shiftDays} day(s) for ${member.empName}`);
+      toast.dismiss(loadingToast);
+      toast.success(`Successfully shifted ${allocationsToShift.length} allocation(s) by ${shiftDays} day(s) for ${member.empName}`);
       setShowShiftModal(false);
       setSelectedCells(new Set());
-      triggerRefresh(); // Refresh data
+      // React Query will auto-refresh due to mutation
     } catch (error) {
       console.error('Error shifting allocations:', error);
-      toast.dismiss();
+      toast.dismiss(loadingToast);
       toast.error('Failed to shift allocations');
     }
   };
