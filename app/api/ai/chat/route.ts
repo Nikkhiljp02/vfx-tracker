@@ -116,7 +116,20 @@ Current date: ${new Date().toISOString().split('T')[0]}`
   });
 
   // Convert history to Gemini format
-  const geminiHistory = history.map((msg: any) => ({
+  // Filter out initial assistant messages and ensure history starts with user message
+  const validHistory = history.filter((msg: any) => {
+    // Skip assistant messages that appear before any user message
+    const firstUserIndex = history.findIndex((m: any) => m.role === 'user');
+    const currentIndex = history.indexOf(msg);
+    
+    // If this is before the first user message and it's an assistant message, skip it
+    if (firstUserIndex !== -1 && currentIndex < firstUserIndex && msg.role === 'assistant') {
+      return false;
+    }
+    return true;
+  });
+
+  const geminiHistory = validHistory.map((msg: any) => ({
     role: msg.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: msg.content }]
   }));
