@@ -127,7 +127,7 @@ export default function ResourceForecastView() {
   const [showShiftModal, setShowShiftModal] = useState(false);
   const [shiftDays, setShiftDays] = useState<number>(1);
   const [shiftTargetAllocations, setShiftTargetAllocations] = useState<ResourceAllocation[]>([]);
-  const [affectedAllocations, setAffectedAllocations] = useState<Array<{ shotName: string; currentStart: Date; newStart: Date }>>([]);
+  const [affectedAllocations, setAffectedAllocations] = useState<Array<{ shotName: string; currentStart: Date; newStart: Date; shiftDays?: number }>>([]);
 
   // Ref for virtual scrolling container
   const parentRef = useRef<HTMLDivElement>(null);
@@ -772,8 +772,8 @@ export default function ResourceForecastView() {
   };
 
   // Function to analyze which allocations will be affected by the shift
-  const analyzeShiftImpact = (targetAllocs: ResourceAllocation[], days: number): Array<{ shotName: string; currentStart: Date; newStart: Date }> => {
-    const affected: Array<{ shotName: string; currentStart: Date; newStart: Date }> = [];
+  const analyzeShiftImpact = (targetAllocs: ResourceAllocation[], days: number): Array<{ shotName: string; currentStart: Date; newStart: Date; shiftDays: number }> => {
+    const affected: Array<{ shotName: string; currentStart: Date; newStart: Date; shiftDays: number }> = [];
     
     if (targetAllocs.length === 0) return affected;
 
@@ -787,42 +787,62 @@ export default function ResourceForecastView() {
     // Get unique shot names from target allocations
     const targetShots = new Set(targetAllocs.map(a => a.shotName));
     
-    // Find the date range being shifted
+    // Get all dates from target allocations
     const targetDates = targetAllocs.map((a: ResourceAllocation) => new Date(a.allocationDate));
-    const targetStartDate = new Date(Math.min(...targetDates.map((d: Date) => d.getTime())));
-    const targetEndDate = new Date(Math.max(...targetDates.map((d: Date) => d.getTime())));
+    
+    // Calculate the new dates for the shifted allocations
+    const shiftedDates = new Set<string>();
+    for (const targetDate of targetDates) {
+      const newDate = getNextWorkingDay(targetDate, days);
+      shiftedDates.add(newDate.toISOString().split('T')[0]);
+    }
 
-    // Calculate where the shifted range will be
-    const shiftedStartDate = getNextWorkingDay(targetStartDate, days);
-    const shiftedEndDate = getNextWorkingDay(targetEndDate, days);
-
-    // Check for allocations in this employee's row that come AFTER the current selection
-    // and will be impacted by the shift
+    // Check for allocations in this employee's row that will overlap with the shifted dates
+    const conflictingShots = new Map<string, ResourceAllocation[]>();
+    
     for (const alloc of member.allocations) {
       // Skip if it's a leave, idle, or part of the target shots
       if (alloc.isLeave || alloc.isIdle || targetShots.has(alloc.shotName)) continue;
 
-      const allocDate = new Date(alloc.allocationDate);
+      const allocDateStr = new Date(alloc.allocationDate).toISOString().split('T')[0];
       
-      // If this allocation is after the current selection and will overlap with shifted range
-      if (allocDate > targetEndDate && allocDate >= shiftedStartDate && allocDate <= shiftedEndDate) {
-        const existingAffected = affected.find(a => a.shotName === alloc.shotName);
-        if (!existingAffected) {
-          // Find start date for this affected shot (only for this employee)
-          const affectedShotAllocs = member.allocations.filter((a: any) => a.shotName === alloc.shotName && !a.isLeave);
-          if (affectedShotAllocs.length > 0) {
-            const affectedDates = affectedShotAllocs.map((a: ResourceAllocation) => new Date(a.allocationDate));
-            const affectedStart = new Date(Math.min(...affectedDates.map((d: Date) => d.getTime())));
-            const affectedNewStart = getNextWorkingDay(affectedStart, days);
-            
-            affected.push({
-              shotName: alloc.shotName,
-              currentStart: affectedStart,
-              newStart: affectedNewStart,
-            });
-          }
+      // If this allocation will be in the way of the shifted allocations
+      if (shiftedDates.has(allocDateStr)) {
+        if (!conflictingShots.has(alloc.shotName)) {
+          conflictingShots.set(alloc.shotName, []);
         }
+        conflictingShots.get(alloc.shotName)!.push(alloc);
       }
+    }
+
+    // For each conflicting shot, calculate where it needs to move
+    for (const [shotName, allocs] of conflictingShots) {
+      // Find the earliest date of the shifted target allocations
+      const latestShiftedDate = new Date(Math.max(...Array.from(shiftedDates).map(d => new Date(d).getTime())));
+      
+      // Find current dates for this affected shot
+      const affectedShotAllocs = member.allocations.filter((a: any) => a.shotName === shotName && !a.isLeave && !a.isIdle);
+      const affectedDates = affectedShotAllocs.map((a: ResourceAllocation) => new Date(a.allocationDate));
+      const affectedStart = new Date(Math.min(...affectedDates.map((d: Date) => d.getTime())));
+      
+      // The affected shot needs to start after the latest shifted date
+      // Find the next working day after the latest shifted date
+      const affectedNewStart = getNextWorkingDay(latestShiftedDate, 1);
+      
+      // Calculate how many working days to shift
+      let daysToShift = 0;
+      let currentDate = new Date(affectedStart);
+      while (currentDate < affectedNewStart) {
+        currentDate = getNextWorkingDay(currentDate, 1);
+        daysToShift++;
+      }
+      
+      affected.push({
+        shotName,
+        currentStart: affectedStart,
+        newStart: affectedNewStart,
+        shiftDays: daysToShift,
+      });
     }
 
     return affected;
@@ -845,20 +865,8 @@ export default function ResourceForecastView() {
         return;
       }
 
-      // Collect all allocations to shift: target allocations + affected allocations
-      const allocationsToShift = [...shiftTargetAllocations];
-      
-      // If there are affected allocations, add all allocations for those shots
-      if (affectedAllocations.length > 0) {
-        const affectedShotNames = new Set(affectedAllocations.map(a => a.shotName));
-        const affectedAllocs = member.allocations.filter((a: any) => 
-          affectedShotNames.has(a.shotName) && !a.isLeave && !a.isIdle
-        );
-        allocationsToShift.push(...affectedAllocs);
-      }
-
-      // Shift each allocation by the specified days
-      const updatePromises = allocationsToShift.map(async (alloc) => {
+      // First, shift the target allocations
+      const targetPromises = shiftTargetAllocations.map(async (alloc) => {
         const currentDate = new Date(alloc.allocationDate);
         const newDate = getNextWorkingDay(currentDate, shiftDays);
 
@@ -876,10 +884,42 @@ export default function ResourceForecastView() {
         });
       });
 
-      await Promise.all(updatePromises);
+      await Promise.all(targetPromises);
+
+      // Then, shift the affected allocations with their specific shift days
+      if (affectedAllocations.length > 0) {
+        for (const affected of affectedAllocations) {
+          const affectedAllocs = member.allocations.filter((a: any) => 
+            a.shotName === affected.shotName && !a.isLeave && !a.isIdle
+          );
+          
+          const affectedPromises = affectedAllocs.map(async (alloc) => {
+            const currentDate = new Date(alloc.allocationDate);
+            const newDate = getNextWorkingDay(currentDate, affected.shiftDays || shiftDays);
+
+            return updateAllocation.mutateAsync({
+              id: alloc.id,
+              data: {
+                showName: alloc.showName,
+                shotName: alloc.shotName,
+                allocationDate: newDate.toISOString(),
+                manDays: alloc.manDays,
+                isLeave: alloc.isLeave,
+                isIdle: alloc.isIdle,
+                notes: alloc.notes,
+              },
+            });
+          });
+
+          await Promise.all(affectedPromises);
+        }
+      }
 
       toast.dismiss(loadingToast);
-      toast.success(`Successfully shifted ${allocationsToShift.length} allocation(s) by ${shiftDays} day(s) for ${member.empName}`);
+      const totalShifted = shiftTargetAllocations.length + affectedAllocations.reduce((sum, a) => {
+        return sum + member.allocations.filter((alloc: any) => alloc.shotName === a.shotName && !alloc.isLeave && !alloc.isIdle).length;
+      }, 0);
+      toast.success(`Successfully shifted ${totalShifted} allocation(s) for ${member.empName}`);
       setShowShiftModal(false);
       setSelectedCells(new Set());
       // React Query will auto-refresh due to mutation
