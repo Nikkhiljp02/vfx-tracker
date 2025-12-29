@@ -34,6 +34,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
 
+    // Check if any AI provider is configured
+    if (!genAI && !groq) {
+      return NextResponse.json({ 
+        error: 'AI not configured. Please set GOOGLE_AI_KEY or GROQ_API_KEY in your environment variables. See AI_SETUP_GUIDE.md for instructions.',
+        setup_required: true
+      }, { status: 503 });
+    }
+
     // Try Gemini first (free tier)
     if (genAI) {
       try {

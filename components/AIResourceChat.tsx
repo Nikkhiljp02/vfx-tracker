@@ -68,7 +68,8 @@ export default function AIResourceChat({ isOpen, onClose }: AIResourceChatProps)
       });
 
       if (!response.ok) {
-        throw new Error('Failed to get response');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to get response');
       }
 
       const data = await response.json();
@@ -80,13 +81,22 @@ export default function AIResourceChat({ isOpen, onClose }: AIResourceChatProps)
       };
 
       setMessages(prev => [...prev, assistantMessage]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Chat error:', error);
-      toast.error('Failed to send message');
+      
+      let errorContent = 'Sorry, I encountered an error. Please try again.';
+      
+      // Check for setup error
+      if (error.message?.includes('GOOGLE_AI_KEY') || error.message?.includes('GROQ_API_KEY') || error.message?.includes('AI not configured')) {
+        errorContent = `⚠️ AI Not Configured\n\nTo use the AI Resource Manager, you need to set up API keys:\n\n1. Get a FREE Google Gemini API key from:\n   https://aistudio.google.com/app/apikey\n\n2. Add to your .env.local file:\n   GOOGLE_AI_KEY="your_key_here"\n\n3. Restart the dev server\n\nSee AI_SETUP_GUIDE.md for detailed instructions.`;
+        toast.error('AI not configured - check setup guide');
+      } else {
+        toast.error('Failed to send message');
+      }
       
       const errorMessage: Message = {
         role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.',
+        content: errorContent,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
