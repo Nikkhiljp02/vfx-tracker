@@ -91,10 +91,7 @@ async function processWithGemini(message: string, history: any[], userId: string
   if (!genAI) throw new Error('Gemini not configured');
 
   const model = genAI.getGenerativeModel({ 
-    model: "gemini-1.5-flash-002",
-    tools: [{
-      functionDeclarations: aiFunctionDeclarations as any
-    }],
+    model: "gemini-pro",
     systemInstruction: `You are an AI Resource Manager for a VFX production studio. You help manage resource allocations, schedules, and forecasts.
 
 Current capabilities:
@@ -112,7 +109,9 @@ Important guidelines:
 - If you need more specific information, ask the user
 - You can only VIEW data, not modify it
 
-Current date: ${new Date().toISOString().split('T')[0]}`
+Current date: ${new Date().toISOString().split('T')[0]}
+
+Note: You cannot access live data directly. When users ask about specific resources, let them know you need the AI functions to be configured properly. For now, provide general guidance about resource management.`
   });
 
   // Convert history to Gemini format, but skip if it starts with assistant message
@@ -127,35 +126,7 @@ Current date: ${new Date().toISOString().split('T')[0]}`
   }
 
   const chat = model.startChat({ history: geminiHistory });
-  let result = await chat.sendMessage(message);
-  
-  // Handle function calls
-  let functionCall = result.response.functionCalls()?.[0];
-  let attempts = 0;
-  const maxAttempts = 5; // Prevent infinite loops
-
-  while (functionCall && attempts < maxAttempts) {
-    attempts++;
-    console.log(`Function call attempt ${attempts}:`, functionCall.name, functionCall.args);
-    
-    // Execute the function
-    const functionResult = await executeAIFunction(
-      functionCall.name,
-      functionCall.args,
-      userId
-    );
-    
-    // Send result back to AI
-    result = await chat.sendMessage([{
-      functionResponse: {
-        name: functionCall.name,
-        response: functionResult
-      }
-    }]);
-    
-    // Check if AI wants to call another function
-    functionCall = result.response.functionCalls()?.[0];
-  }
+  const result = await chat.sendMessage(message);
   
   return result.response.text();
 }
