@@ -3,10 +3,18 @@
 import { useState, useRef, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 
+type PendingAction = {
+  tool: string;
+  args: unknown;
+  summary: string;
+};
+
 interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  pendingActions?: PendingAction[];
+  provider?: string;
 }
 
 interface AIResourceChatProps {
@@ -24,6 +32,8 @@ export default function AIResourceChat({ isOpen, onClose }: AIResourceChatProps)
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isExecutingActions, setIsExecutingActions] = useState(false);
+  const [lastProvider, setLastProvider] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -74,10 +84,16 @@ export default function AIResourceChat({ isOpen, onClose }: AIResourceChatProps)
 
       const data = await response.json();
 
+      if (typeof data?.provider === 'string') {
+        setLastProvider(data.provider);
+      }
+
       const assistantMessage: Message = {
         role: 'assistant',
         content: data.message,
-        timestamp: new Date()
+        timestamp: new Date(),
+        pendingActions: Array.isArray(data?.pendingActions) ? (data.pendingActions as PendingAction[]) : undefined,
+        provider: typeof data?.provider === 'string' ? data.provider : undefined,
       };
 
       setMessages(prev => [...prev, assistantMessage]);
@@ -87,8 +103,8 @@ export default function AIResourceChat({ isOpen, onClose }: AIResourceChatProps)
       let errorContent = 'Sorry, I encountered an error. Please try again.';
       
       // Check for setup error
-      if (error.message?.includes('GOOGLE_AI_KEY') || error.message?.includes('GROQ_API_KEY') || error.message?.includes('AI not configured')) {
-        errorContent = `⚠️ AI Not Configured\n\nTo use the AI Resource Manager, you need to set up API keys:\n\n1. Get a FREE Google Gemini API key from:\n   https://aistudio.google.com/app/apikey\n\n2. Add to your .env.local file:\n   GOOGLE_AI_KEY="your_key_here"\n\n3. Restart the dev server\n\nSee AI_SETUP_GUIDE.md for detailed instructions.`;
+      if (error.message?.includes('OPENAI_API_KEY') || error.message?.includes('GOOGLE_AI_KEY') || error.message?.includes('GROQ_API_KEY') || error.message?.includes('AI not configured')) {
+        errorContent = `⚠️ AI Not Configured\n\nTo use the AI Resource Manager, you need to set up an API key (recommended: OpenAI).\n\nOption A (recommended): OpenAI\n- Add to your .env.local file:\n  OPENAI_API_KEY="your_key_here"\n\nOption B: Groq\n- Add:\n  GROQ_API_KEY="your_key_here"\n\nOption C: Google Gemini\n- Add:\n  GOOGLE_AI_KEY="your_key_here"\n\nThen restart the dev server.\n\nSee AI_SETUP_GUIDE.md for detailed instructions.`;
         toast.error('AI not configured - check setup guide');
       } else {
         toast.error('Failed to send message');
@@ -103,6 +119,74 @@ export default function AIResourceChat({ isOpen, onClose }: AIResourceChatProps)
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const executePendingActions = async (pendingActions: PendingAction[]) => {
+    if (!pendingActions?.length || isExecutingActions) return;
+
+    setIsExecutingActions(true);
+    try {
+      const response = await fetch('/api/ai/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actions: pendingActions.map((a) => ({ tool: a.tool, args: a.args })),
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to execute actions');
+      }
+
+      const data = await response.json().catch(() => ({}));
+
+      const resultText = Array.isArray(data?.results)
+        ? `✅ Applied action(s).\n\n${data.results
+            .map((r: any, idx: number) => {
+              const tool = r?.tool || 'action';
+              const res = r?.result;
+              if (res?.ok) {
+                return `${idx + 1}. ${tool}: ${res.action} (${res.employeeId} ${res.date} ${res.showName || ''} ${res.shotName || ''} ${res.manDays} MD)`;
+              }
+              return `${idx + 1}. ${tool}: ${res?.error || 'failed'}`;
+            })
+            .join('\n')}`
+        : '✅ Applied action(s).';
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: resultText,
+          timestamp: new Date(),
+        },
+      ]);
+    } catch (error: any) {
+      console.error('Execute actions error:', error);
+      toast.error(error?.message || 'Failed to apply actions');
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `❌ Failed to apply actions: ${error?.message || 'Unknown error'}`,
+          timestamp: new Date(),
+        },
+      ]);
+    } finally {
+      setIsExecutingActions(false);
+    }
+  };
+
+  const cancelPendingActions = () => {
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: 'assistant',
+        content: 'Cancelled. No changes were made.',
+        timestamp: new Date(),
+      },
+    ]);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -132,7 +216,7 @@ export default function AIResourceChat({ isOpen, onClose }: AIResourceChatProps)
             </div>
             <div>
               <h3 className="font-semibold text-lg">AI Resource Manager</h3>
-              <p className="text-xs text-indigo-100">Powered by Google Gemini</p>
+              <p className="text-xs text-indigo-100">Powered by {lastProvider ? lastProvider.toUpperCase() : 'AI'}</p>
             </div>
           </div>
           <button
@@ -160,6 +244,36 @@ export default function AIResourceChat({ isOpen, onClose }: AIResourceChatProps)
                 }`}
               >
                 <div className="whitespace-pre-wrap break-words text-sm">{msg.content}</div>
+
+                {msg.role === 'assistant' && msg.pendingActions && msg.pendingActions.length > 0 && (
+                  <div className="mt-3 border-t border-gray-200 pt-3">
+                    <div className="text-xs text-gray-600 mb-2">Pending actions (requires approval):</div>
+                    <div className="space-y-1">
+                      {msg.pendingActions.map((a, i) => (
+                        <div key={i} className="text-xs text-gray-800 bg-white rounded px-2 py-1 border border-gray-200">
+                          {a.summary}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                      <button
+                        onClick={() => executePendingActions(msg.pendingActions!)}
+                        disabled={isLoading || isExecutingActions}
+                        className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                      >
+                        {isExecutingActions ? 'Applying…' : 'Approve & Apply'}
+                      </button>
+                      <button
+                        onClick={cancelPendingActions}
+                        disabled={isLoading || isExecutingActions}
+                        className="px-3 py-1.5 text-xs bg-gray-200 text-gray-800 rounded hover:bg-gray-300 disabled:cursor-not-allowed"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div
                   className={`text-xs mt-1 ${
                     msg.role === 'user' ? 'text-indigo-200' : 'text-gray-500'
@@ -220,7 +334,7 @@ export default function AIResourceChat({ isOpen, onClose }: AIResourceChatProps)
             />
             <button
               onClick={handleSend}
-              disabled={!inputMessage.trim() || isLoading}
+              disabled={!inputMessage.trim() || isLoading || isExecutingActions}
               className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium"
             >
               {isLoading ? (

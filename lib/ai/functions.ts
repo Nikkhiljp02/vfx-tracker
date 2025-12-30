@@ -182,6 +182,52 @@ export const aiFunctionDeclarations: FunctionDeclaration[] = [
       },
       required: ["department", "startDate", "endDate"]
     }
+  },
+  {
+    name: "assign_resource_allocation",
+    description: "PROPOSED WRITE ACTION: Create or update a single-day allocation for an employee on a specific date. Enforces total man-days <= 1.0 for that employee/day. Intended to be executed only after user approval.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        employeeId: {
+          type: SchemaType.STRING,
+          description: "Employee ID (empId)"
+        },
+        date: {
+          type: SchemaType.STRING,
+          description: "Allocation date in YYYY-MM-DD format"
+        },
+        showName: {
+          type: SchemaType.STRING,
+          description: "Show name (required unless isLeave or isIdle)"
+        },
+        shotName: {
+          type: SchemaType.STRING,
+          description: "Shot name (required unless isLeave or isIdle)"
+        },
+        manDays: {
+          type: SchemaType.NUMBER,
+          description: "Man-days for the allocation (e.g., 0.25, 0.5, 0.75, 1.0). Must be > 0 and <= 1.0"
+        },
+        notes: {
+          type: SchemaType.STRING,
+          description: "Optional notes"
+        },
+        isLeave: {
+          type: SchemaType.BOOLEAN,
+          description: "Mark as leave (optional)"
+        },
+        isIdle: {
+          type: SchemaType.BOOLEAN,
+          description: "Mark as idle (optional)"
+        },
+        isWeekendWorking: {
+          type: SchemaType.BOOLEAN,
+          description: "Mark as weekend working (optional)"
+        }
+      },
+      required: ["employeeId", "date", "manDays"]
+    }
   }
 ];
 
@@ -209,6 +255,9 @@ export async function executeAIFunction(functionName: string, args: any, userId:
       
       case "get_department_utilization":
         return await getDepartmentUtilization(args, userId);
+
+      case "assign_resource_allocation":
+        return await assignResourceAllocation(args, userId);
       
       default:
         return { error: `Unknown function: ${functionName}` };
@@ -217,6 +266,119 @@ export async function executeAIFunction(functionName: string, args: any, userId:
     console.error(`Error executing ${functionName}:`, error);
     return { error: `Failed to execute ${functionName}` };
   }
+}
+
+async function assignResourceAllocation(args: any, userId: string) {
+  const employeeId = typeof args?.employeeId === 'string' ? args.employeeId.trim() : '';
+  const date = typeof args?.date === 'string' ? args.date.trim() : '';
+  const showName = typeof args?.showName === 'string' ? args.showName.trim() : '';
+  const shotName = typeof args?.shotName === 'string' ? args.shotName.trim() : '';
+  const notes = typeof args?.notes === 'string' ? args.notes.trim() : null;
+  const manDays = typeof args?.manDays === 'number' ? args.manDays : Number(args?.manDays);
+  const isLeave = Boolean(args?.isLeave);
+  const isIdle = Boolean(args?.isIdle);
+  const isWeekendWorking = Boolean(args?.isWeekendWorking);
+
+  if (!employeeId) return { error: 'employeeId is required' };
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return { error: 'date must be YYYY-MM-DD' };
+  if (!Number.isFinite(manDays) || manDays <= 0 || manDays > 1) return { error: 'manDays must be > 0 and <= 1.0' };
+
+  if (!isLeave && !isIdle) {
+    if (!showName) return { error: 'showName is required unless isLeave or isIdle' };
+    if (!shotName) return { error: 'shotName is required unless isLeave or isIdle' };
+  }
+
+  const member = await prisma.resourceMember.findUnique({ where: { empId: employeeId } });
+  if (!member) return { error: `Employee not found for empId=${employeeId}` };
+  if (!member.isActive) return { error: `Employee ${employeeId} is not active` };
+
+  const dateRange = getPaddedUtcRangeForDateKeys(date, date);
+  const existingInPaddedRange = await prisma.resourceAllocation.findMany({
+    where: {
+      resourceId: member.id,
+      allocationDate: dateRange,
+    },
+    orderBy: { allocationDate: 'asc' },
+  });
+
+  const sameDayAllocations = existingInPaddedRange.filter((a) => formatDateKey(a.allocationDate) === date);
+
+  // If an exact show/shot entry already exists for that day (and not leave/idle), update it.
+  const existingMatch =
+    !isLeave &&
+    !isIdle &&
+    sameDayAllocations.find(
+      (a) =>
+        !a.isLeave &&
+        !a.isIdle &&
+        a.showName === showName &&
+        a.shotName === shotName
+    );
+
+  const totalOther = sameDayAllocations
+    .filter((a) => (existingMatch ? a.id !== existingMatch.id : true))
+    .reduce((sum, a) => sum + (typeof a.manDays === 'number' ? a.manDays : 0), 0);
+
+  if (totalOther + manDays > 1.00001) {
+    return {
+      error: `Cannot assign ${manDays} MD on ${date} for ${employeeId}. Existing allocations total ${totalOther} MD; total would exceed 1.0.`,
+      currentDayTotal: totalOther,
+      requestedManDays: manDays,
+    };
+  }
+
+  // Choose a stable DateTime for storage (UTC midnight); queries use dateKey + padding to avoid TZ issues.
+  const allocationDate = utcMidnight(date);
+
+  if (existingMatch) {
+    const updated = await prisma.resourceAllocation.update({
+      where: { id: existingMatch.id },
+      data: {
+        manDays,
+        notes: notes ?? existingMatch.notes,
+        isWeekendWorking,
+        // keep show/shot as-is
+        createdBy: existingMatch.createdBy ?? userId,
+      },
+    });
+
+    return {
+      ok: true,
+      action: 'updated',
+      allocationId: updated.id,
+      employeeId,
+      date,
+      showName: updated.showName,
+      shotName: updated.shotName,
+      manDays: updated.manDays,
+    };
+  }
+
+  const created = await prisma.resourceAllocation.create({
+    data: {
+      resourceId: member.id,
+      showName: isLeave || isIdle ? '' : showName,
+      shotName: isLeave || isIdle ? '' : shotName,
+      allocationDate,
+      manDays,
+      isLeave,
+      isIdle,
+      isWeekendWorking,
+      notes,
+      createdBy: userId,
+    },
+  });
+
+  return {
+    ok: true,
+    action: 'created',
+    allocationId: created.id,
+    employeeId,
+    date,
+    showName: created.showName,
+    shotName: created.shotName,
+    manDays: created.manDays,
+  };
 }
 
 // Implementation functions

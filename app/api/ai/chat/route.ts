@@ -19,6 +19,37 @@ type ChatMessage = {
   content: string;
 };
 
+type PendingAction = {
+  tool: string;
+  args: unknown;
+  summary: string;
+};
+
+type AIChatResult = {
+  text: string;
+  pendingActions?: PendingAction[];
+};
+
+const WRITE_TOOL_NAMES = new Set<string>(['assign_resource_allocation']);
+
+function formatPendingActionSummary(tool: string, args: any): string {
+  if (tool === 'assign_resource_allocation') {
+    const employeeId = typeof args?.employeeId === 'string' ? args.employeeId : '';
+    const date = typeof args?.date === 'string' ? args.date : '';
+    const showName = typeof args?.showName === 'string' ? args.showName : '';
+    const shotName = typeof args?.shotName === 'string' ? args.shotName : '';
+    const manDays = args?.manDays;
+    const flags = [args?.isLeave ? 'leave' : null, args?.isIdle ? 'idle' : null, args?.isWeekendWorking ? 'weekend' : null]
+      .filter(Boolean)
+      .join(', ');
+
+    const target = showName || shotName ? `${showName}${showName && shotName ? ' / ' : ''}${shotName}` : '(leave/idle)';
+    return `Assign ${employeeId} on ${date}: ${target} for ${manDays} MD${flags ? ` (${flags})` : ''}`;
+  }
+
+  return `${tool}`;
+}
+
 const MAX_HISTORY_MESSAGES = 10;
 const MAX_MESSAGE_CHARS = 2500;
 const MAX_TOOL_RESULT_CHARS = 8000;
@@ -264,8 +295,9 @@ export async function POST(request: NextRequest) {
       try {
         const response = await processWithOpenAI(message, normalizedHistory, user.id);
         return NextResponse.json({
-          message: response,
-          provider: 'openai'
+          message: response.text,
+          provider: 'openai',
+          pendingActions: response.pendingActions,
         });
       } catch (error: any) {
         console.error('OpenAI error:', error);
@@ -274,7 +306,7 @@ export async function POST(request: NextRequest) {
         if (genAI) {
           try {
             const response = await processWithGemini(message, normalizedHistory, user.id);
-            return NextResponse.json({ message: response, provider: 'gemini' });
+            return NextResponse.json({ message: response.text, provider: 'gemini', pendingActions: response.pendingActions });
           } catch (gemErr) {
             console.error('Gemini error (after OpenAI):', gemErr);
           }
@@ -283,7 +315,7 @@ export async function POST(request: NextRequest) {
         if (groq) {
           try {
             const response = await processWithGroq(message, normalizedHistory, user.id);
-            return NextResponse.json({ message: response, provider: 'groq' });
+            return NextResponse.json({ message: response.text, provider: 'groq', pendingActions: response.pendingActions });
           } catch (groqErr) {
             console.error('Groq error (after OpenAI):', groqErr);
           }
@@ -302,8 +334,9 @@ export async function POST(request: NextRequest) {
       try {
         const response = await processWithGemini(message, normalizedHistory, user.id);
         return NextResponse.json({ 
-          message: response,
-          provider: 'gemini'
+          message: response.text,
+          provider: 'gemini',
+          pendingActions: response.pendingActions,
         });
       } catch (error: any) {
         console.error('Gemini error:', error);
@@ -314,8 +347,9 @@ export async function POST(request: NextRequest) {
           try {
             const response = await processWithGroq(message, normalizedHistory, user.id);
             return NextResponse.json({
-              message: response,
-              provider: 'groq'
+              message: response.text,
+              provider: 'groq',
+              pendingActions: response.pendingActions,
             });
           } catch (groqErr) {
             console.error('Groq error:', groqErr);
@@ -362,8 +396,9 @@ export async function POST(request: NextRequest) {
     else if (groq) {
       const response = await processWithGroq(message, normalizedHistory, user.id);
       return NextResponse.json({ 
-        message: response,
-        provider: 'groq'
+        message: response.text,
+        provider: 'groq',
+        pendingActions: response.pendingActions,
       });
     }
     
@@ -395,7 +430,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function processWithOpenAI(message: string, history: ChatMessage[], userId: string): Promise<string> {
+async function processWithOpenAI(message: string, history: ChatMessage[], userId: string): Promise<AIChatResult> {
   if (!openai) throw new Error('OpenAI not configured');
 
   const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
@@ -406,7 +441,8 @@ async function processWithOpenAI(message: string, history: ChatMessage[], userId
       content: `You are an AI Resource Manager for a VFX production studio. You help manage resource allocations, schedules, and forecasts.
 
 Important guidelines:
-- You can only VIEW data, not modify it
+    - You may propose allocation changes, but you MUST NOT execute write actions without explicit user approval.
+    - When the user asks to assign/modify allocations, respond with the exact proposed action(s) and ask the user to approve.
 - Use tools to fetch real data when needed
 - Format dates as YYYY-MM-DD
 - Be concise and professional
@@ -437,11 +473,11 @@ Current date: ${new Date().toISOString().split('T')[0]}`,
     } as any);
 
     const msg = completion.choices?.[0]?.message as any;
-    if (!msg) return 'No response generated';
+    if (!msg) return { text: 'No response generated' };
 
     const toolCalls = msg.tool_calls as any[] | undefined;
     if (!toolCalls || toolCalls.length === 0) {
-      return msg.content || 'No response generated';
+      return { text: msg.content || 'No response generated' };
     }
 
     messages.push({
@@ -462,6 +498,33 @@ Current date: ${new Date().toISOString().split('T')[0]}`,
         args = {};
       }
 
+      if (typeof functionName === 'string' && WRITE_TOOL_NAMES.has(functionName)) {
+        const pendingActions: PendingAction[] = toolCalls
+          .map((c) => {
+            const fn = c.function?.name;
+            if (typeof fn !== 'string' || !WRITE_TOOL_NAMES.has(fn)) return null;
+            let parsed: any = {};
+            try {
+              parsed = c.function?.arguments ? JSON.parse(c.function.arguments) : {};
+            } catch {
+              parsed = {};
+            }
+            return {
+              tool: fn,
+              args: parsed,
+              summary: formatPendingActionSummary(fn, parsed),
+            };
+          })
+          .filter(Boolean) as PendingAction[];
+
+        const text =
+          (msg.content?.trim() ? msg.content.trim() + '\n\n' : '') +
+          `I can do that. Please review and approve the following action(s):\n` +
+          pendingActions.map((a) => `- ${a.summary}`).join('\n');
+
+        return { text, pendingActions };
+      }
+
       const result = await executeAIFunction(functionName, args, userId);
       messages.push({
         role: 'tool',
@@ -471,10 +534,10 @@ Current date: ${new Date().toISOString().split('T')[0]}`,
     }
   }
 
-  return 'I gathered the requested data but could not finalize the response. Please try again with a narrower date range.';
+  return { text: 'I gathered the requested data but could not finalize the response. Please try again with a narrower date range.' };
 }
 
-async function processWithGemini(message: string, history: ChatMessage[], userId: string): Promise<string> {
+async function processWithGemini(message: string, history: ChatMessage[], userId: string): Promise<AIChatResult> {
   if (!genAI) throw new Error('Gemini not configured');
 
   const { model: resolvedModel } = await resolveGeminiModelName();
@@ -497,7 +560,8 @@ Important guidelines:
 - Be concise and professional
 - When showing data, use clear formatting with bullet points or tables
 - If you need more specific information, ask the user
-- You can only VIEW data, not modify it
+- You may propose allocation changes, but you MUST NOT execute write actions without explicit user approval.
+- When the user asks to assign/modify allocations, respond with the exact proposed action(s) and ask the user to approve.
 
 Current date: ${new Date().toISOString().split('T')[0]}
 
@@ -527,6 +591,21 @@ If a user asks for “today/this week/this month”, ask for an explicit date ra
       break;
     }
 
+    const writeCalls = calls.filter((c: any) => typeof c?.name === 'string' && WRITE_TOOL_NAMES.has(c.name));
+    if (writeCalls.length > 0) {
+      const pendingActions: PendingAction[] = writeCalls.map((c: any) => ({
+        tool: c.name,
+        args: c.args ?? {},
+        summary: formatPendingActionSummary(c.name, c.args ?? {}),
+      }));
+
+      const text =
+        `I can do that. Please review and approve the following action(s):\n` +
+        pendingActions.map((a) => `- ${a.summary}`).join('\n');
+
+      return { text, pendingActions };
+    }
+
     const functionResponseParts = [] as Array<{ functionResponse: { name: string; response: object } }>;
 
     for (const call of calls) {
@@ -545,10 +624,10 @@ If a user asks for “today/this week/this month”, ask for an explicit date ra
     result = await chat.sendMessage(functionResponseParts);
   }
 
-  return result.response.text();
+  return { text: result.response.text() };
 }
 
-async function processWithGroq(message: string, history: ChatMessage[], userId: string): Promise<string> {
+async function processWithGroq(message: string, history: ChatMessage[], userId: string): Promise<AIChatResult> {
   if (!groq) throw new Error('Groq not configured');
 
   // Groq uses an OpenAI-compatible API and supports tool calling on many models.
@@ -559,7 +638,8 @@ async function processWithGroq(message: string, history: ChatMessage[], userId: 
       content: `You are an AI Resource Manager for a VFX production studio. You help manage resource allocations, schedules, and forecasts.
 
 Important guidelines:
-- You can only VIEW data, not modify it
+    - You may propose allocation changes, but you MUST NOT execute write actions without explicit user approval.
+    - When the user asks to assign/modify allocations, respond with the exact proposed action(s) and ask the user to approve.
 - Use tools to fetch real data when needed
 - Format dates as YYYY-MM-DD
 - Be concise and professional
@@ -629,11 +709,11 @@ Current date: ${new Date().toISOString().split('T')[0]}`
     }
 
     const msg = completion.choices?.[0]?.message as any;
-    if (!msg) return 'No response generated';
+    if (!msg) return { text: 'No response generated' };
 
     const toolCalls = msg.tool_calls as any[] | undefined;
     if (!toolCalls || toolCalls.length === 0) {
-      return msg.content || 'No response generated';
+      return { text: msg.content || 'No response generated' };
     }
 
     messages.push({
@@ -654,6 +734,33 @@ Current date: ${new Date().toISOString().split('T')[0]}`
         args = {};
       }
 
+      if (typeof functionName === 'string' && WRITE_TOOL_NAMES.has(functionName)) {
+        const pendingActions: PendingAction[] = toolCalls
+          .map((c) => {
+            const fn = c.function?.name;
+            if (typeof fn !== 'string' || !WRITE_TOOL_NAMES.has(fn)) return null;
+            let parsed: any = {};
+            try {
+              parsed = c.function?.arguments ? JSON.parse(c.function.arguments) : {};
+            } catch {
+              parsed = {};
+            }
+            return {
+              tool: fn,
+              args: parsed,
+              summary: formatPendingActionSummary(fn, parsed),
+            };
+          })
+          .filter(Boolean) as PendingAction[];
+
+        const text =
+          (msg.content?.trim() ? msg.content.trim() + '\n\n' : '') +
+          `I can do that. Please review and approve the following action(s):\n` +
+          pendingActions.map((a) => `- ${a.summary}`).join('\n');
+
+        return { text, pendingActions };
+      }
+
       const result = await executeAIFunction(functionName, args, userId);
       messages.push({
         role: 'tool',
@@ -664,5 +771,5 @@ Current date: ${new Date().toISOString().split('T')[0]}`
   }
 
   // If the model keeps calling tools, return a safe fallback.
-  return `I gathered the requested data using ${selectedModel}, but could not finalize the response. Please try again with a narrower date range.`;
+  return { text: `I gathered the requested data using ${selectedModel}, but could not finalize the response. Please try again with a narrower date range.` };
 }
