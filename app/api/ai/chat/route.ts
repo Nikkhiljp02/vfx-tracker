@@ -56,6 +56,11 @@ let geminiModelCache:
   | { model: string; apiVersion: 'v1' | 'v1beta'; fetchedAt: number }
   | null = null;
 
+const GROQ_MODEL_CACHE_TTL_MS = 30 * 60 * 1000;
+let groqModelCache:
+  | { model: string; fetchedAt: number }
+  | null = null;
+
 async function listGeminiModels(apiKey: string, apiVersion: 'v1' | 'v1beta'): Promise<GeminiModelListItem[]> {
   const url = `https://generativelanguage.googleapis.com/${apiVersion}/models?key=${encodeURIComponent(apiKey)}`;
   const res = await fetch(url, {
@@ -128,6 +133,57 @@ async function resolveGeminiModelName(): Promise<{ model: string; apiVersion: 'v
   throw lastError instanceof Error ? lastError : new Error('Unable to resolve Gemini model');
 }
 
+async function resolveGroqChatModelName(): Promise<string> {
+  if (!groq) throw new Error('Groq not configured');
+
+  if (groqModelCache && Date.now() - groqModelCache.fetchedAt < GROQ_MODEL_CACHE_TTL_MS) {
+    return groqModelCache.model;
+  }
+
+  const list = await groq.models.list();
+  const ids = Array.isArray((list as any)?.data)
+    ? ((list as any).data as Array<{ id: string }>).map((m) => m.id).filter(Boolean)
+    : [];
+
+  // Prefer models known to be chat-capable and typically tool-capable.
+  // Keep this flexible because Groq decommissions/renames models.
+  const preferences: RegExp[] = [
+    /^gpt-oss-20b$/i,
+    /^llama-3\.[0-9]+-70b/i,
+    /^llama-3\.[0-9]+-8b/i,
+    /^llama-3\.[0-9]+/i,
+    /^mixtral/i,
+    /^gemma/i,
+  ];
+
+  for (const pref of preferences) {
+    const found = ids.find((id) => pref.test(id));
+    if (found) {
+      groqModelCache = { model: found, fetchedAt: Date.now() };
+      console.log(`[AI] Groq model auto-selected: ${found}`);
+      return found;
+    }
+  }
+
+  const fallback = ids[0];
+  if (!fallback) throw new Error('No Groq models available');
+  groqModelCache = { model: fallback, fetchedAt: Date.now() };
+  console.log(`[AI] Groq model auto-selected (fallback): ${fallback}`);
+  return fallback;
+}
+
+function isGroqModelInvalidError(err: unknown): boolean {
+  const anyErr = err as any;
+  const status = getErrorStatus(anyErr);
+  const msg = typeof anyErr?.message === 'string' ? anyErr.message : '';
+  const bodyMsg = typeof anyErr?.error?.message === 'string' ? anyErr.error.message : '';
+  return (
+    status === 400 &&
+    (msg.includes('model') || bodyMsg.includes('model')) &&
+    (msg.includes('decommissioned') || bodyMsg.includes('decommissioned') || msg.includes('no longer supported') || bodyMsg.includes('no longer supported'))
+  );
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
@@ -171,11 +227,22 @@ export async function POST(request: NextRequest) {
         // If Groq is available, fallback for better uptime
         if (groq) {
           console.log('Falling back to Groq after Gemini error');
-          const response = await processWithGroq(message, conversationHistory, user.id);
-          return NextResponse.json({
-            message: response,
-            provider: 'groq'
-          });
+          try {
+            const response = await processWithGroq(message, conversationHistory, user.id);
+            return NextResponse.json({
+              message: response,
+              provider: 'groq'
+            });
+          } catch (groqErr) {
+            console.error('Groq error:', groqErr);
+            return NextResponse.json(
+              {
+                error:
+                  'Both Gemini and Groq failed. Groq may have a decommissioned model configured or the API key may be invalid.',
+              },
+              { status: 502 }
+            );
+          }
         }
 
         // No fallback available: return a useful status/message instead of generic 500
@@ -356,16 +423,47 @@ Current date: ${new Date().toISOString().split('T')[0]}`
     },
   }));
 
+  const preferred = await resolveGroqChatModelName();
+  const modelCandidates = [
+    preferred,
+    // A few reasonable fallbacks in case the preferred model is decommissioned.
+    'gpt-oss-20b',
+    'llama-3.3-70b-versatile',
+    'llama-3.1-8b-instant',
+  ].filter((v, idx, arr) => Boolean(v) && arr.indexOf(v) === idx);
+
   // Tool-calling loop
+  let selectedModel = modelCandidates[0];
   for (let step = 0; step < 6; step++) {
-    const completion = await groq.chat.completions.create({
-      messages,
-      model: 'llama-3.1-70b-versatile',
-      temperature: 0.2,
-      max_tokens: 1024,
-      tools: tools as any,
-      tool_choice: 'auto' as any,
-    } as any);
+    let completion: any;
+
+    // Try candidates (handles decommissioned model errors gracefully)
+    let lastErr: unknown = null;
+    for (const candidate of modelCandidates) {
+      try {
+        selectedModel = candidate;
+        completion = await groq.chat.completions.create({
+          messages,
+          model: candidate,
+          temperature: 0.2,
+          max_tokens: 1024,
+          tools: tools as any,
+          tool_choice: 'auto' as any,
+        } as any);
+        break;
+      } catch (err) {
+        lastErr = err;
+        if (isGroqModelInvalidError(err)) {
+          // bust cache so the next request re-lists
+          groqModelCache = null;
+          continue;
+        }
+        throw err;
+      }
+    }
+    if (!completion) {
+      throw lastErr instanceof Error ? lastErr : new Error('Groq request failed');
+    }
 
     const msg = completion.choices?.[0]?.message as any;
     if (!msg) return 'No response generated';
@@ -375,14 +473,12 @@ Current date: ${new Date().toISOString().split('T')[0]}`
       return msg.content || 'No response generated';
     }
 
-    // Add assistant message containing tool calls
     messages.push({
       role: 'assistant',
       content: msg.content ?? '',
       tool_calls: toolCalls,
     });
 
-    // Execute each tool and append tool results
     for (const call of toolCalls) {
       const toolCallId = call.id;
       const functionName = call.function?.name;
@@ -405,5 +501,5 @@ Current date: ${new Date().toISOString().split('T')[0]}`
   }
 
   // If the model keeps calling tools, return a safe fallback.
-  return 'I gathered the requested data, but could not finalize the response. Please try again with a narrower date range.';
+  return `I gathered the requested data using ${selectedModel}, but could not finalize the response. Please try again with a narrower date range.`;
 }
