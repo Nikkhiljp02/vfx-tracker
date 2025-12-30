@@ -2,7 +2,7 @@
 
 ## 🚀 Overview
 
-Your VFX Tracker now has an AI Resource Manager powered by Google Gemini 1.5 Flash (FREE) with Groq as fallback. The AI can answer questions about resource allocation, availability, utilization, and more - all without modifying any data.
+Your VFX Tracker now has an AI Resource Manager that can use multiple providers (OpenAI, Google Gemini, Groq). The AI can answer questions about resource allocation, availability, utilization, and more - all without modifying any data.
 
 ## ✅ What's Been Implemented
 
@@ -60,19 +60,32 @@ The AI can help with:
 
 ## 🔧 Setup Instructions
 
-### Step 1: Get Google Gemini API Key (FREE)
+### Step 1: Get an OpenAI API Key (Recommended)
+
+1. Go to: https://platform.openai.com/api-keys
+2. Create an API key
+3. Copy your API key
+
+Add it to your environment:
+
+```env
+OPENAI_API_KEY="your_openai_api_key_here"
+# Optional: defaults to gpt-4o-mini (fast + low cost)
+OPENAI_MODEL="gpt-4o-mini"
+```
+
+**Note**: OpenAI API usage is billed; there is not typically a permanently-free API tier.
+
+### Step 2: Get Google Gemini API Key (Optional)
 
 1. Go to: https://aistudio.google.com/app/apikey
 2. Sign in with your Google account
 3. Click "Create API Key"
 4. Copy your API key
 
-**Note**: FREE tier includes:
-- 15 requests per minute
-- 1 million requests per day
-- Completely free forever!
+**Note**: Gemini quotas vary by project/key. If you see errors like “quota limit: 0”, Gemini won’t work until quota/billing is enabled for that key/project.
 
-### Step 2: Get Groq API Key (Optional - Fallback)
+### Step 3: Get Groq API Key (Optional - Fallback)
 
 1. Go to: https://console.groq.com/keys
 2. Sign up (free account)
@@ -84,25 +97,28 @@ The AI can help with:
 - Very fast inference
 - Good fallback for rate limits
 
-### Step 3: Add API Keys to Environment Variables
+### Step 4: Add API Keys to Environment Variables
 
 Open your `.env.local` file and add:
 
 ```env
 # AI Configuration
-GOOGLE_AI_KEY="your_gemini_api_key_here"
+OPENAI_API_KEY="your_openai_api_key_here"  # Recommended
+OPENAI_MODEL="gpt-4o-mini"  # Optional
+
+GOOGLE_AI_KEY="your_gemini_api_key_here"  # Optional
 GROQ_API_KEY="your_groq_api_key_here"  # Optional
 ```
 
-**Important**: At minimum, you need `GOOGLE_AI_KEY`. Groq is optional for fallback.
+**Important**: At minimum, you need one provider key. For best reliability, use `OPENAI_API_KEY`.
 
-### Step 4: Restart Development Server
+### Step 5: Restart Development Server
 
 ```bash
 npm run dev
 ```
 
-### Step 5: Test the AI
+### Step 6: Test the AI
 
 1. Navigate to Resource Forecast view
 2. Click the "🤖 AI Assistant" button (gradient purple button in toolbar)
@@ -166,10 +182,10 @@ Show me all overallocated resources and their conflicting allocations
 - Verify you haven't exceeded rate limits (unlikely with free tier)
 - Check network connectivity
 
-### AI gives generic responses
-- This means Groq fallback is being used (limited capabilities)
-- Gemini might be rate-limited temporarily
-- Wait a minute and try again
+### AI gives generic responses or errors
+- If Gemini is configured but has quota/rate-limit errors, the app will fall back to Groq/OpenAI if configured.
+- If Groq returns “Request too large” or token/rate limits, try shorter questions or smaller date ranges.
+- For the most reliable experience, configure `OPENAI_API_KEY`.
 
 ### "Live data access temporarily unavailable"
 - This message appears when using Groq fallback

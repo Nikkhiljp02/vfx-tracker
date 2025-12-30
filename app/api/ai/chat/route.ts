@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import Groq from 'groq-sdk';
+import OpenAI from 'openai';
 import { auth } from '@/lib/auth';
 import { aiFunctionDeclarations, executeAIFunction } from '@/lib/ai/functions';
 
@@ -88,6 +89,10 @@ const genAI = process.env.GOOGLE_AI_KEY
 
 const groq = process.env.GROQ_API_KEY
   ? new Groq({ apiKey: process.env.GROQ_API_KEY })
+  : null;
+
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null;
 
 const GEMINI_MODEL_CACHE_TTL_MS = 30 * 60 * 1000;
@@ -245,14 +250,52 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if any AI provider is configured
-    if (!genAI && !groq) {
+    if (!genAI && !groq && !openai) {
       return NextResponse.json({ 
-        error: 'AI not configured. Please set GOOGLE_AI_KEY or GROQ_API_KEY in your environment variables. See AI_SETUP_GUIDE.md for instructions.',
+        error: 'AI not configured. Please set OPENAI_API_KEY or GROQ_API_KEY (or GOOGLE_AI_KEY) in your environment variables. See AI_SETUP_GUIDE.md for instructions.',
         setup_required: true
       }, { status: 503 });
     }
 
     const normalizedHistory = normalizeConversationHistory(conversationHistory);
+
+    // Preferred: OpenAI (most reliable). Then Gemini (if quota allows). Then Groq.
+    if (openai) {
+      try {
+        const response = await processWithOpenAI(message, normalizedHistory, user.id);
+        return NextResponse.json({
+          message: response,
+          provider: 'openai'
+        });
+      } catch (error: any) {
+        console.error('OpenAI error:', error);
+
+        // fallback chain
+        if (genAI) {
+          try {
+            const response = await processWithGemini(message, normalizedHistory, user.id);
+            return NextResponse.json({ message: response, provider: 'gemini' });
+          } catch (gemErr) {
+            console.error('Gemini error (after OpenAI):', gemErr);
+          }
+        }
+
+        if (groq) {
+          try {
+            const response = await processWithGroq(message, normalizedHistory, user.id);
+            return NextResponse.json({ message: response, provider: 'groq' });
+          } catch (groqErr) {
+            console.error('Groq error (after OpenAI):', groqErr);
+          }
+        }
+
+        const status = getErrorStatus(error) ?? 500;
+        return NextResponse.json(
+          { error: 'OpenAI failed to process the request.' },
+          { status: status >= 400 && status < 600 ? status : 500 }
+        );
+      }
+    }
 
     // Try Gemini first (free tier)
     if (genAI) {
@@ -325,7 +368,7 @@ export async function POST(request: NextRequest) {
     }
     
     return NextResponse.json({ 
-      error: 'No AI provider configured. Please set GOOGLE_AI_KEY or GROQ_API_KEY' 
+      error: 'No AI provider configured. Please set OPENAI_API_KEY or GROQ_API_KEY or GOOGLE_AI_KEY' 
     }, { status: 500 });
 
   } catch (error) {
@@ -350,6 +393,85 @@ export async function POST(request: NextRequest) {
       error: 'Failed to process message' 
     }, { status: 500 });
   }
+}
+
+async function processWithOpenAI(message: string, history: ChatMessage[], userId: string): Promise<string> {
+  if (!openai) throw new Error('OpenAI not configured');
+
+  const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+
+  const messages: Array<any> = [
+    {
+      role: 'system',
+      content: `You are an AI Resource Manager for a VFX production studio. You help manage resource allocations, schedules, and forecasts.
+
+Important guidelines:
+- You can only VIEW data, not modify it
+- Use tools to fetch real data when needed
+- Format dates as YYYY-MM-DD
+- Be concise and professional
+
+Current date: ${new Date().toISOString().split('T')[0]}`,
+    },
+    ...history.map((m) => ({ role: m.role, content: m.content })),
+    { role: 'user', content: message },
+  ];
+
+  const tools = aiFunctionDeclarations.map((fn) => ({
+    type: 'function',
+    function: {
+      name: fn.name,
+      description: fn.description,
+      parameters: fn.parameters as any,
+    },
+  }));
+
+  for (let step = 0; step < 6; step++) {
+    const completion = await openai.chat.completions.create({
+      model,
+      messages,
+      tools: tools as any,
+      tool_choice: 'auto' as any,
+      temperature: 0.2,
+      max_tokens: 800,
+    } as any);
+
+    const msg = completion.choices?.[0]?.message as any;
+    if (!msg) return 'No response generated';
+
+    const toolCalls = msg.tool_calls as any[] | undefined;
+    if (!toolCalls || toolCalls.length === 0) {
+      return msg.content || 'No response generated';
+    }
+
+    messages.push({
+      role: 'assistant',
+      content: msg.content ?? '',
+      tool_calls: toolCalls,
+    });
+
+    for (const call of toolCalls) {
+      const toolCallId = call.id;
+      const functionName = call.function?.name;
+      const rawArgs = call.function?.arguments;
+
+      let args: any = {};
+      try {
+        args = rawArgs ? JSON.parse(rawArgs) : {};
+      } catch {
+        args = {};
+      }
+
+      const result = await executeAIFunction(functionName, args, userId);
+      messages.push({
+        role: 'tool',
+        tool_call_id: toolCallId,
+        content: safeStringifyAndTruncate(result ?? { error: 'No response' }, MAX_TOOL_RESULT_CHARS),
+      });
+    }
+  }
+
+  return 'I gathered the requested data but could not finalize the response. Please try again with a narrower date range.';
 }
 
 async function processWithGemini(message: string, history: ChatMessage[], userId: string): Promise<string> {
