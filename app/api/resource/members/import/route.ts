@@ -16,6 +16,39 @@ function parseBooleanLike(value: unknown): boolean | null {
   return null;
 }
 
+type EmployeeType = 'Artist' | 'Lead' | 'Supervisor' | 'Production';
+
+function normalizeEmployeeType(
+  raw: unknown,
+): { employeeType: EmployeeType; warning?: string } {
+  if (raw === null || raw === undefined) {
+    return { employeeType: 'Artist' };
+  }
+
+  const original = String(raw).trim();
+  if (original === '') return { employeeType: 'Artist' };
+
+  const key = original
+    .toLowerCase()
+    .replace(/[^a-z]/g, '');
+
+  if (['artist', 'art', 'a'].includes(key)) return { employeeType: 'Artist' };
+  if (['lead', 'teamlead', 'tl', 'teamleader', 'teamleading'].includes(key)) {
+    return { employeeType: 'Lead' };
+  }
+  if (['supervisor', 'sup', 'super', 'head'].includes(key)) {
+    return { employeeType: 'Supervisor' };
+  }
+  if (['production', 'prod', 'pm', 'producer'].includes(key)) {
+    return { employeeType: 'Production' };
+  }
+
+  return {
+    employeeType: 'Artist',
+    warning: `Unrecognized Employee Type "${original}". Defaulted to "Artist". Allowed: Artist, Lead, Supervisor, Production.`,
+  };
+}
+
 // POST import resource members from Excel
 export async function POST(request: NextRequest) {
   try {
@@ -73,7 +106,11 @@ export async function POST(request: NextRequest) {
       // Optional fields
       const reportingTo = row['Reporting To'] || row['reportingTo'] || row['Manager'] || null;
       const shift = row['Shift'] || row['shift'] || 'Day';
-      const employeeType = row['Employee Type'] || row['employeeType'] || row['Type'] || 'Artist';
+      const employeeTypeRaw = row['Employee Type'] || row['employeeType'] || row['Type'] || 'Artist';
+      const normalizedEmployeeType = normalizeEmployeeType(employeeTypeRaw);
+      if (normalizedEmployeeType.warning) {
+        errors.push(`Row ${rowNum}: ${normalizedEmployeeType.warning}`);
+      }
       const activeRaw = row['Active'] ?? row['active'] ?? row['Is Active'] ?? row['isActive'];
       const parsedActive = parseBooleanLike(activeRaw);
       const isActive = parsedActive ?? true;
@@ -85,7 +122,7 @@ export async function POST(request: NextRequest) {
         reportingTo: reportingTo ? String(reportingTo).trim() : null,
         department: String(department).trim(),
         shift: String(shift).trim(),
-        employeeType: String(employeeType).trim(),
+        employeeType: normalizedEmployeeType.employeeType,
         isActive,
       });
     }
