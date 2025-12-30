@@ -337,6 +337,49 @@ export const aiFunctionDeclarations: FunctionDeclaration[] = [
       },
       required: ["employeeId"]
     }
+  },
+  {
+    name: "remove_shot_allocations",
+    description: "PROPOSED WRITE ACTION: Remove (delete) allocations for a shot across ALL employees. Optionally filter by show and/or date range. Intended to be executed only after user approval.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        shotName: {
+          type: SchemaType.STRING,
+          description: "Shot name (required)"
+        },
+        showName: {
+          type: SchemaType.STRING,
+          description: "Optional filter: only delete allocations for this show"
+        },
+        startDate: {
+          type: SchemaType.STRING,
+          description: "Start date in YYYY-MM-DD format (optional; if provided, defaults apply to missing endDate)"
+        },
+        endDate: {
+          type: SchemaType.STRING,
+          description: "End date in YYYY-MM-DD format (optional; if provided, defaults apply to missing startDate)"
+        }
+      },
+      required: ["shotName"]
+    }
+  },
+  {
+    name: "remove_all_allocations",
+    description: "PROPOSED WRITE ACTION: Remove (delete) ALL allocations across ALL employees and ALL shots. Optionally restrict to a date range. Intended to be executed only after user approval.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        startDate: {
+          type: SchemaType.STRING,
+          description: "Start date in YYYY-MM-DD format (optional; if provided, defaults apply to missing endDate)"
+        },
+        endDate: {
+          type: SchemaType.STRING,
+          description: "End date in YYYY-MM-DD format (optional; if provided, defaults apply to missing startDate)"
+        }
+      }
+    }
   }
 ];
 
@@ -373,6 +416,12 @@ export async function executeAIFunction(functionName: string, args: any, userId:
 
       case "remove_employee_allocations":
         return await removeEmployeeAllocations(args, userId);
+
+      case "remove_shot_allocations":
+        return await removeShotAllocations(args, userId);
+
+      case "remove_all_allocations":
+        return await removeAllAllocations(args, userId);
       
       default:
         return { error: `Unknown function: ${functionName}` };
@@ -572,6 +621,184 @@ async function removeEmployeeAllocations(args: any, userId: string) {
     action: 'deleted',
     deletedCount: deleted.count,
     employeeId,
+    startDate,
+    endDate,
+    sample,
+  };
+}
+
+async function removeShotAllocations(args: any, userId: string) {
+  const shotName = typeof args?.shotName === 'string' ? args.shotName.trim() : '';
+  const showName = typeof args?.showName === 'string' ? args.showName.trim() : '';
+  const startArg = typeof args?.startDate === 'string' ? args.startDate.trim() : '';
+  const endArg = typeof args?.endDate === 'string' ? args.endDate.trim() : '';
+
+  if (!shotName) return { error: 'shotName is required' };
+
+  const todayKey = formatDateKey(new Date());
+  const hasAnyRange = Boolean(startArg || endArg);
+  const startDate = hasAnyRange ? startArg || todayKey : '';
+  const endDate = hasAnyRange ? endArg || addDaysToDateKey(todayKey, 365) : '';
+
+  if (hasAnyRange) {
+    if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(startDate)) return { error: 'startDate must be YYYY-MM-DD' };
+    if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(endDate)) return { error: 'endDate must be YYYY-MM-DD' };
+    if (endDate < startDate) return { error: 'endDate must be >= startDate' };
+  }
+
+  const whereBase: any = {
+    shotName: { equals: shotName, mode: 'insensitive' },
+    ...(showName ? { showName: { equals: showName, mode: 'insensitive' } } : {}),
+  };
+
+  // If no range was provided, delete everything matching the shot/show filters.
+  if (!hasAnyRange) {
+    const deleted = await prisma.resourceAllocation.deleteMany({ where: whereBase });
+    return {
+      ok: true,
+      action: 'deleted_shot',
+      deletedCount: deleted.count,
+      shotName,
+      showName: showName || undefined,
+    };
+  }
+
+  // If range is provided, use padded query + exact dateKey filtering for correctness.
+  const padded = getPaddedUtcRangeForDateKeys(startDate, endDate);
+  const candidates = await prisma.resourceAllocation.findMany({
+    where: {
+      ...whereBase,
+      allocationDate: padded,
+    },
+    orderBy: { allocationDate: 'asc' },
+  });
+
+  const matches = candidates
+    .map((a) => ({
+      id: a.id,
+      dateKey: formatDateKey(a.allocationDate),
+      showName: a.showName,
+      shotName: a.shotName,
+      manDays: a.manDays,
+      isLeave: a.isLeave,
+      isIdle: a.isIdle,
+    }))
+    .filter((a) => isDateKeyInRange(a.dateKey, startDate, endDate));
+
+  if (matches.length === 0) {
+    return {
+      ok: true,
+      action: 'deleted_shot',
+      deletedCount: 0,
+      shotName,
+      showName: showName || undefined,
+      startDate,
+      endDate,
+    };
+  }
+
+  const ids = matches.map((m) => m.id);
+  const deleted = await prisma.resourceAllocation.deleteMany({ where: { id: { in: ids } } });
+
+  const sample = matches.slice(0, 25).map((m) => ({
+    date: m.dateKey,
+    showName: m.showName,
+    shotName: m.shotName,
+    manDays: m.manDays,
+    isLeave: m.isLeave,
+    isIdle: m.isIdle,
+  }));
+
+  return {
+    ok: true,
+    action: 'deleted_shot',
+    deletedCount: deleted.count,
+    shotName,
+    showName: showName || undefined,
+    startDate,
+    endDate,
+    sample,
+  };
+}
+
+async function removeAllAllocations(args: any, userId: string) {
+  const startArg = typeof args?.startDate === 'string' ? args.startDate.trim() : '';
+  const endArg = typeof args?.endDate === 'string' ? args.endDate.trim() : '';
+
+  const todayKey = formatDateKey(new Date());
+  const hasAnyRange = Boolean(startArg || endArg);
+  const startDate = hasAnyRange ? startArg || todayKey : '';
+  const endDate = hasAnyRange ? endArg || addDaysToDateKey(todayKey, 365) : '';
+
+  if (hasAnyRange) {
+    if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(startDate)) return { error: 'startDate must be YYYY-MM-DD' };
+    if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(endDate)) return { error: 'endDate must be YYYY-MM-DD' };
+    if (endDate < startDate) return { error: 'endDate must be >= startDate' };
+  }
+
+  // No range means truly everything.
+  if (!hasAnyRange) {
+    const deleted = await prisma.resourceAllocation.deleteMany({});
+    return {
+      ok: true,
+      action: 'deleted_all',
+      deletedCount: deleted.count,
+    };
+  }
+
+  const padded = getPaddedUtcRangeForDateKeys(startDate, endDate);
+  const candidates = await prisma.resourceAllocation.findMany({
+    where: { allocationDate: padded },
+    orderBy: { allocationDate: 'asc' },
+    select: {
+      id: true,
+      allocationDate: true,
+      showName: true,
+      shotName: true,
+      manDays: true,
+      isLeave: true,
+      isIdle: true,
+    },
+  });
+
+  const matches = candidates
+    .map((a) => ({
+      id: a.id,
+      dateKey: formatDateKey(a.allocationDate),
+      showName: a.showName,
+      shotName: a.shotName,
+      manDays: a.manDays,
+      isLeave: a.isLeave,
+      isIdle: a.isIdle,
+    }))
+    .filter((a) => isDateKeyInRange(a.dateKey, startDate, endDate));
+
+  if (matches.length === 0) {
+    return {
+      ok: true,
+      action: 'deleted_all',
+      deletedCount: 0,
+      startDate,
+      endDate,
+    };
+  }
+
+  const ids = matches.map((m) => m.id);
+  const deleted = await prisma.resourceAllocation.deleteMany({ where: { id: { in: ids } } });
+
+  const sample = matches.slice(0, 25).map((m) => ({
+    date: m.dateKey,
+    showName: m.showName,
+    shotName: m.shotName,
+    manDays: m.manDays,
+    isLeave: m.isLeave,
+    isIdle: m.isIdle,
+  }));
+
+  return {
+    ok: true,
+    action: 'deleted_all',
+    deletedCount: deleted.count,
     startDate,
     endDate,
     sample,

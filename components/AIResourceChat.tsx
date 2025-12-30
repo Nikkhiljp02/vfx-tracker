@@ -164,11 +164,9 @@ export default function AIResourceChat({ isOpen, onClose }: AIResourceChatProps)
                   return `${idx + 1}. ${tool}: deleted ${res.deletedCount} allocation(s) for shot ${shot}${show}${range}`;
                 }
 
-                if (res.action === 'deleted_shot') {
-                  const shot = res.shotName || '';
-                  const show = res.showName ? ` show=${res.showName}` : '';
+                if (res.action === 'deleted_all') {
                   const range = res.startDate && res.endDate ? ` (${res.startDate} → ${res.endDate})` : '';
-                  return `${idx + 1}. ${tool}: deleted ${res.deletedCount} allocation(s) for shot ${shot}${show}${range}`;
+                  return `${idx + 1}. ${tool}: deleted ${res.deletedCount} allocation(s) across ALL employees${range}`;
                 }
 
                 if (res.action === 'batch_assigned') {

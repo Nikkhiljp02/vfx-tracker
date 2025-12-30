@@ -12,6 +12,7 @@ const WRITE_TOOL_NAMES = new Set<string>([
   'assign_employee_to_shot_for_workdays',
   'remove_employee_allocations',
   'remove_shot_allocations',
+  'remove_all_allocations',
 ]);
 
 export async function POST(request: NextRequest) {

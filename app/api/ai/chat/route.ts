@@ -35,6 +35,7 @@ const WRITE_TOOL_NAMES = new Set<string>([
   'assign_employee_to_shot_for_workdays',
   'remove_employee_allocations',
   'remove_shot_allocations',
+  'remove_all_allocations',
 ]);
 
 function formatPendingActionSummary(tool: string, args: any): string {
@@ -83,6 +84,13 @@ function formatPendingActionSummary(tool: string, args: any): string {
     return `Remove allocations for shot ${shotName}${showName ? ` (show=${showName})` : ''}${range}`;
   }
 
+  if (tool === 'remove_all_allocations') {
+    const startDate = typeof args?.startDate === 'string' ? args.startDate : '';
+    const endDate = typeof args?.endDate === 'string' ? args.endDate : '';
+    const range = startDate || endDate ? ` from ${startDate || 'today'} to ${endDate || 'today+365'}` : ' (all dates)';
+    return `Remove ALL allocations for ALL employees${range}`;
+  }
+
   return `${tool}`;
 }
 
@@ -103,6 +111,17 @@ function normalizeWriteToolCall(tool: string, args: any): { tool: string; args: 
           shotName: guessedShot,
           // only keep showName if we weren't forced to borrow it as shotName
           showName: shotName ? showName || undefined : undefined,
+          startDate: args?.startDate,
+          endDate: args?.endDate,
+        },
+      };
+    }
+
+    // If there's no employeeId and no shot/show hint, interpret it as a global delete.
+    if (!employeeId && !shotName && !showName) {
+      return {
+        tool: 'remove_all_allocations',
+        args: {
           startDate: args?.startDate,
           endDate: args?.endDate,
         },
@@ -524,6 +543,7 @@ Important guidelines:
     - When the user asks to assign/modify allocations, respond with the exact proposed action(s) and ask the user to approve.
     - For unassign/removal requests, prefer proposing a single remove_employee_allocations action over setting man-days to 0.
   - If the user asks to remove allocations for a SHOT for ALL employees, propose remove_shot_allocations (do NOT ask for employeeId).
+  - If the user asks to remove allocations for ALL SHOTS for ALL EMPLOYEES, propose remove_all_allocations (do NOT ask for employeeId).
 - Use tools to fetch real data when needed
 - Format dates as YYYY-MM-DD
 - Be concise and professional
@@ -533,6 +553,7 @@ Important guidelines:
     - If the user says "overall" or "all future", treat it as today through today+365 days unless they specify a tighter range.
     - If the user asks to assign a show/shot for N days (e.g., "10 days") and provides a start date and any exclusions (leave dates), prefer using assign_employee_to_shot_for_workdays so weekends are handled correctly.
     - If the user asks to remove allocations for a shot across all employees, prefer remove_shot_allocations.
+    - If the user asks to remove ALL allocations across all employees (all shots), prefer remove_all_allocations.
 
 Current date: ${new Date().toISOString().split('T')[0]}`,
     },
@@ -655,6 +676,7 @@ Important guidelines:
 - When the user asks to assign/modify allocations, respond with the exact proposed action(s) and ask the user to approve.
 - For unassign/removal requests, prefer proposing a single remove_employee_allocations action over setting man-days to 0.
 - If the user asks to remove allocations for a SHOT for ALL employees, propose remove_shot_allocations (do NOT ask for employeeId).
+- If the user asks to remove allocations for ALL SHOTS for ALL EMPLOYEES, propose remove_all_allocations (do NOT ask for employeeId).
 - For multi-day assignment requests, prefer proposing a single assign_employee_to_shot_for_workdays action over listing many per-day assignments.
 
 Current date: ${new Date().toISOString().split('T')[0]}
@@ -751,6 +773,7 @@ Important guidelines:
     - If the user says "overall" or "all future", treat it as today through today+365 days unless they specify a tighter range.
     - If the user asks to assign a show/shot for N days (e.g., "10 days") and provides a start date and any exclusions (leave dates), prefer using assign_employee_to_shot_for_workdays so weekends are handled correctly.
     - If the user asks to remove allocations for a shot across all employees, prefer remove_shot_allocations.
+    - If the user asks to remove ALL allocations across all employees (all shots), prefer remove_all_allocations.
 
 Current date: ${new Date().toISOString().split('T')[0]}`
     },
