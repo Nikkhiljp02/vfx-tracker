@@ -7,6 +7,38 @@ import { prisma } from '@/lib/prisma';
 import { SchemaType } from '@google/generative-ai';
 import type { FunctionDeclaration } from '@google/generative-ai';
 
+const STUDIO_TIMEZONE = process.env.STUDIO_TIMEZONE || 'Asia/Kolkata';
+const DAY_QUERY_PAD_MS = 14 * 60 * 60 * 1000; // +/- 14h to safely cover timezones
+
+function utcMidnight(dateStr: string): Date {
+  // dateStr is expected to be YYYY-MM-DD
+  return new Date(`${dateStr}T00:00:00.000Z`);
+}
+
+function formatDateKey(date: Date): string {
+  // Returns YYYY-MM-DD in configured studio timezone
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: STUDIO_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
+function getPaddedUtcRangeForDateKeys(startDate: string, endDate: string): { gte: Date; lt: Date } {
+  const startUtc = utcMidnight(startDate);
+  const endUtcExclusive = new Date(utcMidnight(endDate).getTime() + 24 * 60 * 60 * 1000);
+  return {
+    gte: new Date(startUtc.getTime() - DAY_QUERY_PAD_MS),
+    lt: new Date(endUtcExclusive.getTime() + DAY_QUERY_PAD_MS),
+  };
+}
+
+function isDateKeyInRange(dateKey: string, startDate: string, endDate: string): boolean {
+  // Works because YYYY-MM-DD is lexicographically sortable
+  return dateKey >= startDate && dateKey <= endDate;
+}
+
 // Function definitions for AI (Gemini format)
 export const aiFunctionDeclarations: FunctionDeclaration[] = [
   {
@@ -91,6 +123,10 @@ export const aiFunctionDeclarations: FunctionDeclaration[] = [
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
+        employeeId: {
+          type: SchemaType.STRING,
+          description: "Employee ID (preferred when available)"
+        },
         employeeName: {
           type: SchemaType.STRING,
           description: "Employee name to get schedule for"
@@ -104,7 +140,25 @@ export const aiFunctionDeclarations: FunctionDeclaration[] = [
           description: "End date in YYYY-MM-DD format"
         }
       },
-      required: ["employeeName", "startDate", "endDate"]
+      required: ["startDate", "endDate"]
+    }
+  },
+  {
+    name: "get_employee_allocations_for_date",
+    description: "Get all allocations (show/shot/man-days) for a specific employee ID on a single date.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        employeeId: {
+          type: SchemaType.STRING,
+          description: "Employee ID (empId)"
+        },
+        date: {
+          type: SchemaType.STRING,
+          description: "Date in YYYY-MM-DD format"
+        }
+      },
+      required: ["employeeId", "date"]
     }
   },
   {
@@ -149,6 +203,9 @@ export async function executeAIFunction(functionName: string, args: any, userId:
       
       case "get_employee_schedule":
         return await getEmployeeSchedule(args, userId);
+
+      case "get_employee_allocations_for_date":
+        return await getEmployeeAllocationsForDate(args, userId);
       
       case "get_department_utilization":
         return await getDepartmentUtilization(args, userId);
@@ -184,8 +241,7 @@ async function getResourceForecast(args: any, userId: string) {
       allocations: {
         where: {
           allocationDate: {
-            gte: new Date(startDate),
-            lte: new Date(endDate)
+            ...getPaddedUtcRangeForDateKeys(startDate, endDate)
           }
         },
         orderBy: {
@@ -204,21 +260,27 @@ async function getResourceForecast(args: any, userId: string) {
       department: m.department,
       designation: m.designation,
       shift: m.shift,
-      allocations: m.allocations.map(a => ({
-        date: a.allocationDate.toISOString().split('T')[0],
-        show: a.showName,
-        shot: a.shotName,
-        manDays: a.manDays,
-        isLeave: a.isLeave,
-        isIdle: a.isIdle
-      }))
+      allocations: m.allocations
+        .map(a => {
+          const dateKey = formatDateKey(a.allocationDate);
+          return {
+            dateKey,
+            show: a.showName,
+            shot: a.shotName,
+            manDays: a.manDays,
+            isLeave: a.isLeave,
+            isIdle: a.isIdle,
+          };
+        })
+        .filter(a => isDateKeyInRange(a.dateKey, startDate, endDate))
+        .map(({ dateKey, ...rest }) => ({ date: dateKey, ...rest }))
     }))
   };
 }
 
 async function getAvailableResources(args: any, userId: string) {
   const { date, department } = args;
-  const targetDate = new Date(date);
+  const padded = getPaddedUtcRangeForDateKeys(date, date);
   
   const where: any = {
     isActive: true
@@ -233,22 +295,28 @@ async function getAvailableResources(args: any, userId: string) {
     include: {
       allocations: {
         where: {
-          allocationDate: targetDate
+          allocationDate: padded
         }
       }
     }
   });
   
   const available = members.filter(member => {
-    const totalMD = member.allocations.reduce((sum, a) => sum + a.manDays, 0);
+    const totalMD = member.allocations
+      .filter(a => formatDateKey(a.allocationDate) === date)
+      .reduce((sum, a) => sum + a.manDays, 0);
     return totalMD < 1.0;
   }).map(m => ({
     name: m.empName,
     id: m.empId,
     department: m.department,
     designation: m.designation,
-    currentAllocation: m.allocations.reduce((sum, a) => sum + a.manDays, 0),
-    availableCapacity: 1.0 - m.allocations.reduce((sum, a) => sum + a.manDays, 0)
+    currentAllocation: m.allocations
+      .filter(a => formatDateKey(a.allocationDate) === date)
+      .reduce((sum, a) => sum + a.manDays, 0),
+    availableCapacity: 1.0 - m.allocations
+      .filter(a => formatDateKey(a.allocationDate) === date)
+      .reduce((sum, a) => sum + a.manDays, 0)
   }));
   
   return {
@@ -350,21 +418,30 @@ async function getShowAllocations(args: any, userId: string) {
 }
 
 async function getEmployeeSchedule(args: any, userId: string) {
-  const { employeeName, startDate, endDate } = args;
+  const { employeeName, employeeId, startDate, endDate } = args;
+
+  if (!employeeId && !employeeName) {
+    return { error: 'employeeId or employeeName is required' };
+  }
+
+  const padded = getPaddedUtcRangeForDateKeys(startDate, endDate);
   
   const member = await prisma.resourceMember.findFirst({
     where: {
-      empName: {
-        contains: employeeName,
-        mode: 'insensitive'
-      }
+      ...(employeeId
+        ? { empId: String(employeeId) }
+        : {
+            empName: {
+              contains: String(employeeName),
+              mode: 'insensitive'
+            }
+          })
     },
     include: {
       allocations: {
         where: {
           allocationDate: {
-            gte: new Date(startDate),
-            lte: new Date(endDate)
+            ...padded
           }
         },
         orderBy: {
@@ -375,9 +452,26 @@ async function getEmployeeSchedule(args: any, userId: string) {
   });
   
   if (!member) {
-    return { error: `Employee "${employeeName}" not found` };
+    const key = employeeId ? `ID ${employeeId}` : `"${employeeName}"`;
+    return { error: `Employee ${key} not found` };
   }
   
+  const schedule = member.allocations
+    .map(a => {
+      const dateKey = formatDateKey(a.allocationDate);
+      return {
+        dateKey,
+        show: a.showName,
+        shot: a.shotName,
+        manDays: a.manDays,
+        isLeave: a.isLeave,
+        isIdle: a.isIdle,
+        notes: a.notes,
+      };
+    })
+    .filter(a => isDateKeyInRange(a.dateKey, startDate, endDate))
+    .map(({ dateKey, ...rest }) => ({ date: dateKey, ...rest }));
+
   return {
     employee: {
       name: member.empName,
@@ -387,21 +481,63 @@ async function getEmployeeSchedule(args: any, userId: string) {
       shift: member.shift
     },
     dateRange: { startDate, endDate },
-    totalAllocations: member.allocations.length,
-    schedule: member.allocations.map(a => ({
-      date: a.allocationDate.toISOString().split('T')[0],
+    timezone: STUDIO_TIMEZONE,
+    totalAllocations: schedule.length,
+    schedule,
+  };
+}
+
+async function getEmployeeAllocationsForDate(args: any, userId: string) {
+  const { employeeId, date } = args;
+  const empId = String(employeeId);
+  const padded = getPaddedUtcRangeForDateKeys(date, date);
+
+  const member = await prisma.resourceMember.findFirst({
+    where: { empId },
+    include: {
+      allocations: {
+        where: {
+          allocationDate: padded,
+        },
+        orderBy: { allocationDate: 'asc' },
+      },
+    },
+  });
+
+  if (!member) {
+    return { error: `Employee ID ${empId} not found` };
+  }
+
+  const allocations = member.allocations
+    .filter(a => formatDateKey(a.allocationDate) === date)
+    .map(a => ({
       show: a.showName,
       shot: a.shotName,
       manDays: a.manDays,
       isLeave: a.isLeave,
       isIdle: a.isIdle,
-      notes: a.notes
-    }))
+      notes: a.notes,
+    }));
+
+  return {
+    employee: {
+      name: member.empName,
+      id: member.empId,
+      department: member.department,
+      designation: member.designation,
+      shift: member.shift,
+    },
+    date,
+    timezone: STUDIO_TIMEZONE,
+    totalAllocations: allocations.length,
+    allocations,
   };
 }
 
 async function getDepartmentUtilization(args: any, userId: string) {
   const { department, startDate, endDate } = args;
+
+  const padded = getPaddedUtcRangeForDateKeys(startDate, endDate);
   
   const members = await prisma.resourceMember.findMany({
     where: {
@@ -412,8 +548,7 @@ async function getDepartmentUtilization(args: any, userId: string) {
       allocations: {
         where: {
           allocationDate: {
-            gte: new Date(startDate),
-            lte: new Date(endDate)
+            ...padded
           }
         }
       }
@@ -426,8 +561,13 @@ async function getDepartmentUtilization(args: any, userId: string) {
   const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
   
   const totalCapacity = members.length * days;
-  const totalAllocated = members.reduce((sum, m) => 
-    sum + m.allocations.reduce((s, a) => s + a.manDays, 0), 0
+  const totalAllocated = members.reduce(
+    (sum, m) =>
+      sum +
+      m.allocations
+        .filter(a => isDateKeyInRange(formatDateKey(a.allocationDate), startDate, endDate))
+        .reduce((s, a) => s + a.manDays, 0),
+    0
   );
   const utilizationRate = totalCapacity > 0 ? (totalAllocated / totalCapacity) * 100 : 0;
   
