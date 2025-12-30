@@ -103,8 +103,8 @@ export default function AIResourceChat({ isOpen, onClose }: AIResourceChatProps)
       let errorContent = 'Sorry, I encountered an error. Please try again.';
       
       // Check for setup error
-      if (error.message?.includes('OPENAI_API_KEY') || error.message?.includes('GOOGLE_AI_KEY') || error.message?.includes('GROQ_API_KEY') || error.message?.includes('AI not configured')) {
-        errorContent = `⚠️ AI Not Configured\n\nTo use the AI Resource Manager, you need to set up an API key (recommended: OpenAI).\n\nOption A (recommended): OpenAI\n- Add to your .env.local file:\n  OPENAI_API_KEY="your_key_here"\n\nOption B: Groq\n- Add:\n  GROQ_API_KEY="your_key_here"\n\nOption C: Google Gemini\n- Add:\n  GOOGLE_AI_KEY="your_key_here"\n\nThen restart the dev server.\n\nSee AI_SETUP_GUIDE.md for detailed instructions.`;
+      if (error.message?.includes('OPENAI_API_KEY') || error.message?.includes('AI not configured')) {
+        errorContent = `⚠️ AI Not Configured\n\nTo use the AI Resource Manager, set your OpenAI API key.\n\n- Add to your .env.local file:\n  OPENAI_API_KEY="your_key_here"\n\nThen restart the dev server.\n\nSee AI_SETUP_GUIDE.md for detailed instructions.`;
         toast.error('AI not configured - check setup guide');
       } else {
         toast.error('Failed to send message');
@@ -167,6 +167,23 @@ export default function AIResourceChat({ isOpen, onClose }: AIResourceChatProps)
                 if (res.action === 'deleted_all') {
                   const range = res.startDate && res.endDate ? ` (${res.startDate} → ${res.endDate})` : '';
                   return `${idx + 1}. ${tool}: deleted ${res.deletedCount} allocation(s) across ALL employees${range}`;
+                }
+
+                if (res.action === 'deleted_show') {
+                  const show = res.showName || '';
+                  const range = res.startDate && res.endDate ? ` (${res.startDate} → ${res.endDate})` : '';
+                  const award = typeof res.usedAwardSheet === 'boolean'
+                    ? res.usedAwardSheet
+                      ? ` (Award Sheet shots=${res.awardShotCount ?? ''})`
+                      : ' (Award Sheet not used)'
+                    : '';
+                  return `${idx + 1}. ${tool}: deleted ${res.deletedCount} allocation(s) for show ${show}${range}${award}`;
+                }
+
+                if (res.action === 'weekend_policy_updated') {
+                  const sat = res?.policy?.saturdayWorking === true ? 'ON' : res?.policy?.saturdayWorking === false ? 'OFF' : 'unchanged';
+                  const sun = res?.policy?.sundayWorking === true ? 'ON' : res?.policy?.sundayWorking === false ? 'OFF' : 'unchanged';
+                  return `${idx + 1}. ${tool}: weekend working policy updated (Saturday=${sat}, Sunday=${sun})`;
                 }
 
                 if (res.action === 'batch_assigned') {

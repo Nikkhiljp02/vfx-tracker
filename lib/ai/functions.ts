@@ -4,8 +4,22 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import { SchemaType } from '@google/generative-ai';
-import type { FunctionDeclaration } from '@google/generative-ai';
+
+// We define our own minimal JSON-Schema-ish types so AI tool declarations are provider-agnostic.
+// (We previously used provider-specific SchemaType/FunctionDeclaration types, but we now run OpenAI-only.)
+export const SchemaType = {
+  OBJECT: 'object',
+  STRING: 'string',
+  NUMBER: 'number',
+  BOOLEAN: 'boolean',
+  ARRAY: 'array',
+} as const;
+
+export type FunctionDeclaration = {
+  name: string;
+  description?: string;
+  parameters: any;
+};
 
 const STUDIO_TIMEZONE = process.env.STUDIO_TIMEZONE || 'Asia/Kolkata';
 const DAY_QUERY_PAD_MS = 14 * 60 * 60 * 1000; // +/- 14h to safely cover timezones
@@ -75,7 +89,31 @@ async function getPersistedWorkingWeekends(): Promise<Set<string>> {
   }
 }
 
-// Function definitions for AI (Gemini format)
+type WeekendWorkingPolicy = {
+  saturdayWorking: boolean;
+  sundayWorking: boolean;
+};
+
+const DEFAULT_WEEKEND_POLICY: WeekendWorkingPolicy = {
+  saturdayWorking: false,
+  sundayWorking: false,
+};
+
+async function getPersistedWeekendWorkingPolicy(): Promise<WeekendWorkingPolicy> {
+  const settings = await prisma.systemSettings.findFirst({ where: { key: 'weekendWorkingPolicy' } });
+  if (!settings?.value) return { ...DEFAULT_WEEKEND_POLICY };
+  try {
+    const parsed = JSON.parse(settings.value);
+    return {
+      saturdayWorking: Boolean((parsed as any)?.saturdayWorking),
+      sundayWorking: Boolean((parsed as any)?.sundayWorking),
+    };
+  } catch {
+    return { ...DEFAULT_WEEKEND_POLICY };
+  }
+}
+
+// Function definitions for AI tools (JSON Schema)
 export const aiFunctionDeclarations: FunctionDeclaration[] = [
   {
     name: "get_resource_forecast",
@@ -380,6 +418,45 @@ export const aiFunctionDeclarations: FunctionDeclaration[] = [
         }
       }
     }
+  },
+  {
+    name: "remove_show_allocations",
+    description: "PROPOSED WRITE ACTION: Remove (delete) allocations for an entire show across ALL employees (all shots). Uses Award Sheet shots when available. Optionally restrict to a date range. Intended to be executed only after user approval.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        showName: {
+          type: SchemaType.STRING,
+          description: "Show name (required)"
+        },
+        startDate: {
+          type: SchemaType.STRING,
+          description: "Start date in YYYY-MM-DD format (optional; if provided, defaults apply to missing endDate)"
+        },
+        endDate: {
+          type: SchemaType.STRING,
+          description: "End date in YYYY-MM-DD format (optional; if provided, defaults apply to missing startDate)"
+        }
+      },
+      required: ["showName"]
+    }
+  },
+  {
+    name: "set_weekend_working_policy",
+    description: "PROPOSED WRITE ACTION: Enable/disable Saturday/Sunday working globally. This affects how working days are counted (in addition to per-date working weekends). Intended to be executed only after user approval.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        saturdayWorking: {
+          type: SchemaType.BOOLEAN,
+          description: "If true, Saturdays are treated as working days globally"
+        },
+        sundayWorking: {
+          type: SchemaType.BOOLEAN,
+          description: "If true, Sundays are treated as working days globally"
+        }
+      }
+    }
   }
 ];
 
@@ -422,6 +499,12 @@ export async function executeAIFunction(functionName: string, args: any, userId:
 
       case "remove_all_allocations":
         return await removeAllAllocations(args, userId);
+
+      case "remove_show_allocations":
+        return await removeShowAllocations(args, userId);
+
+      case "set_weekend_working_policy":
+        return await setWeekendWorkingPolicy(args, userId);
       
       default:
         return { error: `Unknown function: ${functionName}` };
@@ -805,6 +888,206 @@ async function removeAllAllocations(args: any, userId: string) {
   };
 }
 
+async function removeShowAllocations(args: any, userId: string) {
+  const showName = typeof args?.showName === 'string' ? args.showName.trim() : '';
+  const startArg = typeof args?.startDate === 'string' ? args.startDate.trim() : '';
+  const endArg = typeof args?.endDate === 'string' ? args.endDate.trim() : '';
+
+  if (!showName) return { error: 'showName is required' };
+
+  const todayKey = formatDateKey(new Date());
+  const hasAnyRange = Boolean(startArg || endArg);
+  const startDate = hasAnyRange ? startArg || todayKey : '';
+  const endDate = hasAnyRange ? endArg || addDaysToDateKey(todayKey, 365) : '';
+
+  if (hasAnyRange) {
+    if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(startDate)) return { error: 'startDate must be YYYY-MM-DD' };
+    if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(endDate)) return { error: 'endDate must be YYYY-MM-DD' };
+    if (endDate < startDate) return { error: 'endDate must be >= startDate' };
+  }
+
+  // Try to use Award Sheet shots (requested behavior). If none exist, fall back to deleting by showName.
+  const awardRows = await prisma.awardSheet.findMany({
+    where: { showName: { equals: showName, mode: 'insensitive' } },
+    select: { shotName: true },
+  });
+
+  const awardShotsRaw = awardRows
+    .map((r) => (typeof r.shotName === 'string' ? r.shotName.trim() : ''))
+    .filter(Boolean);
+  const awardShotSetLower = new Set(awardShotsRaw.map((s) => s.toLowerCase()));
+  const hasAwardShots = awardShotSetLower.size > 0;
+
+  const showWhere: any = { showName: { equals: showName, mode: 'insensitive' } };
+
+  if (!hasAnyRange) {
+    if (!hasAwardShots) {
+      const deleted = await prisma.resourceAllocation.deleteMany({ where: showWhere });
+      return {
+        ok: true,
+        action: 'deleted_show',
+        deletedCount: deleted.count,
+        showName,
+        usedAwardSheet: false,
+        awardShotCount: 0,
+      };
+    }
+
+    // Best-effort: fast delete by exact shot names from award sheet.
+    const deletedFast = await prisma.resourceAllocation.deleteMany({
+      where: {
+        ...showWhere,
+        shotName: { in: Array.from(new Set(awardShotsRaw)) },
+      },
+    });
+
+    if (deletedFast.count > 0) {
+      return {
+        ok: true,
+        action: 'deleted_show',
+        deletedCount: deletedFast.count,
+        showName,
+        usedAwardSheet: true,
+        awardShotCount: awardShotSetLower.size,
+      };
+    }
+
+    // Fallback: case-insensitive shot matching by selecting IDs.
+    const candidates = await prisma.resourceAllocation.findMany({
+      where: showWhere,
+      select: {
+        id: true,
+        allocationDate: true,
+        showName: true,
+        shotName: true,
+        manDays: true,
+        isLeave: true,
+        isIdle: true,
+      },
+      orderBy: { allocationDate: 'asc' },
+    });
+
+    const matches = candidates.filter((a) => awardShotSetLower.has((a.shotName || '').toLowerCase()));
+    if (matches.length === 0) {
+      return {
+        ok: true,
+        action: 'deleted_show',
+        deletedCount: 0,
+        showName,
+        usedAwardSheet: true,
+        awardShotCount: awardShotSetLower.size,
+      };
+    }
+
+    const ids = matches.map((m) => m.id);
+    const deleted = await prisma.resourceAllocation.deleteMany({ where: { id: { in: ids } } });
+    const sample = matches.slice(0, 25).map((m) => ({
+      date: formatDateKey(m.allocationDate),
+      showName: m.showName,
+      shotName: m.shotName,
+      manDays: m.manDays,
+      isLeave: m.isLeave,
+      isIdle: m.isIdle,
+    }));
+
+    return {
+      ok: true,
+      action: 'deleted_show',
+      deletedCount: deleted.count,
+      showName,
+      usedAwardSheet: true,
+      awardShotCount: awardShotSetLower.size,
+      sample,
+    };
+  }
+
+  // Date-ranged deletion: padded query + exact dateKey filtering.
+  const padded = getPaddedUtcRangeForDateKeys(startDate, endDate);
+  const candidates = await prisma.resourceAllocation.findMany({
+    where: {
+      ...showWhere,
+      allocationDate: padded,
+    },
+    orderBy: { allocationDate: 'asc' },
+  });
+
+  const matches = candidates
+    .map((a) => ({
+      id: a.id,
+      dateKey: formatDateKey(a.allocationDate),
+      showName: a.showName,
+      shotName: a.shotName,
+      manDays: a.manDays,
+      isLeave: a.isLeave,
+      isIdle: a.isIdle,
+    }))
+    .filter((a) => isDateKeyInRange(a.dateKey, startDate, endDate))
+    .filter((a) => (hasAwardShots ? awardShotSetLower.has((a.shotName || '').toLowerCase()) : true));
+
+  if (matches.length === 0) {
+    return {
+      ok: true,
+      action: 'deleted_show',
+      deletedCount: 0,
+      showName,
+      startDate,
+      endDate,
+      usedAwardSheet: hasAwardShots,
+      awardShotCount: awardShotSetLower.size,
+    };
+  }
+
+  const ids = matches.map((m) => m.id);
+  const deleted = await prisma.resourceAllocation.deleteMany({ where: { id: { in: ids } } });
+
+  const sample = matches.slice(0, 25).map((m) => ({
+    date: m.dateKey,
+    showName: m.showName,
+    shotName: m.shotName,
+    manDays: m.manDays,
+    isLeave: m.isLeave,
+    isIdle: m.isIdle,
+  }));
+
+  return {
+    ok: true,
+    action: 'deleted_show',
+    deletedCount: deleted.count,
+    showName,
+    startDate,
+    endDate,
+    usedAwardSheet: hasAwardShots,
+    awardShotCount: awardShotSetLower.size,
+    sample,
+  };
+}
+
+async function setWeekendWorkingPolicy(args: any, userId: string) {
+  const hasSat = typeof args?.saturdayWorking === 'boolean';
+  const hasSun = typeof args?.sundayWorking === 'boolean';
+  if (!hasSat && !hasSun) {
+    return { error: 'Provide at least one of saturdayWorking or sundayWorking (boolean)' };
+  }
+
+  const current = await getPersistedWeekendWorkingPolicy();
+  const next: WeekendWorkingPolicy = {
+    saturdayWorking: hasSat ? Boolean(args.saturdayWorking) : current.saturdayWorking,
+    sundayWorking: hasSun ? Boolean(args.sundayWorking) : current.sundayWorking,
+  };
+
+  await prisma.systemSettings.upsert({
+    where: { key: 'weekendWorkingPolicy' },
+    create: { key: 'weekendWorkingPolicy', value: JSON.stringify(next) },
+    update: { value: JSON.stringify(next) },
+  });
+
+  return {
+    ok: true,
+    action: 'weekend_policy_updated',
+    policy: next,
+  };
+}
+
 async function assignEmployeeToShotForWorkdays(args: any, userId: string) {
   const employeeId = typeof args?.employeeId === 'string' ? args.employeeId.trim() : '';
   const startDate = typeof args?.startDate === 'string' ? args.startDate.trim() : '';
@@ -837,6 +1120,7 @@ async function assignEmployeeToShotForWorkdays(args: any, userId: string) {
 
   // Working weekends are a set of YYYY-MM-DD keys.
   const workingWeekends = await getPersistedWorkingWeekends();
+  const weekendPolicy = await getPersistedWeekendWorkingPolicy();
 
   // Scan forward until we collect N working dates.
   const maxScanDays = Math.min(400, workDays * 3 + excludeSet.size + 30);
@@ -847,8 +1131,11 @@ async function assignEmployeeToShotForWorkdays(args: any, userId: string) {
   for (let i = 0; i <= maxScanDays && plannedDates.length < workDays; i++) {
     const dateKey = cursor;
     if (!excludeSet.has(dateKey)) {
-      const { isWeekend } = isSaturdayOrSundayInStudioTz(dateKey);
-      if (!isWeekend || workingWeekends.has(dateKey)) {
+      const weekendInfo = isSaturdayOrSundayInStudioTz(dateKey);
+      const policyAllowsWeekend =
+        (weekendInfo.isSaturday && weekendPolicy.saturdayWorking) ||
+        (weekendInfo.isSunday && weekendPolicy.sundayWorking);
+      if (!weekendInfo.isWeekend || policyAllowsWeekend || workingWeekends.has(dateKey)) {
         plannedDates.push(dateKey);
       }
     }
@@ -907,7 +1194,10 @@ async function assignEmployeeToShotForWorkdays(args: any, userId: string) {
     const results: any[] = [];
     for (const { dateKey, existingMatchId } of perDatePlan) {
       const weekendInfo = isSaturdayOrSundayInStudioTz(dateKey);
-      const isWeekendWorking = weekendInfo.isWeekend && workingWeekends.has(dateKey);
+      const policyAllowsWeekend =
+        (weekendInfo.isSaturday && weekendPolicy.saturdayWorking) ||
+        (weekendInfo.isSunday && weekendPolicy.sundayWorking);
+      const isWeekendWorking = weekendInfo.isWeekend && (policyAllowsWeekend || workingWeekends.has(dateKey));
       const allocationDate = utcMidnight(dateKey);
 
       if (existingMatchId) {

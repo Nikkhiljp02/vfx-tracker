@@ -555,9 +555,11 @@ function CompletionTrendWidget({ title }: { title: string }) {
           />
           <Tooltip 
             contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-            formatter={(value: number, name: string) => {
-              if (name === 'percentage') return [`${value}%`, 'Completion'];
-              return [value, name];
+            formatter={(value: number | undefined, name: string | undefined) => {
+              const safeValue = value ?? 0;
+              const safeName = name ?? 'value';
+              if (safeName === 'percentage') return [`${safeValue}%`, 'Completion'];
+              return [safeValue, safeName];
             }}
           />
           <Legend />

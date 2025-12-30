@@ -13,8 +13,8 @@ export async function GET(request: NextRequest) {
 
     const user = session.user as any;
     
-    // Only ADMIN and RESOURCE roles can access
-    if (user.role !== 'ADMIN' && user.role !== 'RESOURCE') {
+    // Only ADMIN, COORDINATOR and RESOURCE roles can access
+    if (user.role !== 'ADMIN' && user.role !== 'COORDINATOR' && user.role !== 'RESOURCE') {
       return NextResponse.json({ error: 'Forbidden - Resource access required' }, { status: 403 });
     }
 
@@ -69,8 +69,8 @@ export async function POST(request: NextRequest) {
 
     const user = session.user as any;
     
-    // Only ADMIN and RESOURCE roles can create
-    if (user.role !== 'ADMIN' && user.role !== 'RESOURCE') {
+    // Only ADMIN, COORDINATOR and RESOURCE roles can create
+    if (user.role !== 'ADMIN' && user.role !== 'COORDINATOR' && user.role !== 'RESOURCE') {
       return NextResponse.json({ error: 'Forbidden - Resource access required' }, { status: 403 });
     }
 

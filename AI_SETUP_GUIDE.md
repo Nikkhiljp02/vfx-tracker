@@ -2,7 +2,7 @@
 
 ## 🚀 Overview
 
-Your VFX Tracker now has an AI Resource Manager that can use multiple providers (OpenAI, Google Gemini, Groq). The AI can answer questions about resource allocation, availability, utilization, and more - all without modifying any data.
+Your VFX Tracker now has an AI Resource Manager powered by OpenAI. The AI can answer questions about resource allocation, availability, utilization, and more. If the AI proposes a change, it will require explicit approval before anything is modified.
 
 ## ✅ What's Been Implemented
 
@@ -14,7 +14,7 @@ Your VFX Tracker now has an AI Resource Manager that can use multiple providers 
   - Real-time responses
   - Smart typing indicators
 
-### 2. AI Capabilities (Read-Only)
+### 2. AI Capabilities
 
 The AI can help with:
 
@@ -50,13 +50,7 @@ The AI can help with:
 
 ### 3. AI Functions
 
-6 read-only functions have been implemented:
-1. `get_resource_forecast` - Get allocations for date ranges
-2. `get_available_resources` - Find available employees
-3. `get_overallocated_resources` - Find scheduling conflicts
-4. `get_show_allocations` - Get show-specific data
-5. `get_employee_schedule` - Get employee details
-6. `get_department_utilization` - Department analytics
+The AI uses tool functions to read schedule data and (when approved) perform write operations like assignments and deletions.
 
 ## 🔧 Setup Instructions
 
@@ -76,49 +70,25 @@ OPENAI_MODEL="gpt-4o-mini"
 
 **Note**: OpenAI API usage is billed; there is not typically a permanently-free API tier.
 
-### Step 2: Get Google Gemini API Key (Optional)
-
-1. Go to: https://aistudio.google.com/app/apikey
-2. Sign in with your Google account
-3. Click "Create API Key"
-4. Copy your API key
-
-**Note**: Gemini quotas vary by project/key. If you see errors like “quota limit: 0”, Gemini won’t work until quota/billing is enabled for that key/project.
-
-### Step 3: Get Groq API Key (Optional - Fallback)
-
-1. Go to: https://console.groq.com/keys
-2. Sign up (free account)
-3. Create an API key
-4. Copy your key
-
-**Note**: FREE tier includes:
-- 30 requests per minute
-- Very fast inference
-- Good fallback for rate limits
-
-### Step 4: Add API Keys to Environment Variables
+### Step 2: Add OpenAI API Key to Environment Variables
 
 Open your `.env.local` file and add:
 
 ```env
 # AI Configuration
-OPENAI_API_KEY="your_openai_api_key_here"  # Recommended
+OPENAI_API_KEY="your_openai_api_key_here"
 OPENAI_MODEL="gpt-4o-mini"  # Optional
-
-GOOGLE_AI_KEY="your_gemini_api_key_here"  # Optional
-GROQ_API_KEY="your_groq_api_key_here"  # Optional
 ```
 
-**Important**: At minimum, you need one provider key. For best reliability, use `OPENAI_API_KEY`.
+**Important**: `OPENAI_API_KEY` is required.
 
-### Step 5: Restart Development Server
+### Step 3: Restart Development Server
 
 ```bash
 npm run dev
 ```
 
-### Step 6: Test the AI
+### Step 4: Test the AI
 
 1. Navigate to Resource Forecast view
 2. Click the "🤖 AI Assistant" button (gradient purple button in toolbar)
@@ -152,68 +122,39 @@ Show me all overallocated resources and their conflicting allocations
 
 - **ADMIN** and **RESOURCE** roles can use AI chat
 - **VIEWER** role cannot access AI chat
-- AI can only READ data (no modifications)
+- Any write operations require explicit user approval
 - All data access respects user permissions
 - Function calls are logged for audit
 
-## 💰 Cost Analysis
+## 💰 Cost Notes
 
-### With FREE Tiers Only:
-
-**Scenario: 20 users, 10 queries/day each = 200 queries/day**
-
-- **Gemini 1.5 Flash**: FREE (15 RPM = 900/hour)
-- **Groq (fallback)**: FREE (30 RPM = 1,800/hour)
-- **Total capacity**: 2,700 queries/hour for $0/month
-
-**You're covered for:**
-- Small to medium VFX studios
-- Multiple users throughout the day
-- Peak usage periods
+OpenAI usage is billed; costs depend on your model and usage volume.
 
 ## 🔍 Troubleshooting
 
 ### "No AI provider configured" error
-- Make sure `GOOGLE_AI_KEY` is set in `.env.local`
+- Make sure `OPENAI_API_KEY` is set in `.env.local`
 - Restart your dev server after adding keys
 
 ### "Failed to process message" error
 - Check if API key is valid
-- Verify you haven't exceeded rate limits (unlikely with free tier)
+- Verify you haven't exceeded rate limits
 - Check network connectivity
 
 ### AI gives generic responses or errors
-- If Gemini is configured but has quota/rate-limit errors, the app will fall back to Groq/OpenAI if configured.
-- If Groq returns “Request too large” or token/rate limits, try shorter questions or smaller date ranges.
-- For the most reliable experience, configure `OPENAI_API_KEY`.
-
-### "Live data access temporarily unavailable"
-- This message appears when using Groq fallback
-- Gemini will be available again after rate limit resets (1 minute)
+- Check if the OpenAI API key is valid
+- Try shorter questions or smaller date ranges
 
 ## 📈 Scaling Options
 
-If you need more capacity in the future:
+- Use a smaller/faster OpenAI model where acceptable.
+- Add caching for common queries.
 
-### Gemini Pro (Paid)
-- $0.075 per 1M tokens
-- Higher rate limits
-- Same quality
-- Still very cheap!
-
-### Add More Providers
-- Easy to add OpenAI, Claude, etc.
-- Existing code supports multiple providers
-- Round-robin between providers
-
-## 🎯 Future Enhancements (Not Implemented Yet)
+## 🎯 Future Enhancements
 
 These could be added later:
 
-❌ **Write Operations** (requires user confirmation)
-- "Add John to Shot 123 tomorrow"
-- "Shift Shot ABC by 2 days"
-- "Mark Sarah as on leave next week"
+❌ **More Write Operations** (still require user confirmation)
 
 ❌ **Export Capabilities**
 - "Export this week's allocations to Excel"
@@ -244,5 +185,5 @@ Just ask!
 Your AI Resource Manager is ready to use. Just add your API keys and start chatting!
 
 **Total Setup Time**: ~5 minutes  
-**Total Cost**: $0/month (with free tiers)  
-**Capabilities**: 6 read-only functions, unlimited queries within rate limits
+**Total Cost**: Depends on OpenAI usage  
+**Capabilities**: Read insights + approval-gated write actions

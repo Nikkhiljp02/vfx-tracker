@@ -27,6 +27,8 @@ export default function RosterManagement() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkFile, setBulkFile] = useState<File | null>(null);
+  const [bulkUploading, setBulkUploading] = useState(false);
   const [selectedMember, setSelectedMember] = useState<RosterMember | null>(null);
   const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
   
@@ -205,6 +207,52 @@ export default function RosterManagement() {
     }
   };
 
+  const handleDownloadTemplate = () => {
+    window.location.href = '/api/resource/members/template';
+  };
+
+  const handleBulkImport = async () => {
+    if (!bulkFile) {
+      toast.error('Please select an Excel file');
+      return;
+    }
+
+    setBulkUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', bulkFile);
+
+      const response = await fetch('/api/resource/members/import', {
+        method: 'POST',
+        body: fd,
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        toast.error(data?.error || 'Import failed');
+        if (Array.isArray(data?.errors) && data.errors.length > 0) {
+          console.error('Import errors:', data.errors);
+        }
+        return;
+      }
+
+      toast.success(data?.message || 'Import completed');
+      if (Array.isArray(data?.errors) && data.errors.length > 0) {
+        toast.error(`Imported with ${data.errors.length} warning(s) (check console)`);
+        console.warn('Import warnings:', data.errors);
+      }
+
+      await fetchMembers();
+      setShowBulkModal(false);
+      setBulkFile(null);
+    } catch (error) {
+      console.error('Error importing members:', error);
+      toast.error('Import failed');
+    } finally {
+      setBulkUploading(false);
+    }
+  };
+
   const openEditModal = (member: RosterMember) => {
     setSelectedMember(member);
     setFormData({
@@ -286,6 +334,22 @@ export default function RosterManagement() {
                 Delete Selected ({selectedMembers.size})
               </button>
             )}
+            <button
+              onClick={handleDownloadTemplate}
+              className="px-4 py-2 bg-[#1a1a1a] hover:bg-[#2a2a2a] text-white rounded-lg flex items-center gap-2 transition-colors border border-[#2a2a2a]"
+              title="Download Excel template"
+            >
+              <Download size={16} />
+              Download Excel
+            </button>
+            <button
+              onClick={() => setShowBulkModal(true)}
+              className="px-4 py-2 bg-[#1a1a1a] hover:bg-[#2a2a2a] text-white rounded-lg flex items-center gap-2 transition-colors border border-[#2a2a2a]"
+              title="Upload Excel to add employees"
+            >
+              <Upload size={16} />
+              Upload Excel
+            </button>
             <button
               onClick={() => setShowAddModal(true)}
               className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg flex items-center gap-2 transition-colors"
@@ -671,6 +735,58 @@ export default function RosterManagement() {
                 className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded transition-colors"
               >
                 Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Import Modal */}
+      {showBulkModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => { setShowBulkModal(false); setBulkFile(null); }}>
+          <div className="bg-[#111111] rounded-lg border border-[#2a2a2a] max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-xl font-bold text-white mb-2">Import Employees (Excel)</h2>
+            <p className="text-sm text-gray-400 mb-4">
+              Download the template, fill the required columns, then upload the same file.
+            </p>
+
+            <div className="space-y-3">
+              <button
+                onClick={handleDownloadTemplate}
+                className="w-full px-4 py-2 bg-[#1a1a1a] hover:bg-[#2a2a2a] text-white rounded transition-colors border border-[#2a2a2a] flex items-center justify-center gap-2"
+              >
+                <Download size={16} />
+                Download Template
+              </button>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Upload Excel File (.xlsx)</label>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={(e) => setBulkFile(e.target.files?.[0] ?? null)}
+                  className="w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-cyan-600 file:text-white hover:file:bg-cyan-700"
+                />
+                {bulkFile && (
+                  <div className="text-xs text-gray-500 mt-1">Selected: {bulkFile.name}</div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => { setShowBulkModal(false); setBulkFile(null); }}
+                className="px-4 py-2 bg-[#1a1a1a] hover:bg-[#2a2a2a] text-white rounded transition-colors"
+                disabled={bulkUploading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkImport}
+                className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded transition-colors disabled:opacity-50"
+                disabled={bulkUploading || !bulkFile}
+              >
+                {bulkUploading ? 'Uploading…' : 'Upload & Import'}
               </button>
             </div>
           </div>

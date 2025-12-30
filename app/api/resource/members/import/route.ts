@@ -3,6 +3,19 @@ import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 import * as XLSX from 'xlsx';
 
+function parseBooleanLike(value: unknown): boolean | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const v = value.trim().toLowerCase();
+    if (v === '') return null;
+    if (['true', 't', 'yes', 'y', '1', 'active'].includes(v)) return true;
+    if (['false', 'f', 'no', 'n', '0', 'inactive'].includes(v)) return false;
+  }
+  return null;
+}
+
 // POST import resource members from Excel
 export async function POST(request: NextRequest) {
   try {
@@ -14,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     const user = session.user as any;
     
-    if (user.role !== 'ADMIN' && user.role !== 'RESOURCE') {
+    if (user.role !== 'ADMIN' && user.role !== 'COORDINATOR' && user.role !== 'RESOURCE') {
       return NextResponse.json({ error: 'Forbidden - Resource access required' }, { status: 403 });
     }
 
@@ -60,6 +73,10 @@ export async function POST(request: NextRequest) {
       // Optional fields
       const reportingTo = row['Reporting To'] || row['reportingTo'] || row['Manager'] || null;
       const shift = row['Shift'] || row['shift'] || 'Day';
+      const employeeType = row['Employee Type'] || row['employeeType'] || row['Type'] || 'Artist';
+      const activeRaw = row['Active'] ?? row['active'] ?? row['Is Active'] ?? row['isActive'];
+      const parsedActive = parseBooleanLike(activeRaw);
+      const isActive = parsedActive ?? true;
 
       members.push({
         empId: String(empId).trim(),
@@ -68,6 +85,8 @@ export async function POST(request: NextRequest) {
         reportingTo: reportingTo ? String(reportingTo).trim() : null,
         department: String(department).trim(),
         shift: String(shift).trim(),
+        employeeType: String(employeeType).trim(),
+        isActive,
       });
     }
 
@@ -135,11 +154,12 @@ export async function POST(request: NextRequest) {
           reportingTo: member.reportingTo,
           department: member.department,
           shift: member.shift,
-          isActive: true, // Ensure member is active
+          employeeType: member.employeeType,
+          isActive: member.isActive,
         }
       });
       updated++;
-      if (!existing.isActive) {
+      if (!existing.isActive && member.isActive) {
         reactivated++;
       }
     }

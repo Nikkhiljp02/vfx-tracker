@@ -1,18 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import Groq from 'groq-sdk';
 import OpenAI from 'openai';
 import { auth } from '@/lib/auth';
 import { aiFunctionDeclarations, executeAIFunction } from '@/lib/ai/functions';
-
-type GeminiModelListItem = {
-  name?: string;
-  supportedGenerationMethods?: string[];
-};
-
-type GeminiModelListResponse = {
-  models?: GeminiModelListItem[];
-};
 
 type ChatMessage = {
   role: 'user' | 'assistant';
@@ -36,6 +25,8 @@ const WRITE_TOOL_NAMES = new Set<string>([
   'remove_employee_allocations',
   'remove_shot_allocations',
   'remove_all_allocations',
+  'remove_show_allocations',
+  'set_weekend_working_policy',
 ]);
 
 function formatPendingActionSummary(tool: string, args: any): string {
@@ -84,11 +75,25 @@ function formatPendingActionSummary(tool: string, args: any): string {
     return `Remove allocations for shot ${shotName}${showName ? ` (show=${showName})` : ''}${range}`;
   }
 
+  if (tool === 'remove_show_allocations') {
+    const showName = typeof args?.showName === 'string' ? args.showName : '';
+    const startDate = typeof args?.startDate === 'string' ? args.startDate : '';
+    const endDate = typeof args?.endDate === 'string' ? args.endDate : '';
+    const range = startDate || endDate ? ` from ${startDate || 'today'} to ${endDate || 'today+365'}` : ' (all dates)';
+    return `Remove allocations for ALL shots in show ${showName}${range}`;
+  }
+
   if (tool === 'remove_all_allocations') {
     const startDate = typeof args?.startDate === 'string' ? args.startDate : '';
     const endDate = typeof args?.endDate === 'string' ? args.endDate : '';
     const range = startDate || endDate ? ` from ${startDate || 'today'} to ${endDate || 'today+365'}` : ' (all dates)';
     return `Remove ALL allocations for ALL employees${range}`;
+  }
+
+  if (tool === 'set_weekend_working_policy') {
+    const sat = typeof args?.saturdayWorking === 'boolean' ? (args.saturdayWorking ? 'ON' : 'OFF') : 'unchanged';
+    const sun = typeof args?.sundayWorking === 'boolean' ? (args.sundayWorking ? 'ON' : 'OFF') : 'unchanged';
+    return `Set weekend working policy (Saturday=${sat}, Sunday=${sun})`;
   }
 
   return `${tool}`;
@@ -103,22 +108,32 @@ function normalizeWriteToolCall(tool: string, args: any): { tool: string; args: 
     const shotName = typeof args?.shotName === 'string' ? args.shotName.trim() : '';
     const showName = typeof args?.showName === 'string' ? args.showName.trim() : '';
 
-    if (!employeeId && (shotName || showName)) {
-      const guessedShot = shotName || showName;
-      return {
-        tool: 'remove_shot_allocations',
-        args: {
-          shotName: guessedShot,
-          // only keep showName if we weren't forced to borrow it as shotName
-          showName: shotName ? showName || undefined : undefined,
-          startDate: args?.startDate,
-          endDate: args?.endDate,
-        },
-      };
-    }
+    // No employeeId means the user likely wants a broader delete.
+    // Prefer: shot-wide delete if we have a shot hint; else show-wide delete if we have a show hint; else global.
+    if (!employeeId) {
+      if (shotName) {
+        return {
+          tool: 'remove_shot_allocations',
+          args: {
+            shotName,
+            showName: showName || undefined,
+            startDate: args?.startDate,
+            endDate: args?.endDate,
+          },
+        };
+      }
 
-    // If there's no employeeId and no shot/show hint, interpret it as a global delete.
-    if (!employeeId && !shotName && !showName) {
+      if (showName) {
+        return {
+          tool: 'remove_show_allocations',
+          args: {
+            showName,
+            startDate: args?.startDate,
+            endDate: args?.endDate,
+          },
+        };
+      }
+
       return {
         tool: 'remove_all_allocations',
         args: {
@@ -191,171 +206,17 @@ function getErrorStatus(err: unknown): number | null {
 }
 
 function extractRetryAfterSeconds(err: unknown): number | null {
-  // Try common shapes from GoogleGenerativeAIError
   const anyErr = err as any;
-  const details = anyErr?.errorDetails;
-  if (Array.isArray(details)) {
-    const retryInfo = details.find((d) => d?.['@type']?.includes('RetryInfo') && typeof d?.retryDelay === 'string');
-    const delay = retryInfo?.retryDelay as string | undefined;
-    const match = delay?.match(/^(\d+)s$/);
-    if (match) return Number(match[1]);
-  }
-
   const message = typeof anyErr?.message === 'string' ? anyErr.message : '';
-  const msgMatch = message.match(/retryDelay"\s*:\s*"(\d+)s"/i);
-  if (msgMatch) return Number(msgMatch[1]);
-
   const match = message.match(/retry in\s+(\d+(?:\.\d+)?)s/i);
   if (match) return Math.ceil(Number(match[1]));
-
   return null;
 }
 
 // Initialize AI clients
-const genAI = process.env.GOOGLE_AI_KEY 
-  ? new GoogleGenerativeAI(process.env.GOOGLE_AI_KEY)
-  : null;
-
-const groq = process.env.GROQ_API_KEY
-  ? new Groq({ apiKey: process.env.GROQ_API_KEY })
-  : null;
-
 const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null;
-
-const GEMINI_MODEL_CACHE_TTL_MS = 30 * 60 * 1000;
-let geminiModelCache:
-  | { model: string; apiVersion: 'v1' | 'v1beta'; fetchedAt: number }
-  | null = null;
-
-const GROQ_MODEL_CACHE_TTL_MS = 30 * 60 * 1000;
-let groqModelCache:
-  | { model: string; fetchedAt: number }
-  | null = null;
-
-async function listGeminiModels(apiKey: string, apiVersion: 'v1' | 'v1beta'): Promise<GeminiModelListItem[]> {
-  const url = `https://generativelanguage.googleapis.com/${apiVersion}/models?key=${encodeURIComponent(apiKey)}`;
-  const res = await fetch(url, {
-    method: 'GET',
-    headers: { 'Content-Type': 'application/json' },
-    cache: 'no-store',
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    const err = new Error(`ListModels failed (${apiVersion}): ${res.status} ${res.statusText} ${text}`);
-    (err as any).status = res.status;
-    throw err;
-  }
-
-  const data = (await res.json().catch(() => ({}))) as GeminiModelListResponse;
-  return Array.isArray(data.models) ? data.models : [];
-}
-
-function pickPreferredGeminiModel(models: GeminiModelListItem[]): string | null {
-  const supported = models
-    .map((m) => (typeof m.name === 'string' ? m.name : ''))
-    .filter(Boolean)
-    .filter((name) => name.startsWith('models/'));
-
-  const shortNames = supported.map((name) => name.replace(/^models\//, ''));
-
-  const preferences: RegExp[] = [
-    /^gemini-2\.0-flash$/i,
-    /^gemini-2\.0-flash-?lite$/i,
-    /^gemini-2\.0-flash/i,
-    /^gemini-1\.5-flash/i,
-    /^gemini-1\.5-pro/i,
-    /^gemini/i,
-  ];
-
-  for (const pref of preferences) {
-    const found = shortNames.find((n) => pref.test(n));
-    if (found) return found;
-  }
-
-  return shortNames[0] ?? null;
-}
-
-async function resolveGeminiModelName(): Promise<{ model: string; apiVersion: 'v1' | 'v1beta' }> {
-  const apiKey = process.env.GOOGLE_AI_KEY;
-  if (!apiKey) throw new Error('Gemini not configured');
-
-  if (geminiModelCache && Date.now() - geminiModelCache.fetchedAt < GEMINI_MODEL_CACHE_TTL_MS) {
-    return { model: geminiModelCache.model, apiVersion: geminiModelCache.apiVersion };
-  }
-
-  const versions: Array<'v1' | 'v1beta'> = ['v1', 'v1beta'];
-  let lastError: unknown = null;
-
-  for (const apiVersion of versions) {
-    try {
-      const models = await listGeminiModels(apiKey, apiVersion);
-      const picked = pickPreferredGeminiModel(models);
-      if (!picked) continue;
-
-      geminiModelCache = { model: picked, apiVersion, fetchedAt: Date.now() };
-      console.log(`[AI] Gemini model auto-selected: ${picked} (${apiVersion})`);
-      return { model: picked, apiVersion };
-    } catch (err) {
-      lastError = err;
-    }
-  }
-
-  throw lastError instanceof Error ? lastError : new Error('Unable to resolve Gemini model');
-}
-
-async function resolveGroqChatModelName(): Promise<string> {
-  if (!groq) throw new Error('Groq not configured');
-
-  if (groqModelCache && Date.now() - groqModelCache.fetchedAt < GROQ_MODEL_CACHE_TTL_MS) {
-    return groqModelCache.model;
-  }
-
-  const list = await groq.models.list();
-  const ids = Array.isArray((list as any)?.data)
-    ? ((list as any).data as Array<{ id: string }>).map((m) => m.id).filter(Boolean)
-    : [];
-
-  // Prefer models known to be chat-capable and typically tool-capable.
-  // Keep this flexible because Groq decommissions/renames models.
-  const preferences: RegExp[] = [
-    /^gpt-oss-20b$/i,
-    /^llama-3\.[0-9]+-70b/i,
-    /^llama-3\.[0-9]+-8b/i,
-    /^llama-3\.[0-9]+/i,
-    /^mixtral/i,
-    /^gemma/i,
-  ];
-
-  for (const pref of preferences) {
-    const found = ids.find((id) => pref.test(id));
-    if (found) {
-      groqModelCache = { model: found, fetchedAt: Date.now() };
-      console.log(`[AI] Groq model auto-selected: ${found}`);
-      return found;
-    }
-  }
-
-  const fallback = ids[0];
-  if (!fallback) throw new Error('No Groq models available');
-  groqModelCache = { model: fallback, fetchedAt: Date.now() };
-  console.log(`[AI] Groq model auto-selected (fallback): ${fallback}`);
-  return fallback;
-}
-
-function isGroqModelInvalidError(err: unknown): boolean {
-  const anyErr = err as any;
-  const status = getErrorStatus(anyErr);
-  const msg = typeof anyErr?.message === 'string' ? anyErr.message : '';
-  const bodyMsg = typeof anyErr?.error?.message === 'string' ? anyErr.error.message : '';
-  return (
-    status === 400 &&
-    (msg.includes('model') || bodyMsg.includes('model')) &&
-    (msg.includes('decommissioned') || bodyMsg.includes('decommissioned') || msg.includes('no longer supported') || bodyMsg.includes('no longer supported'))
-  );
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -378,131 +239,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
 
-    // Check if any AI provider is configured
-    if (!genAI && !groq && !openai) {
-      return NextResponse.json({ 
-        error: 'AI not configured. Please set OPENAI_API_KEY or GROQ_API_KEY (or GOOGLE_AI_KEY) in your environment variables. See AI_SETUP_GUIDE.md for instructions.',
-        setup_required: true
-      }, { status: 503 });
+    // OpenAI-only
+    if (!openai) {
+      return NextResponse.json(
+        {
+          error: 'AI not configured. Please set OPENAI_API_KEY in your environment variables. See AI_SETUP_GUIDE.md for instructions.',
+          setup_required: true,
+        },
+        { status: 503 }
+      );
     }
 
     const normalizedHistory = normalizeConversationHistory(conversationHistory);
 
-    // Preferred: OpenAI (most reliable). Then Gemini (if quota allows). Then Groq.
-    if (openai) {
-      try {
-        const response = await processWithOpenAI(message, normalizedHistory, user.id);
-        return NextResponse.json({
-          message: response.text,
-          provider: 'openai',
-          pendingActions: response.pendingActions,
-        });
-      } catch (error: any) {
-        console.error('OpenAI error:', error);
-
-        // fallback chain
-        if (genAI) {
-          try {
-            const response = await processWithGemini(message, normalizedHistory, user.id);
-            return NextResponse.json({ message: response.text, provider: 'gemini', pendingActions: response.pendingActions });
-          } catch (gemErr) {
-            console.error('Gemini error (after OpenAI):', gemErr);
-          }
-        }
-
-        if (groq) {
-          try {
-            const response = await processWithGroq(message, normalizedHistory, user.id);
-            return NextResponse.json({ message: response.text, provider: 'groq', pendingActions: response.pendingActions });
-          } catch (groqErr) {
-            console.error('Groq error (after OpenAI):', groqErr);
-          }
-        }
-
-        const status = getErrorStatus(error) ?? 500;
-        return NextResponse.json(
-          { error: 'OpenAI failed to process the request.' },
-          { status: status >= 400 && status < 600 ? status : 500 }
-        );
-      }
-    }
-
-    // Try Gemini first (free tier)
-    if (genAI) {
-      try {
-        const response = await processWithGemini(message, normalizedHistory, user.id);
-        return NextResponse.json({ 
-          message: response.text,
-          provider: 'gemini',
-          pendingActions: response.pendingActions,
-        });
-      } catch (error: any) {
-        console.error('Gemini error:', error);
-
-        // If Groq is available, fallback for better uptime
-        if (groq) {
-          console.log('Falling back to Groq after Gemini error');
-          try {
-            const response = await processWithGroq(message, normalizedHistory, user.id);
-            return NextResponse.json({
-              message: response.text,
-              provider: 'groq',
-              pendingActions: response.pendingActions,
-            });
-          } catch (groqErr) {
-            console.error('Groq error:', groqErr);
-            return NextResponse.json(
-              {
-                error:
-                  'Both Gemini and Groq failed. Groq may have a decommissioned model configured or the API key may be invalid.',
-              },
-              { status: 502 }
-            );
-          }
-        }
-
-        // No fallback available: return a useful status/message instead of generic 500
-        const status = getErrorStatus(error) ?? 500;
-        const retryAfterSeconds = extractRetryAfterSeconds(error);
-
-        // Common case: Gemini quota/rate-limits (429)
-        if (status === 429) {
-          return NextResponse.json(
-            {
-              error:
-                'Gemini quota/rate limit exceeded for the current API key/project. Add GROQ_API_KEY for fallback, or enable Gemini API billing/quota for this key.',
-              provider: 'gemini',
-              retryAfterSeconds,
-            },
-            {
-              status: 429,
-              headers: retryAfterSeconds ? { 'Retry-After': String(retryAfterSeconds) } : undefined,
-            }
-          );
-        }
-
-        return NextResponse.json(
-          {
-            error: 'Gemini failed to process the request.',
-            provider: 'gemini',
-          },
-          { status: status >= 400 && status < 600 ? status : 500 }
-        );
-      }
-    } 
-    // If Gemini not configured, try Groq
-    else if (groq) {
-      const response = await processWithGroq(message, normalizedHistory, user.id);
-      return NextResponse.json({ 
+    try {
+      const response = await processWithOpenAI(message, normalizedHistory, user.id);
+      return NextResponse.json({
         message: response.text,
-        provider: 'groq',
+        provider: 'openai',
         pendingActions: response.pendingActions,
       });
+    } catch (error: any) {
+      console.error('OpenAI error:', error);
+      const status = getErrorStatus(error) ?? 500;
+      return NextResponse.json(
+        { error: 'OpenAI failed to process the request.' },
+        { status: status >= 400 && status < 600 ? status : 500 }
+      );
     }
-    
-    return NextResponse.json({ 
-      error: 'No AI provider configured. Please set OPENAI_API_KEY or GROQ_API_KEY or GOOGLE_AI_KEY' 
-    }, { status: 500 });
 
   } catch (error) {
     console.error('AI chat error:', error);
@@ -544,6 +308,8 @@ Important guidelines:
     - For unassign/removal requests, prefer proposing a single remove_employee_allocations action over setting man-days to 0.
   - If the user asks to remove allocations for a SHOT for ALL employees, propose remove_shot_allocations (do NOT ask for employeeId).
   - If the user asks to remove allocations for ALL SHOTS for ALL EMPLOYEES, propose remove_all_allocations (do NOT ask for employeeId).
+  - If the user asks to remove allocations for ALL shots in a SHOW (e.g., "clear all shots for show X"), propose remove_show_allocations.
+  - If the user asks to enable/disable Saturday working (or Sunday), propose set_weekend_working_policy.
 - Use tools to fetch real data when needed
 - Format dates as YYYY-MM-DD
 - Be concise and professional
@@ -554,6 +320,8 @@ Important guidelines:
     - If the user asks to assign a show/shot for N days (e.g., "10 days") and provides a start date and any exclusions (leave dates), prefer using assign_employee_to_shot_for_workdays so weekends are handled correctly.
     - If the user asks to remove allocations for a shot across all employees, prefer remove_shot_allocations.
     - If the user asks to remove ALL allocations across all employees (all shots), prefer remove_all_allocations.
+    - If the user asks to remove all allocations for a show (all shots in that show), prefer remove_show_allocations.
+    - If the user asks to enable/disable Saturday/Sunday working, prefer set_weekend_working_policy.
 
 Current date: ${new Date().toISOString().split('T')[0]}`,
     },
@@ -647,264 +415,4 @@ Current date: ${new Date().toISOString().split('T')[0]}`,
   }
 
   return { text: 'I gathered the requested data but could not finalize the response. Please try again with a narrower date range.' };
-}
-
-async function processWithGemini(message: string, history: ChatMessage[], userId: string): Promise<AIChatResult> {
-  if (!genAI) throw new Error('Gemini not configured');
-
-  const { model: resolvedModel } = await resolveGeminiModelName();
-
-  const model = genAI.getGenerativeModel({ 
-    model: resolvedModel,
-    tools: [{ functionDeclarations: aiFunctionDeclarations }],
-    systemInstruction: `You are an AI Resource Manager for a VFX production studio. You help manage resource allocations, schedules, and forecasts.
-
-Current capabilities:
-- View resource forecasts and allocations
-- Check employee availability and schedules
-- Analyze department utilization
-- Find overallocated resources
-- Get show and shot information
-
-Important guidelines:
-- Always use the provided functions to get real data
-- Format dates as YYYY-MM-DD
-- Be concise and professional
-- When showing data, use clear formatting with bullet points or tables
-- If you need more specific information, ask the user
-- You may propose allocation changes, but you MUST NOT execute write actions without explicit user approval.
-- When the user asks to assign/modify allocations, respond with the exact proposed action(s) and ask the user to approve.
-- For unassign/removal requests, prefer proposing a single remove_employee_allocations action over setting man-days to 0.
-- If the user asks to remove allocations for a SHOT for ALL employees, propose remove_shot_allocations (do NOT ask for employeeId).
-- If the user asks to remove allocations for ALL SHOTS for ALL EMPLOYEES, propose remove_all_allocations (do NOT ask for employeeId).
-- For multi-day assignment requests, prefer proposing a single assign_employee_to_shot_for_workdays action over listing many per-day assignments.
-
-Current date: ${new Date().toISOString().split('T')[0]}
-
-If a user asks for “today/this week/this month”, ask for an explicit date range before calling functions.`
-  });
-
-  // Convert history to Gemini format, but skip if it starts with assistant message
-  let geminiHistory: any[] = [];
-  
-  // Only use history if it starts with a user message
-  if (history.length > 0 && history[0].role === 'user') {
-    geminiHistory = history.map((msg) => ({
-      role: msg.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: msg.content }]
-    }));
-  }
-
-  const chat = model.startChat({ history: geminiHistory });
-
-  // First turn: user message
-  let result = await chat.sendMessage(message);
-
-  // Function-calling loop (read-only). Cap to prevent infinite cycles.
-  for (let step = 0; step < 6; step++) {
-    const calls = result.response.functionCalls?.();
-    if (!calls || calls.length === 0) {
-      break;
-    }
-
-    const writeCalls = calls.filter((c: any) => typeof c?.name === 'string' && WRITE_TOOL_NAMES.has(c.name));
-    if (writeCalls.length > 0) {
-      const pendingActions: PendingAction[] = writeCalls
-        .map((c: any) => {
-          const normalized = normalizeWriteToolCall(c.name, c.args ?? {});
-          if (!WRITE_TOOL_NAMES.has(normalized.tool)) return null;
-          return {
-            tool: normalized.tool,
-            args: normalized.args,
-            summary: formatPendingActionSummary(normalized.tool, normalized.args),
-          };
-        })
-        .filter(Boolean) as PendingAction[];
-
-      const text =
-        `I can do that. Please review and approve the following action(s):\n` +
-        pendingActions.map((a) => `- ${a.summary}`).join('\n');
-
-      return { text, pendingActions };
-    }
-
-    const functionResponseParts = [] as Array<{ functionResponse: { name: string; response: object } }>;
-
-    for (const call of calls) {
-      const functionName = call.name;
-      const args = call.args ?? {};
-      const response = await executeAIFunction(functionName, args, userId);
-      functionResponseParts.push({
-        functionResponse: {
-          name: functionName,
-          response: response ?? { error: 'No response' },
-        },
-      });
-    }
-
-    // Send all function responses in one function-role message
-    result = await chat.sendMessage(functionResponseParts);
-  }
-
-  return { text: result.response.text() };
-}
-
-async function processWithGroq(message: string, history: ChatMessage[], userId: string): Promise<AIChatResult> {
-  if (!groq) throw new Error('Groq not configured');
-
-  // Groq uses an OpenAI-compatible API and supports tool calling on many models.
-  // We'll enable tool calling so fallback can still answer with live DB data.
-  const messages: Array<any> = [
-    {
-      role: 'system' as const,
-      content: `You are an AI Resource Manager for a VFX production studio. You help manage resource allocations, schedules, and forecasts.
-
-Important guidelines:
-    - You may propose allocation changes, but you MUST NOT execute write actions without explicit user approval.
-    - When the user asks to assign/modify allocations, respond with the exact proposed action(s) and ask the user to approve.
-    - For unassign/removal requests, prefer proposing a single remove_employee_allocations action over setting man-days to 0.
-  - If the user asks to remove allocations for a SHOT for ALL employees, propose remove_shot_allocations (do NOT ask for employeeId).
-- Use tools to fetch real data when needed
-- Format dates as YYYY-MM-DD
-- Be concise and professional
-
-    Interpretation rules:
-    - If the user says "all allocations for employee X" without dates, treat it as a schedule request for the next 60 days starting today.
-    - If the user says "overall" or "all future", treat it as today through today+365 days unless they specify a tighter range.
-    - If the user asks to assign a show/shot for N days (e.g., "10 days") and provides a start date and any exclusions (leave dates), prefer using assign_employee_to_shot_for_workdays so weekends are handled correctly.
-    - If the user asks to remove allocations for a shot across all employees, prefer remove_shot_allocations.
-    - If the user asks to remove ALL allocations across all employees (all shots), prefer remove_all_allocations.
-
-Current date: ${new Date().toISOString().split('T')[0]}`
-    },
-    ...history.map((msg) => ({
-      role: msg.role as 'user' | 'assistant',
-      content: msg.content
-    })),
-    {
-      role: 'user' as const,
-      content: message
-    }
-  ];
-
-  const tools = aiFunctionDeclarations.map((fn) => ({
-    type: 'function',
-    function: {
-      name: fn.name,
-      description: fn.description,
-      // SchemaType enums serialize to strings ('object', 'string', ...), which is valid JSON Schema
-      parameters: fn.parameters as any,
-    },
-  }));
-
-  const preferred = await resolveGroqChatModelName();
-  const modelCandidates = [
-    preferred,
-    // A few reasonable fallbacks in case the preferred model is decommissioned.
-    'gpt-oss-20b',
-    'llama-3.3-70b-versatile',
-    'llama-3.1-8b-instant',
-  ].filter((v, idx, arr) => Boolean(v) && arr.indexOf(v) === idx);
-
-  // Tool-calling loop
-  let selectedModel = modelCandidates[0];
-  for (let step = 0; step < 6; step++) {
-    let completion: any;
-
-    // Try candidates (handles decommissioned model errors gracefully)
-    let lastErr: unknown = null;
-    for (const candidate of modelCandidates) {
-      try {
-        selectedModel = candidate;
-        completion = await groq.chat.completions.create({
-          messages,
-          model: candidate,
-          temperature: 0.2,
-          max_tokens: 1024,
-          tools: tools as any,
-          tool_choice: 'auto' as any,
-        } as any);
-        break;
-      } catch (err) {
-        lastErr = err;
-        if (isGroqModelInvalidError(err)) {
-          // bust cache so the next request re-lists
-          groqModelCache = null;
-          continue;
-        }
-        throw err;
-      }
-    }
-    if (!completion) {
-      throw lastErr instanceof Error ? lastErr : new Error('Groq request failed');
-    }
-
-    const msg = completion.choices?.[0]?.message as any;
-    if (!msg) return { text: 'No response generated' };
-
-    const toolCalls = msg.tool_calls as any[] | undefined;
-    if (!toolCalls || toolCalls.length === 0) {
-      return { text: msg.content || 'No response generated' };
-    }
-
-    messages.push({
-      role: 'assistant',
-      content: msg.content ?? '',
-      tool_calls: toolCalls,
-    });
-
-    for (const call of toolCalls) {
-      const toolCallId = call.id;
-      const functionName = call.function?.name;
-      const rawArgs = call.function?.arguments;
-
-      let args: any = {};
-      try {
-        args = rawArgs ? JSON.parse(rawArgs) : {};
-      } catch {
-        args = {};
-      }
-
-      if (typeof functionName === 'string' && WRITE_TOOL_NAMES.has(functionName)) {
-        const pendingActions: PendingAction[] = toolCalls
-          .map((c) => {
-            const fn = c.function?.name;
-            if (typeof fn !== 'string' || !WRITE_TOOL_NAMES.has(fn)) return null;
-            let parsed: any = {};
-            try {
-              parsed = c.function?.arguments ? JSON.parse(c.function.arguments) : {};
-            } catch {
-              parsed = {};
-            }
-
-            const normalized = normalizeWriteToolCall(fn, parsed);
-            if (!WRITE_TOOL_NAMES.has(normalized.tool)) return null;
-
-            return {
-              tool: normalized.tool,
-              args: normalized.args,
-              summary: formatPendingActionSummary(normalized.tool, normalized.args),
-            };
-          })
-          .filter(Boolean) as PendingAction[];
-
-        const text =
-          (msg.content?.trim() ? msg.content.trim() + '\n\n' : '') +
-          `I can do that. Please review and approve the following action(s):\n` +
-          pendingActions.map((a) => `- ${a.summary}`).join('\n');
-
-        return { text, pendingActions };
-      }
-
-      const result = await executeAIFunction(functionName, args, userId);
-      messages.push({
-        role: 'tool',
-        tool_call_id: toolCallId,
-        content: safeStringifyAndTruncate(result ?? { error: 'No response' }, MAX_TOOL_RESULT_CHARS),
-      });
-    }
-  }
-
-  // If the model keeps calling tools, return a safe fallback.
-  return { text: `I gathered the requested data using ${selectedModel}, but could not finalize the response. Please try again with a narrower date range.` };
 }
