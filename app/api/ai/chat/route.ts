@@ -30,7 +30,11 @@ type AIChatResult = {
   pendingActions?: PendingAction[];
 };
 
-const WRITE_TOOL_NAMES = new Set<string>(['assign_resource_allocation', 'remove_employee_allocations']);
+const WRITE_TOOL_NAMES = new Set<string>([
+  'assign_resource_allocation',
+  'assign_employee_to_shot_for_workdays',
+  'remove_employee_allocations',
+]);
 
 function formatPendingActionSummary(tool: string, args: any): string {
   if (tool === 'assign_resource_allocation') {
@@ -45,6 +49,18 @@ function formatPendingActionSummary(tool: string, args: any): string {
 
     const target = showName || shotName ? `${showName}${showName && shotName ? ' / ' : ''}${shotName}` : '(leave/idle)';
     return `Assign ${employeeId} on ${date}: ${target} for ${manDays} MD${flags ? ` (${flags})` : ''}`;
+  }
+
+  if (tool === 'assign_employee_to_shot_for_workdays') {
+    const employeeId = typeof args?.employeeId === 'string' ? args.employeeId : '';
+    const startDate = typeof args?.startDate === 'string' ? args.startDate : '';
+    const workDays = args?.workDays;
+    const showName = typeof args?.showName === 'string' ? args.showName : '';
+    const shotName = typeof args?.shotName === 'string' ? args.shotName : '';
+    const excludeDates = Array.isArray(args?.excludeDates) ? args.excludeDates : [];
+    const excludeText = excludeDates.length ? ` excluding ${excludeDates.join(', ')}` : '';
+    const md = args?.manDays ?? 1;
+    return `Assign ${employeeId} to ${showName} / ${shotName} for ${workDays} working days from ${startDate}${excludeText} (${md} MD/day; weekends skipped unless marked working)`;
   }
 
   if (tool === 'remove_employee_allocations') {
@@ -461,6 +477,7 @@ Important guidelines:
     Interpretation rules:
     - If the user says "all allocations for employee X" without dates, treat it as a schedule request for the next 60 days starting today.
     - If the user says "overall" or "all future", treat it as today through today+365 days unless they specify a tighter range.
+    - If the user asks to assign a show/shot for N days (e.g., "10 days") and provides a start date and any exclusions (leave dates), prefer using assign_employee_to_shot_for_workdays so weekends are handled correctly.
 
 Current date: ${new Date().toISOString().split('T')[0]}`,
     },
@@ -578,6 +595,7 @@ Important guidelines:
 - You may propose allocation changes, but you MUST NOT execute write actions without explicit user approval.
 - When the user asks to assign/modify allocations, respond with the exact proposed action(s) and ask the user to approve.
 - For unassign/removal requests, prefer proposing a single remove_employee_allocations action over setting man-days to 0.
+- For multi-day assignment requests, prefer proposing a single assign_employee_to_shot_for_workdays action over listing many per-day assignments.
 
 Current date: ${new Date().toISOString().split('T')[0]}
 
@@ -664,6 +682,7 @@ Important guidelines:
     Interpretation rules:
     - If the user says "all allocations for employee X" without dates, treat it as a schedule request for the next 60 days starting today.
     - If the user says "overall" or "all future", treat it as today through today+365 days unless they specify a tighter range.
+    - If the user asks to assign a show/shot for N days (e.g., "10 days") and provides a start date and any exclusions (leave dates), prefer using assign_employee_to_shot_for_workdays so weekends are handled correctly.
 
 Current date: ${new Date().toISOString().split('T')[0]}`
     },

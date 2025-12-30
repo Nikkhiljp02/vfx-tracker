@@ -49,6 +49,32 @@ function addDaysToDateKey(dateKey: string, days: number): string {
   return dt.toISOString().slice(0, 10);
 }
 
+function weekdayShortInStudioTz(dateKey: string): string {
+  // Use UTC noon to avoid date shifting across timezones
+  const dt = new Date(`${dateKey}T12:00:00.000Z`);
+  return new Intl.DateTimeFormat('en-US', { timeZone: STUDIO_TIMEZONE, weekday: 'short' }).format(dt);
+}
+
+function isSaturdayOrSundayInStudioTz(dateKey: string): { isWeekend: boolean; isSaturday: boolean; isSunday: boolean } {
+  const w = weekdayShortInStudioTz(dateKey).toLowerCase();
+  const isSaturday = w.startsWith('sat');
+  const isSunday = w.startsWith('sun');
+  return { isWeekend: isSaturday || isSunday, isSaturday, isSunday };
+}
+
+async function getPersistedWorkingWeekends(): Promise<Set<string>> {
+  const settings = await prisma.systemSettings.findFirst({ where: { key: 'workingWeekends' } });
+  if (!settings?.value) return new Set();
+  try {
+    const parsed = JSON.parse(settings.value);
+    if (!Array.isArray(parsed)) return new Set();
+    const keys = parsed.filter((v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) as string[];
+    return new Set(keys);
+  } catch {
+    return new Set();
+  }
+}
+
 // Function definitions for AI (Gemini format)
 export const aiFunctionDeclarations: FunctionDeclaration[] = [
   {
@@ -240,6 +266,49 @@ export const aiFunctionDeclarations: FunctionDeclaration[] = [
     }
   },
   {
+    name: "assign_employee_to_shot_for_workdays",
+    description: "PROPOSED WRITE ACTION: Assign an employee to a show/shot for N WORKING days starting from a date. Automatically skips Saturdays/Sundays unless those dates are marked as working weekends in the system, and also skips any excluded dates (e.g., leave). Intended to be executed only after user approval.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        employeeId: {
+          type: SchemaType.STRING,
+          description: "Employee ID (empId)"
+        },
+        startDate: {
+          type: SchemaType.STRING,
+          description: "Start date in YYYY-MM-DD format"
+        },
+        workDays: {
+          type: SchemaType.NUMBER,
+          description: "Number of working days to assign (e.g., 10). Weekends are skipped unless marked working."
+        },
+        showName: {
+          type: SchemaType.STRING,
+          description: "Show name"
+        },
+        shotName: {
+          type: SchemaType.STRING,
+          description: "Shot name"
+        },
+        manDays: {
+          type: SchemaType.NUMBER,
+          description: "Man-days per day (default 1.0)"
+        },
+        excludeDates: {
+          type: SchemaType.ARRAY,
+          items: { type: SchemaType.STRING },
+          description: "Dates to skip in YYYY-MM-DD format (e.g., leave days)"
+        },
+        notes: {
+          type: SchemaType.STRING,
+          description: "Optional notes"
+        }
+      },
+      required: ["employeeId", "startDate", "workDays", "showName", "shotName"]
+    }
+  },
+  {
     name: "remove_employee_allocations",
     description: "PROPOSED WRITE ACTION: Remove (delete) allocations for an employee over a date range. Intended to be executed only after user approval.",
     parameters: {
@@ -298,6 +367,9 @@ export async function executeAIFunction(functionName: string, args: any, userId:
 
       case "assign_resource_allocation":
         return await assignResourceAllocation(args, userId);
+
+      case "assign_employee_to_shot_for_workdays":
+        return await assignEmployeeToShotForWorkdays(args, userId);
 
       case "remove_employee_allocations":
         return await removeEmployeeAllocations(args, userId);
@@ -504,6 +576,157 @@ async function removeEmployeeAllocations(args: any, userId: string) {
     endDate,
     sample,
   };
+}
+
+async function assignEmployeeToShotForWorkdays(args: any, userId: string) {
+  const employeeId = typeof args?.employeeId === 'string' ? args.employeeId.trim() : '';
+  const startDate = typeof args?.startDate === 'string' ? args.startDate.trim() : '';
+  const showName = typeof args?.showName === 'string' ? args.showName.trim() : '';
+  const shotName = typeof args?.shotName === 'string' ? args.shotName.trim() : '';
+  const notes = typeof args?.notes === 'string' ? args.notes.trim() : null;
+
+  const workDaysRaw = typeof args?.workDays === 'number' ? args.workDays : Number(args?.workDays);
+  const workDays = Number.isFinite(workDaysRaw) ? Math.floor(workDaysRaw) : NaN;
+
+  const manDaysRaw = args?.manDays == null ? 1 : typeof args?.manDays === 'number' ? args.manDays : Number(args?.manDays);
+  const manDays = Number.isFinite(manDaysRaw) ? manDaysRaw : NaN;
+
+  const excludeDatesArr = Array.isArray(args?.excludeDates) ? (args.excludeDates as unknown[]) : [];
+  const excludeDates = excludeDatesArr
+    .filter((v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v))
+    .map((v) => String(v));
+  const excludeSet = new Set(excludeDates);
+
+  if (!employeeId) return { error: 'employeeId is required' };
+  if (!startDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return { error: 'startDate must be YYYY-MM-DD' };
+  if (!showName) return { error: 'showName is required' };
+  if (!shotName) return { error: 'shotName is required' };
+  if (!Number.isFinite(workDays) || workDays <= 0 || workDays > 366) return { error: 'workDays must be between 1 and 366' };
+  if (!Number.isFinite(manDays) || manDays <= 0 || manDays > 1) return { error: 'manDays must be > 0 and <= 1.0' };
+
+  const member = await prisma.resourceMember.findUnique({ where: { empId: employeeId } });
+  if (!member) return { error: `Employee not found for empId=${employeeId}` };
+  if (!member.isActive) return { error: `Employee ${employeeId} is not active` };
+
+  // Working weekends are a set of YYYY-MM-DD keys.
+  const workingWeekends = await getPersistedWorkingWeekends();
+
+  // Scan forward until we collect N working dates.
+  const maxScanDays = Math.min(400, workDays * 3 + excludeSet.size + 30);
+  const scanEnd = addDaysToDateKey(startDate, maxScanDays);
+
+  const plannedDates: string[] = [];
+  let cursor = startDate;
+  for (let i = 0; i <= maxScanDays && plannedDates.length < workDays; i++) {
+    const dateKey = cursor;
+    if (!excludeSet.has(dateKey)) {
+      const { isWeekend } = isSaturdayOrSundayInStudioTz(dateKey);
+      if (!isWeekend || workingWeekends.has(dateKey)) {
+        plannedDates.push(dateKey);
+      }
+    }
+    cursor = addDaysToDateKey(cursor, 1);
+  }
+
+  if (plannedDates.length < workDays) {
+    return {
+      error: `Could not find ${workDays} working days starting ${startDate} within ${maxScanDays} days.`,
+      plannedDates,
+      excludedDates: Array.from(excludeSet),
+    };
+  }
+
+  const endDate = plannedDates[plannedDates.length - 1];
+
+  // Preload existing allocations for employee across the planned range.
+  const padded = getPaddedUtcRangeForDateKeys(startDate, endDate);
+
+  // Run everything in a transaction: validate capacity and then apply.
+  return await prisma.$transaction(async (tx) => {
+    const existing = await tx.resourceAllocation.findMany({
+      where: { resourceId: member.id, allocationDate: padded },
+      orderBy: { allocationDate: 'asc' },
+    });
+
+    const byDate = new Map<string, typeof existing>();
+    for (const a of existing) {
+      const key = formatDateKey(a.allocationDate);
+      if (key < startDate || key > endDate) continue;
+      const arr = byDate.get(key) ?? [];
+      arr.push(a);
+      byDate.set(key, arr);
+    }
+
+    const conflicts: Array<{ date: string; currentTotal: number; requested: number }> = [];
+    const perDatePlan = plannedDates.map((dateKey) => {
+      const allocs = byDate.get(dateKey) ?? [];
+      const existingMatch = allocs.find((a) => !a.isLeave && !a.isIdle && a.showName === showName && a.shotName === shotName);
+      const currentTotal = allocs.reduce((sum, a) => sum + (typeof a.manDays === 'number' ? a.manDays : 0), 0);
+      const currentOther = existingMatch ? currentTotal - existingMatch.manDays : currentTotal;
+      if (currentOther + manDays > 1.00001) {
+        conflicts.push({ date: dateKey, currentTotal: currentOther, requested: manDays });
+      }
+      return { dateKey, existingMatchId: existingMatch?.id ?? null };
+    });
+
+    if (conflicts.length > 0) {
+      return {
+        error: `Cannot assign ${manDays} MD for all planned days because some days would exceed 1.0 MD.`,
+        conflicts,
+        plannedDates,
+      };
+    }
+
+    const results: any[] = [];
+    for (const { dateKey, existingMatchId } of perDatePlan) {
+      const weekendInfo = isSaturdayOrSundayInStudioTz(dateKey);
+      const isWeekendWorking = weekendInfo.isWeekend && workingWeekends.has(dateKey);
+      const allocationDate = utcMidnight(dateKey);
+
+      if (existingMatchId) {
+        const updated = await tx.resourceAllocation.update({
+          where: { id: existingMatchId },
+          data: {
+            manDays,
+            notes: notes ?? undefined,
+            isWeekendWorking,
+            createdBy: userId,
+          },
+        });
+        results.push({ ok: true, action: 'updated', allocationId: updated.id, date: dateKey, manDays: updated.manDays });
+      } else {
+        const created = await tx.resourceAllocation.create({
+          data: {
+            resourceId: member.id,
+            showName,
+            shotName,
+            allocationDate,
+            manDays,
+            isLeave: false,
+            isIdle: false,
+            isWeekendWorking,
+            notes,
+            createdBy: userId,
+          },
+        });
+        results.push({ ok: true, action: 'created', allocationId: created.id, date: dateKey, manDays: created.manDays });
+      }
+    }
+
+    return {
+      ok: true,
+      action: 'batch_assigned',
+      employeeId,
+      startDate,
+      endDate,
+      plannedDates,
+      showName,
+      shotName,
+      manDays,
+      skippedDates: Array.from(excludeSet),
+      results,
+    };
+  });
 }
 
 // Implementation functions

@@ -112,8 +112,20 @@ export default function ResourceDashboard() {
         console.error('Error parsing working weekends:', e);
       }
     }
-    
-    setWorkingWeekends(weekendWorkingDates);
+
+    (async () => {
+      try {
+        const res = await fetch('/api/resource/weekend-working', { cache: 'no-store' });
+        if (!res.ok) throw new Error('Failed to load weekend working');
+        const data = await res.json().catch(() => ({}));
+        const weekends = Array.isArray(data?.weekends) ? (data.weekends as string[]) : [];
+        weekends.forEach((dateKey: string) => weekendWorkingDates.add(dateKey));
+      } catch {
+        // ignore
+      } finally {
+        setWorkingWeekends(new Set(weekendWorkingDates));
+      }
+    })();
   }, [allocations, currentWeekStart]);
 
   const weekDays = useMemo(() => {

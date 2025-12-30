@@ -152,7 +152,25 @@ export default function AIResourceChat({ isOpen, onClose }: AIResourceChatProps)
               const tool = r?.tool || 'action';
               const res = r?.result;
               if (res?.ok) {
-                return `${idx + 1}. ${tool}: ${res.action} (${res.employeeId} ${res.date} ${res.showName || ''} ${res.shotName || ''} ${res.manDays} MD)`;
+                if (res.action === 'deleted') {
+                  const range = res.startDate && res.endDate ? `${res.startDate} → ${res.endDate}` : '';
+                  return `${idx + 1}. ${tool}: deleted ${res.deletedCount} allocation(s) ${range ? `(${range})` : ''}`;
+                }
+
+                if (res.action === 'batch_assigned') {
+                  const start = res.startDate || '';
+                  const end = res.endDate || '';
+                  const count = Array.isArray(res.plannedDates) ? res.plannedDates.length : '';
+                  return `${idx + 1}. ${tool}: assigned ${count} working day(s) (${start} → ${end})`;
+                }
+
+                // single-day assign
+                const emp = res.employeeId || '';
+                const date = res.date || '';
+                const show = res.showName || '';
+                const shot = res.shotName || '';
+                const md = typeof res.manDays === 'number' ? res.manDays : '';
+                return `${idx + 1}. ${tool}: ${res.action} (${emp} ${date} ${show} ${shot} ${md} MD)`;
               }
               return `${idx + 1}. ${tool}: ${res?.error || 'failed'}`;
             })

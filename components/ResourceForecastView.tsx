@@ -167,8 +167,21 @@ export default function ResourceForecastView() {
         console.error('Failed to parse stored working weekends:', e);
       }
     }
-    
-    setWorkingWeekends(weekendWorkingDates);
+
+    // Also load persisted working weekends (shared across users / used by AI)
+    (async () => {
+      try {
+        const res = await fetch('/api/resource/weekend-working', { cache: 'no-store' });
+        if (!res.ok) throw new Error('Failed to load weekend working');
+        const data = await res.json().catch(() => ({}));
+        const weekends = Array.isArray(data?.weekends) ? (data.weekends as string[]) : [];
+        weekends.forEach((dateKey: string) => weekendWorkingDates.add(dateKey));
+      } catch {
+        // ignore; localStorage + allocation flags still work
+      } finally {
+        setWorkingWeekends(new Set(weekendWorkingDates));
+      }
+    })();
   }, [fetchedAllocations]);
 
   useEffect(() => {
@@ -483,6 +496,14 @@ export default function ResourceForecastView() {
       }
       // Persist to localStorage
       localStorage.setItem('workingWeekends', JSON.stringify(Array.from(newSet)));
+
+      // Persist to server so weekend-working dates are shared (and usable by AI)
+      fetch('/api/resource/weekend-working', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ weekends: Array.from(newSet) }),
+      }).catch(() => undefined);
+
       return newSet;
     });
   };
