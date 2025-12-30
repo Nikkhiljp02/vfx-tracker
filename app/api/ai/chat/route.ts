@@ -34,6 +34,7 @@ const WRITE_TOOL_NAMES = new Set<string>([
   'assign_resource_allocation',
   'assign_employee_to_shot_for_workdays',
   'remove_employee_allocations',
+  'remove_shot_allocations',
 ]);
 
 function formatPendingActionSummary(tool: string, args: any): string {
@@ -73,7 +74,59 @@ function formatPendingActionSummary(tool: string, args: any): string {
     return `Remove allocations for ${employeeId} from ${startDate} to ${endDate}${filters ? ` (${filters})` : ''}`;
   }
 
+  if (tool === 'remove_shot_allocations') {
+    const shotName = typeof args?.shotName === 'string' ? args.shotName : '';
+    const showName = typeof args?.showName === 'string' ? args.showName : '';
+    const startDate = typeof args?.startDate === 'string' ? args.startDate : '';
+    const endDate = typeof args?.endDate === 'string' ? args.endDate : '';
+    const range = startDate || endDate ? ` from ${startDate || 'today'} to ${endDate || 'today+365'}` : ' (all dates)';
+    return `Remove allocations for shot ${shotName}${showName ? ` (show=${showName})` : ''}${range}`;
+  }
+
   return `${tool}`;
+}
+
+function normalizeWriteToolCall(tool: string, args: any): { tool: string; args: any } {
+  // Heuristic guardrails to avoid proposing invalid write actions.
+  // Most common mistake: using remove_employee_allocations for a shot-wide removal.
+
+  if (tool === 'remove_employee_allocations') {
+    const employeeId = typeof args?.employeeId === 'string' ? args.employeeId.trim() : '';
+    const shotName = typeof args?.shotName === 'string' ? args.shotName.trim() : '';
+    const showName = typeof args?.showName === 'string' ? args.showName.trim() : '';
+
+    if (!employeeId && (shotName || showName)) {
+      const guessedShot = shotName || showName;
+      return {
+        tool: 'remove_shot_allocations',
+        args: {
+          shotName: guessedShot,
+          // only keep showName if we weren't forced to borrow it as shotName
+          showName: shotName ? showName || undefined : undefined,
+          startDate: args?.startDate,
+          endDate: args?.endDate,
+        },
+      };
+    }
+  }
+
+  if (tool === 'remove_shot_allocations') {
+    const shotName = typeof args?.shotName === 'string' ? args.shotName.trim() : '';
+    const showName = typeof args?.showName === 'string' ? args.showName.trim() : '';
+    if (!shotName && showName) {
+      return {
+        tool: 'remove_shot_allocations',
+        args: {
+          shotName: showName,
+          showName: undefined,
+          startDate: args?.startDate,
+          endDate: args?.endDate,
+        },
+      };
+    }
+  }
+
+  return { tool, args };
 }
 
 const MAX_HISTORY_MESSAGES = 10;
@@ -470,6 +523,7 @@ Important guidelines:
     - You may propose allocation changes, but you MUST NOT execute write actions without explicit user approval.
     - When the user asks to assign/modify allocations, respond with the exact proposed action(s) and ask the user to approve.
     - For unassign/removal requests, prefer proposing a single remove_employee_allocations action over setting man-days to 0.
+  - If the user asks to remove allocations for a SHOT for ALL employees, propose remove_shot_allocations (do NOT ask for employeeId).
 - Use tools to fetch real data when needed
 - Format dates as YYYY-MM-DD
 - Be concise and professional
@@ -478,6 +532,7 @@ Important guidelines:
     - If the user says "all allocations for employee X" without dates, treat it as a schedule request for the next 60 days starting today.
     - If the user says "overall" or "all future", treat it as today through today+365 days unless they specify a tighter range.
     - If the user asks to assign a show/shot for N days (e.g., "10 days") and provides a start date and any exclusions (leave dates), prefer using assign_employee_to_shot_for_workdays so weekends are handled correctly.
+    - If the user asks to remove allocations for a shot across all employees, prefer remove_shot_allocations.
 
 Current date: ${new Date().toISOString().split('T')[0]}`,
     },
@@ -541,10 +596,14 @@ Current date: ${new Date().toISOString().split('T')[0]}`,
             } catch {
               parsed = {};
             }
+
+            const normalized = normalizeWriteToolCall(fn, parsed);
+            if (!WRITE_TOOL_NAMES.has(normalized.tool)) return null;
+
             return {
-              tool: fn,
-              args: parsed,
-              summary: formatPendingActionSummary(fn, parsed),
+              tool: normalized.tool,
+              args: normalized.args,
+              summary: formatPendingActionSummary(normalized.tool, normalized.args),
             };
           })
           .filter(Boolean) as PendingAction[];
@@ -595,6 +654,7 @@ Important guidelines:
 - You may propose allocation changes, but you MUST NOT execute write actions without explicit user approval.
 - When the user asks to assign/modify allocations, respond with the exact proposed action(s) and ask the user to approve.
 - For unassign/removal requests, prefer proposing a single remove_employee_allocations action over setting man-days to 0.
+- If the user asks to remove allocations for a SHOT for ALL employees, propose remove_shot_allocations (do NOT ask for employeeId).
 - For multi-day assignment requests, prefer proposing a single assign_employee_to_shot_for_workdays action over listing many per-day assignments.
 
 Current date: ${new Date().toISOString().split('T')[0]}
@@ -627,11 +687,17 @@ If a user asks for “today/this week/this month”, ask for an explicit date ra
 
     const writeCalls = calls.filter((c: any) => typeof c?.name === 'string' && WRITE_TOOL_NAMES.has(c.name));
     if (writeCalls.length > 0) {
-      const pendingActions: PendingAction[] = writeCalls.map((c: any) => ({
-        tool: c.name,
-        args: c.args ?? {},
-        summary: formatPendingActionSummary(c.name, c.args ?? {}),
-      }));
+      const pendingActions: PendingAction[] = writeCalls
+        .map((c: any) => {
+          const normalized = normalizeWriteToolCall(c.name, c.args ?? {});
+          if (!WRITE_TOOL_NAMES.has(normalized.tool)) return null;
+          return {
+            tool: normalized.tool,
+            args: normalized.args,
+            summary: formatPendingActionSummary(normalized.tool, normalized.args),
+          };
+        })
+        .filter(Boolean) as PendingAction[];
 
       const text =
         `I can do that. Please review and approve the following action(s):\n` +
@@ -675,6 +741,7 @@ Important guidelines:
     - You may propose allocation changes, but you MUST NOT execute write actions without explicit user approval.
     - When the user asks to assign/modify allocations, respond with the exact proposed action(s) and ask the user to approve.
     - For unassign/removal requests, prefer proposing a single remove_employee_allocations action over setting man-days to 0.
+  - If the user asks to remove allocations for a SHOT for ALL employees, propose remove_shot_allocations (do NOT ask for employeeId).
 - Use tools to fetch real data when needed
 - Format dates as YYYY-MM-DD
 - Be concise and professional
@@ -683,6 +750,7 @@ Important guidelines:
     - If the user says "all allocations for employee X" without dates, treat it as a schedule request for the next 60 days starting today.
     - If the user says "overall" or "all future", treat it as today through today+365 days unless they specify a tighter range.
     - If the user asks to assign a show/shot for N days (e.g., "10 days") and provides a start date and any exclusions (leave dates), prefer using assign_employee_to_shot_for_workdays so weekends are handled correctly.
+    - If the user asks to remove allocations for a shot across all employees, prefer remove_shot_allocations.
 
 Current date: ${new Date().toISOString().split('T')[0]}`
     },
@@ -785,10 +853,14 @@ Current date: ${new Date().toISOString().split('T')[0]}`
             } catch {
               parsed = {};
             }
+
+            const normalized = normalizeWriteToolCall(fn, parsed);
+            if (!WRITE_TOOL_NAMES.has(normalized.tool)) return null;
+
             return {
-              tool: fn,
-              args: parsed,
-              summary: formatPendingActionSummary(fn, parsed),
+              tool: normalized.tool,
+              args: normalized.args,
+              summary: formatPendingActionSummary(normalized.tool, normalized.args),
             };
           })
           .filter(Boolean) as PendingAction[];

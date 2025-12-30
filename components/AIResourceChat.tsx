@@ -157,6 +157,20 @@ export default function AIResourceChat({ isOpen, onClose }: AIResourceChatProps)
                   return `${idx + 1}. ${tool}: deleted ${res.deletedCount} allocation(s) ${range ? `(${range})` : ''}`;
                 }
 
+                if (res.action === 'deleted_shot') {
+                  const shot = res.shotName || '';
+                  const show = res.showName ? ` (show=${res.showName})` : '';
+                  const range = res.startDate && res.endDate ? ` (${res.startDate} → ${res.endDate})` : '';
+                  return `${idx + 1}. ${tool}: deleted ${res.deletedCount} allocation(s) for shot ${shot}${show}${range}`;
+                }
+
+                if (res.action === 'deleted_shot') {
+                  const shot = res.shotName || '';
+                  const show = res.showName ? ` show=${res.showName}` : '';
+                  const range = res.startDate && res.endDate ? ` (${res.startDate} → ${res.endDate})` : '';
+                  return `${idx + 1}. ${tool}: deleted ${res.deletedCount} allocation(s) for shot ${shot}${show}${range}`;
+                }
+
                 if (res.action === 'batch_assigned') {
                   const start = res.startDate || '';
                   const end = res.endDate || '';
