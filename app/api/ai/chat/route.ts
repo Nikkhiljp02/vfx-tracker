@@ -165,7 +165,11 @@ function normalizeWriteToolCall(tool: string, args: any): { tool: string; args: 
 
 const MAX_HISTORY_MESSAGES = 10;
 const MAX_MESSAGE_CHARS = 2500;
-const MAX_TOOL_RESULT_CHARS = 8000;
+const MAX_TOOL_RESULT_CHARS = 3000;
+
+// In-process cooldown when OpenAI returns 429. This helps avoid stampeding the provider
+// when multiple users are chatting simultaneously.
+let openaiRateLimitedUntilMs = 0;
 
 function normalizeConversationHistory(input: unknown): ChatMessage[] {
   if (!Array.isArray(input)) return [];
@@ -207,9 +211,61 @@ function getErrorStatus(err: unknown): number | null {
 
 function extractRetryAfterSeconds(err: unknown): number | null {
   const anyErr = err as any;
+
+  const headers = anyErr?.headers;
+  try {
+    const getHeader = (name: string): string | null => {
+      if (!headers) return null;
+      if (typeof headers?.get === 'function') {
+        return headers.get(name);
+      }
+      if (typeof headers === 'object' && headers) {
+        const v = (headers as any)[name] ?? (headers as any)[name.toLowerCase()];
+        return typeof v === 'string' ? v : null;
+      }
+      return null;
+    };
+
+    const retryAfterMs = getHeader('retry-after-ms');
+    if (retryAfterMs && !Number.isNaN(Number(retryAfterMs))) {
+      return Math.ceil(Number(retryAfterMs) / 1000);
+    }
+
+    const retryAfter = getHeader('retry-after');
+    if (retryAfter && !Number.isNaN(Number(retryAfter))) {
+      return Math.ceil(Number(retryAfter));
+    }
+  } catch {
+    // Ignore header parsing errors
+  }
+
   const message = typeof anyErr?.message === 'string' ? anyErr.message : '';
-  const match = message.match(/retry in\s+(\d+(?:\.\d+)?)s/i);
-  if (match) return Math.ceil(Number(match[1]));
+
+  // Common OpenAI error patterns
+  // - "Please try again in 4h18m46.08s"
+  // - "Please try again in 12m3.2s"
+  // - "Please try again in 10s"
+  const hms = message.match(/try again in\s+(\d+)h(\d+)m(\d+(?:\.\d+)?)s/i);
+  if (hms) {
+    const h = Number(hms[1]);
+    const m = Number(hms[2]);
+    const s = Number(hms[3]);
+    return Math.ceil(h * 3600 + m * 60 + s);
+  }
+
+  const ms = message.match(/try again in\s+(\d+)m(\d+(?:\.\d+)?)s/i);
+  if (ms) {
+    const m = Number(ms[1]);
+    const s = Number(ms[2]);
+    return Math.ceil(m * 60 + s);
+  }
+
+  const sOnly = message.match(/try again in\s+(\d+(?:\.\d+)?)s/i);
+  if (sOnly) return Math.ceil(Number(sOnly[1]));
+
+  const retryIn = message.match(/retry in\s+(\d+(?:\.\d+)?)s/i);
+  if (retryIn) return Math.ceil(Number(retryIn[1]));
+
   return null;
 }
 
@@ -250,6 +306,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (openaiRateLimitedUntilMs > Date.now()) {
+      const retryAfterSeconds = Math.ceil((openaiRateLimitedUntilMs - Date.now()) / 1000);
+      return NextResponse.json(
+        {
+          error: 'AI provider rate limit/quota exceeded. Please retry later.',
+          retryAfterSeconds,
+        },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(retryAfterSeconds) },
+        }
+      );
+    }
+
     const normalizedHistory = normalizeConversationHistory(conversationHistory);
 
     try {
@@ -262,6 +332,28 @@ export async function POST(request: NextRequest) {
     } catch (error: any) {
       console.error('OpenAI error:', error);
       const status = getErrorStatus(error) ?? 500;
+
+      if (status === 429) {
+        const retryAfterSeconds = extractRetryAfterSeconds(error);
+        if (retryAfterSeconds && retryAfterSeconds > 0) {
+          openaiRateLimitedUntilMs = Date.now() + retryAfterSeconds * 1000;
+        } else {
+          // Default small cooldown when provider doesn't supply timing.
+          openaiRateLimitedUntilMs = Date.now() + 60_000;
+        }
+
+        return NextResponse.json(
+          {
+            error: 'AI provider rate limit/quota exceeded. Please retry later.',
+            retryAfterSeconds: retryAfterSeconds ?? undefined,
+          },
+          {
+            status: 429,
+            headers: retryAfterSeconds ? { 'Retry-After': String(retryAfterSeconds) } : undefined,
+          }
+        );
+      }
+
       return NextResponse.json(
         { error: 'OpenAI failed to process the request.' },
         { status: status >= 400 && status < 600 ? status : 500 }
@@ -300,28 +392,18 @@ async function processWithOpenAI(message: string, history: ChatMessage[], userId
   const messages: Array<any> = [
     {
       role: 'system',
-      content: `You are an AI Resource Manager for a VFX production studio. You help manage resource allocations, schedules, and forecasts.
+      content: `You are an AI Resource Manager for a VFX studio.
 
-Important guidelines:
-    - You may propose allocation changes, but you MUST NOT execute write actions without explicit user approval.
-    - When the user asks to assign/modify allocations, respond with the exact proposed action(s) and ask the user to approve.
-    - For unassign/removal requests, prefer proposing a single remove_employee_allocations action over setting man-days to 0.
-  - If the user asks to remove allocations for a SHOT for ALL employees, propose remove_shot_allocations (do NOT ask for employeeId).
-  - If the user asks to remove allocations for ALL SHOTS for ALL EMPLOYEES, propose remove_all_allocations (do NOT ask for employeeId).
-  - If the user asks to remove allocations for ALL shots in a SHOW (e.g., "clear all shots for show X"), propose remove_show_allocations.
-  - If the user asks to enable/disable Saturday working (or Sunday), propose set_weekend_working_policy.
-- Use tools to fetch real data when needed
-- Format dates as YYYY-MM-DD
-- Be concise and professional
+Rules:
+- Use tools to fetch data when needed.
+- NEVER execute write actions without explicit user approval.
+- If proposing changes, respond with the exact action(s) and ask for approval.
+- Prefer deletion tools for removals (do not set man-days to 0).
+- Dates must be YYYY-MM-DD.
 
-    Interpretation rules:
-    - If the user says "all allocations for employee X" without dates, treat it as a schedule request for the next 60 days starting today.
-    - If the user says "overall" or "all future", treat it as today through today+365 days unless they specify a tighter range.
-    - If the user asks to assign a show/shot for N days (e.g., "10 days") and provides a start date and any exclusions (leave dates), prefer using assign_employee_to_shot_for_workdays so weekends are handled correctly.
-    - If the user asks to remove allocations for a shot across all employees, prefer remove_shot_allocations.
-    - If the user asks to remove ALL allocations across all employees (all shots), prefer remove_all_allocations.
-    - If the user asks to remove all allocations for a show (all shots in that show), prefer remove_show_allocations.
-    - If the user asks to enable/disable Saturday/Sunday working, prefer set_weekend_working_policy.
+Interpretation hints:
+- "all allocations for employee X" without dates => next 60 days.
+- "overall"/"all future" => today..today+365 unless specified.
 
 Current date: ${new Date().toISOString().split('T')[0]}`,
     },
@@ -338,14 +420,14 @@ Current date: ${new Date().toISOString().split('T')[0]}`,
     },
   }));
 
-  for (let step = 0; step < 6; step++) {
+  for (let step = 0; step < 4; step++) {
     const completion = await openai.chat.completions.create({
       model,
       messages,
       tools: tools as any,
       tool_choice: 'auto' as any,
       temperature: 0.2,
-      max_tokens: 800,
+      max_tokens: 500,
     } as any);
 
     const msg = completion.choices?.[0]?.message as any;
