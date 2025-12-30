@@ -13,6 +13,45 @@ type GeminiModelListResponse = {
   models?: GeminiModelListItem[];
 };
 
+type ChatMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+};
+
+const MAX_HISTORY_MESSAGES = 10;
+const MAX_MESSAGE_CHARS = 2500;
+const MAX_TOOL_RESULT_CHARS = 8000;
+
+function normalizeConversationHistory(input: unknown): ChatMessage[] {
+  if (!Array.isArray(input)) return [];
+
+  const cleaned = input
+    .map((msg: any) => {
+      const role = msg?.role;
+      const content = typeof msg?.content === 'string' ? msg.content : '';
+      if ((role !== 'user' && role !== 'assistant') || !content.trim()) return null;
+
+      const trimmed = content.length > MAX_MESSAGE_CHARS ? content.slice(0, MAX_MESSAGE_CHARS) + '…' : content;
+      return { role, content: trimmed } as ChatMessage;
+    })
+    .filter(Boolean) as ChatMessage[];
+
+  // Keep only the most recent messages
+  return cleaned.slice(-MAX_HISTORY_MESSAGES);
+}
+
+function safeStringifyAndTruncate(value: unknown, maxChars: number): string {
+  let text = '';
+  try {
+    text = JSON.stringify(value);
+  } catch {
+    text = JSON.stringify({ error: 'Unserializable tool result' });
+  }
+
+  if (text.length <= maxChars) return text;
+  return text.slice(0, maxChars) + '…';
+}
+
 function getErrorStatus(err: unknown): number | null {
   if (typeof err === 'object' && err && 'status' in err) {
     const status = (err as any).status;
@@ -213,10 +252,12 @@ export async function POST(request: NextRequest) {
       }, { status: 503 });
     }
 
+    const normalizedHistory = normalizeConversationHistory(conversationHistory);
+
     // Try Gemini first (free tier)
     if (genAI) {
       try {
-        const response = await processWithGemini(message, conversationHistory, user.id);
+        const response = await processWithGemini(message, normalizedHistory, user.id);
         return NextResponse.json({ 
           message: response,
           provider: 'gemini'
@@ -228,7 +269,7 @@ export async function POST(request: NextRequest) {
         if (groq) {
           console.log('Falling back to Groq after Gemini error');
           try {
-            const response = await processWithGroq(message, conversationHistory, user.id);
+            const response = await processWithGroq(message, normalizedHistory, user.id);
             return NextResponse.json({
               message: response,
               provider: 'groq'
@@ -276,7 +317,7 @@ export async function POST(request: NextRequest) {
     } 
     // If Gemini not configured, try Groq
     else if (groq) {
-      const response = await processWithGroq(message, conversationHistory, user.id);
+      const response = await processWithGroq(message, normalizedHistory, user.id);
       return NextResponse.json({ 
         message: response,
         provider: 'groq'
@@ -311,7 +352,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function processWithGemini(message: string, history: any[], userId: string): Promise<string> {
+async function processWithGemini(message: string, history: ChatMessage[], userId: string): Promise<string> {
   if (!genAI) throw new Error('Gemini not configured');
 
   const { model: resolvedModel } = await resolveGeminiModelName();
@@ -346,7 +387,7 @@ If a user asks for “today/this week/this month”, ask for an explicit date ra
   
   // Only use history if it starts with a user message
   if (history.length > 0 && history[0].role === 'user') {
-    geminiHistory = history.map((msg: any) => ({
+    geminiHistory = history.map((msg) => ({
       role: msg.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: msg.content }]
     }));
@@ -385,7 +426,7 @@ If a user asks for “today/this week/this month”, ask for an explicit date ra
   return result.response.text();
 }
 
-async function processWithGroq(message: string, history: any[], userId: string): Promise<string> {
+async function processWithGroq(message: string, history: ChatMessage[], userId: string): Promise<string> {
   if (!groq) throw new Error('Groq not configured');
 
   // Groq uses an OpenAI-compatible API and supports tool calling on many models.
@@ -403,7 +444,7 @@ Important guidelines:
 
 Current date: ${new Date().toISOString().split('T')[0]}`
     },
-    ...history.map((msg: any) => ({
+    ...history.map((msg) => ({
       role: msg.role as 'user' | 'assistant',
       content: msg.content
     })),
@@ -495,7 +536,7 @@ Current date: ${new Date().toISOString().split('T')[0]}`
       messages.push({
         role: 'tool',
         tool_call_id: toolCallId,
-        content: JSON.stringify(result ?? { error: 'No response' }),
+        content: safeStringifyAndTruncate(result ?? { error: 'No response' }, MAX_TOOL_RESULT_CHARS),
       });
     }
   }
