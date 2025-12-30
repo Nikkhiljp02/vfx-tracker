@@ -30,7 +30,7 @@ type AIChatResult = {
   pendingActions?: PendingAction[];
 };
 
-const WRITE_TOOL_NAMES = new Set<string>(['assign_resource_allocation']);
+const WRITE_TOOL_NAMES = new Set<string>(['assign_resource_allocation', 'remove_employee_allocations']);
 
 function formatPendingActionSummary(tool: string, args: any): string {
   if (tool === 'assign_resource_allocation') {
@@ -45,6 +45,16 @@ function formatPendingActionSummary(tool: string, args: any): string {
 
     const target = showName || shotName ? `${showName}${showName && shotName ? ' / ' : ''}${shotName}` : '(leave/idle)';
     return `Assign ${employeeId} on ${date}: ${target} for ${manDays} MD${flags ? ` (${flags})` : ''}`;
+  }
+
+  if (tool === 'remove_employee_allocations') {
+    const employeeId = typeof args?.employeeId === 'string' ? args.employeeId : '';
+    const startDate = typeof args?.startDate === 'string' ? args.startDate : 'today';
+    const endDate = typeof args?.endDate === 'string' ? args.endDate : 'today+365';
+    const showName = typeof args?.showName === 'string' ? args.showName : '';
+    const shotName = typeof args?.shotName === 'string' ? args.shotName : '';
+    const filters = [showName ? `show=${showName}` : null, shotName ? `shot=${shotName}` : null].filter(Boolean).join(', ');
+    return `Remove allocations for ${employeeId} from ${startDate} to ${endDate}${filters ? ` (${filters})` : ''}`;
   }
 
   return `${tool}`;
@@ -443,9 +453,14 @@ async function processWithOpenAI(message: string, history: ChatMessage[], userId
 Important guidelines:
     - You may propose allocation changes, but you MUST NOT execute write actions without explicit user approval.
     - When the user asks to assign/modify allocations, respond with the exact proposed action(s) and ask the user to approve.
+    - For unassign/removal requests, prefer proposing a single remove_employee_allocations action over setting man-days to 0.
 - Use tools to fetch real data when needed
 - Format dates as YYYY-MM-DD
 - Be concise and professional
+
+    Interpretation rules:
+    - If the user says "all allocations for employee X" without dates, treat it as a schedule request for the next 60 days starting today.
+    - If the user says "overall" or "all future", treat it as today through today+365 days unless they specify a tighter range.
 
 Current date: ${new Date().toISOString().split('T')[0]}`,
     },
@@ -562,6 +577,7 @@ Important guidelines:
 - If you need more specific information, ask the user
 - You may propose allocation changes, but you MUST NOT execute write actions without explicit user approval.
 - When the user asks to assign/modify allocations, respond with the exact proposed action(s) and ask the user to approve.
+- For unassign/removal requests, prefer proposing a single remove_employee_allocations action over setting man-days to 0.
 
 Current date: ${new Date().toISOString().split('T')[0]}
 
@@ -640,9 +656,14 @@ async function processWithGroq(message: string, history: ChatMessage[], userId: 
 Important guidelines:
     - You may propose allocation changes, but you MUST NOT execute write actions without explicit user approval.
     - When the user asks to assign/modify allocations, respond with the exact proposed action(s) and ask the user to approve.
+    - For unassign/removal requests, prefer proposing a single remove_employee_allocations action over setting man-days to 0.
 - Use tools to fetch real data when needed
 - Format dates as YYYY-MM-DD
 - Be concise and professional
+
+    Interpretation rules:
+    - If the user says "all allocations for employee X" without dates, treat it as a schedule request for the next 60 days starting today.
+    - If the user says "overall" or "all future", treat it as today through today+365 days unless they specify a tighter range.
 
 Current date: ${new Date().toISOString().split('T')[0]}`
     },

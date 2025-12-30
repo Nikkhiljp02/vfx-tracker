@@ -39,6 +39,16 @@ function isDateKeyInRange(dateKey: string, startDate: string, endDate: string): 
   return dateKey >= startDate && dateKey <= endDate;
 }
 
+function addDaysToDateKey(dateKey: string, days: number): string {
+  const match = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(dateKey);
+  if (!match) return dateKey;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const dt = new Date(Date.UTC(year, month - 1, day + days));
+  return dt.toISOString().slice(0, 10);
+}
+
 // Function definitions for AI (Gemini format)
 export const aiFunctionDeclarations: FunctionDeclaration[] = [
   {
@@ -228,6 +238,36 @@ export const aiFunctionDeclarations: FunctionDeclaration[] = [
       },
       required: ["employeeId", "date", "manDays"]
     }
+  },
+  {
+    name: "remove_employee_allocations",
+    description: "PROPOSED WRITE ACTION: Remove (delete) allocations for an employee over a date range. Intended to be executed only after user approval.",
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        employeeId: {
+          type: SchemaType.STRING,
+          description: "Employee ID (empId)"
+        },
+        startDate: {
+          type: SchemaType.STRING,
+          description: "Start date in YYYY-MM-DD format (optional; defaults to today)"
+        },
+        endDate: {
+          type: SchemaType.STRING,
+          description: "End date in YYYY-MM-DD format (optional; defaults to today + 365 days)"
+        },
+        showName: {
+          type: SchemaType.STRING,
+          description: "Optional filter: only delete allocations for this show"
+        },
+        shotName: {
+          type: SchemaType.STRING,
+          description: "Optional filter: only delete allocations for this shot"
+        }
+      },
+      required: ["employeeId"]
+    }
   }
 ];
 
@@ -258,6 +298,9 @@ export async function executeAIFunction(functionName: string, args: any, userId:
 
       case "assign_resource_allocation":
         return await assignResourceAllocation(args, userId);
+
+      case "remove_employee_allocations":
+        return await removeEmployeeAllocations(args, userId);
       
       default:
         return { error: `Unknown function: ${functionName}` };
@@ -378,6 +421,88 @@ async function assignResourceAllocation(args: any, userId: string) {
     showName: created.showName,
     shotName: created.shotName,
     manDays: created.manDays,
+  };
+}
+
+async function removeEmployeeAllocations(args: any, userId: string) {
+  const employeeId = typeof args?.employeeId === 'string' ? args.employeeId.trim() : '';
+  const startArg = typeof args?.startDate === 'string' ? args.startDate.trim() : '';
+  const endArg = typeof args?.endDate === 'string' ? args.endDate.trim() : '';
+  const showName = typeof args?.showName === 'string' ? args.showName.trim() : '';
+  const shotName = typeof args?.shotName === 'string' ? args.shotName.trim() : '';
+
+  if (!employeeId) return { error: 'employeeId is required' };
+
+  const todayKey = formatDateKey(new Date());
+  const startDate = startArg || todayKey;
+  const endDate = endArg || addDaysToDateKey(todayKey, 365);
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return { error: 'startDate must be YYYY-MM-DD' };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(endDate)) return { error: 'endDate must be YYYY-MM-DD' };
+  if (endDate < startDate) return { error: 'endDate must be >= startDate' };
+
+  const member = await prisma.resourceMember.findUnique({ where: { empId: employeeId } });
+  if (!member) return { error: `Employee not found for empId=${employeeId}` };
+
+  const padded = getPaddedUtcRangeForDateKeys(startDate, endDate);
+  const candidates = await prisma.resourceAllocation.findMany({
+    where: {
+      resourceId: member.id,
+      allocationDate: padded,
+    },
+    orderBy: { allocationDate: 'asc' },
+  });
+
+  const showLower = showName ? showName.toLowerCase() : '';
+  const shotLower = shotName ? shotName.toLowerCase() : '';
+
+  const matches = candidates
+    .map((a) => ({
+      id: a.id,
+      dateKey: formatDateKey(a.allocationDate),
+      showName: a.showName,
+      shotName: a.shotName,
+      manDays: a.manDays,
+      isLeave: a.isLeave,
+      isIdle: a.isIdle,
+    }))
+    .filter((a) => isDateKeyInRange(a.dateKey, startDate, endDate))
+    .filter((a) => (showLower ? (a.showName || '').toLowerCase() === showLower : true))
+    .filter((a) => (shotLower ? (a.shotName || '').toLowerCase() === shotLower : true));
+
+  if (matches.length === 0) {
+    return {
+      ok: true,
+      action: 'deleted',
+      deletedCount: 0,
+      employeeId,
+      startDate,
+      endDate,
+    };
+  }
+
+  const ids = matches.map((m) => m.id);
+  const deleted = await prisma.resourceAllocation.deleteMany({
+    where: { id: { in: ids } },
+  });
+
+  const sample = matches.slice(0, 25).map((m) => ({
+    date: m.dateKey,
+    showName: m.showName,
+    shotName: m.shotName,
+    manDays: m.manDays,
+    isLeave: m.isLeave,
+    isIdle: m.isIdle,
+  }));
+
+  return {
+    ok: true,
+    action: 'deleted',
+    deletedCount: deleted.count,
+    employeeId,
+    startDate,
+    endDate,
+    sample,
   };
 }
 
@@ -580,10 +705,20 @@ async function getShowAllocations(args: any, userId: string) {
 }
 
 async function getEmployeeSchedule(args: any, userId: string) {
-  const { employeeName, employeeId, startDate, endDate } = args;
+  const { employeeName, employeeId } = args;
+  const todayKey = formatDateKey(new Date());
+  const startDate = typeof args?.startDate === 'string' && args.startDate.trim() ? args.startDate.trim() : todayKey;
+  const endDate = typeof args?.endDate === 'string' && args.endDate.trim() ? args.endDate.trim() : addDaysToDateKey(todayKey, 60);
 
   if (!employeeId && !employeeName) {
     return { error: 'employeeId or employeeName is required' };
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
+    return { error: 'startDate must be YYYY-MM-DD' };
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+    return { error: 'endDate must be YYYY-MM-DD' };
   }
 
   const padded = getPaddedUtcRangeForDateKeys(startDate, endDate);

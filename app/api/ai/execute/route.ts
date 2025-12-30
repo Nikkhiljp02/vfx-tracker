@@ -7,7 +7,7 @@ type PendingAction = {
   args: unknown;
 };
 
-const WRITE_TOOL_NAMES = new Set<string>(['assign_resource_allocation']);
+const WRITE_TOOL_NAMES = new Set<string>(['assign_resource_allocation', 'remove_employee_allocations']);
 
 export async function POST(request: NextRequest) {
   try {

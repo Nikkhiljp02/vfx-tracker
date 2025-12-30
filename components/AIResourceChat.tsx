@@ -121,8 +121,13 @@ export default function AIResourceChat({ isOpen, onClose }: AIResourceChatProps)
     }
   };
 
-  const executePendingActions = async (pendingActions: PendingAction[]) => {
+  const executePendingActions = async (messageIndex: number, pendingActions: PendingAction[]) => {
     if (!pendingActions?.length || isExecutingActions) return;
+
+    // Prevent double-apply by clearing actions immediately on that message
+    setMessages((prev) =>
+      prev.map((m, idx) => (idx === messageIndex ? { ...m, pendingActions: undefined } : m))
+    );
 
     setIsExecutingActions(true);
     try {
@@ -178,7 +183,10 @@ export default function AIResourceChat({ isOpen, onClose }: AIResourceChatProps)
     }
   };
 
-  const cancelPendingActions = () => {
+  const cancelPendingActions = (messageIndex: number) => {
+    setMessages((prev) =>
+      prev.map((m, idx) => (idx === messageIndex ? { ...m, pendingActions: undefined } : m))
+    );
     setMessages((prev) => [
       ...prev,
       {
@@ -257,14 +265,14 @@ export default function AIResourceChat({ isOpen, onClose }: AIResourceChatProps)
                     </div>
                     <div className="flex gap-2 mt-3">
                       <button
-                        onClick={() => executePendingActions(msg.pendingActions!)}
+                        onClick={() => executePendingActions(idx, msg.pendingActions!)}
                         disabled={isLoading || isExecutingActions}
                         className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
                       >
                         {isExecutingActions ? 'Applying…' : 'Approve & Apply'}
                       </button>
                       <button
-                        onClick={cancelPendingActions}
+                        onClick={() => cancelPendingActions(idx)}
                         disabled={isLoading || isExecutingActions}
                         className="px-3 py-1.5 text-xs bg-gray-200 text-gray-800 rounded hover:bg-gray-300 disabled:cursor-not-allowed"
                       >
