@@ -13,6 +13,35 @@ type GeminiModelListResponse = {
   models?: GeminiModelListItem[];
 };
 
+function getErrorStatus(err: unknown): number | null {
+  if (typeof err === 'object' && err && 'status' in err) {
+    const status = (err as any).status;
+    if (typeof status === 'number') return status;
+  }
+  return null;
+}
+
+function extractRetryAfterSeconds(err: unknown): number | null {
+  // Try common shapes from GoogleGenerativeAIError
+  const anyErr = err as any;
+  const details = anyErr?.errorDetails;
+  if (Array.isArray(details)) {
+    const retryInfo = details.find((d) => d?.['@type']?.includes('RetryInfo') && typeof d?.retryDelay === 'string');
+    const delay = retryInfo?.retryDelay as string | undefined;
+    const match = delay?.match(/^(\d+)s$/);
+    if (match) return Number(match[1]);
+  }
+
+  const message = typeof anyErr?.message === 'string' ? anyErr.message : '';
+  const msgMatch = message.match(/retryDelay"\s*:\s*"(\d+)s"/i);
+  if (msgMatch) return Number(msgMatch[1]);
+
+  const match = message.match(/retry in\s+(\d+(?:\.\d+)?)s/i);
+  if (match) return Math.ceil(Number(match[1]));
+
+  return null;
+}
+
 // Initialize AI clients
 const genAI = process.env.GOOGLE_AI_KEY 
   ? new GoogleGenerativeAI(process.env.GOOGLE_AI_KEY)
@@ -149,7 +178,33 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        throw error;
+        // No fallback available: return a useful status/message instead of generic 500
+        const status = getErrorStatus(error) ?? 500;
+        const retryAfterSeconds = extractRetryAfterSeconds(error);
+
+        // Common case: Gemini quota/rate-limits (429)
+        if (status === 429) {
+          return NextResponse.json(
+            {
+              error:
+                'Gemini quota/rate limit exceeded for the current API key/project. Add GROQ_API_KEY for fallback, or enable Gemini API billing/quota for this key.',
+              provider: 'gemini',
+              retryAfterSeconds,
+            },
+            {
+              status: 429,
+              headers: retryAfterSeconds ? { 'Retry-After': String(retryAfterSeconds) } : undefined,
+            }
+          );
+        }
+
+        return NextResponse.json(
+          {
+            error: 'Gemini failed to process the request.',
+            provider: 'gemini',
+          },
+          { status: status >= 400 && status < 600 ? status : 500 }
+        );
       }
     } 
     // If Gemini not configured, try Groq
@@ -167,6 +222,22 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('AI chat error:', error);
+
+    const status = getErrorStatus(error) ?? 500;
+    const retryAfterSeconds = extractRetryAfterSeconds(error);
+    if (status === 429) {
+      return NextResponse.json(
+        {
+          error: 'AI provider rate limit/quota exceeded. Please retry shortly.',
+          retryAfterSeconds,
+        },
+        {
+          status: 429,
+          headers: retryAfterSeconds ? { 'Retry-After': String(retryAfterSeconds) } : undefined,
+        }
+      );
+    }
+
     return NextResponse.json({ 
       error: 'Failed to process message' 
     }, { status: 500 });
@@ -250,14 +321,18 @@ If a user asks for “today/this week/this month”, ask for an explicit date ra
 async function processWithGroq(message: string, history: any[], userId: string): Promise<string> {
   if (!groq) throw new Error('Groq not configured');
 
-  // Groq uses OpenAI-compatible API but with limited function calling
-  // For now, use it for simple queries without function calling
-  const messages = [
+  // Groq uses an OpenAI-compatible API and supports tool calling on many models.
+  // We'll enable tool calling so fallback can still answer with live DB data.
+  const messages: Array<any> = [
     {
       role: 'system' as const,
-      content: `You are an AI Resource Manager for a VFX production studio. You help with resource planning and scheduling queries. 
+      content: `You are an AI Resource Manager for a VFX production studio. You help manage resource allocations, schedules, and forecasts.
 
-Note: You are currently running in fallback mode with limited capabilities. You can answer general questions about resource management but cannot access live data. Inform the user that live data access is temporarily unavailable and they should try again shortly.
+Important guidelines:
+- You can only VIEW data, not modify it
+- Use tools to fetch real data when needed
+- Format dates as YYYY-MM-DD
+- Be concise and professional
 
 Current date: ${new Date().toISOString().split('T')[0]}`
     },
@@ -271,12 +346,64 @@ Current date: ${new Date().toISOString().split('T')[0]}`
     }
   ];
 
-  const completion = await groq.chat.completions.create({
-    messages,
-    model: "llama-3.1-70b-versatile",
-    temperature: 0.7,
-    max_tokens: 1024
-  });
+  const tools = aiFunctionDeclarations.map((fn) => ({
+    type: 'function',
+    function: {
+      name: fn.name,
+      description: fn.description,
+      // SchemaType enums serialize to strings ('object', 'string', ...), which is valid JSON Schema
+      parameters: fn.parameters as any,
+    },
+  }));
 
-  return completion.choices[0]?.message?.content || 'No response generated';
+  // Tool-calling loop
+  for (let step = 0; step < 6; step++) {
+    const completion = await groq.chat.completions.create({
+      messages,
+      model: 'llama-3.1-70b-versatile',
+      temperature: 0.2,
+      max_tokens: 1024,
+      tools: tools as any,
+      tool_choice: 'auto' as any,
+    } as any);
+
+    const msg = completion.choices?.[0]?.message as any;
+    if (!msg) return 'No response generated';
+
+    const toolCalls = msg.tool_calls as any[] | undefined;
+    if (!toolCalls || toolCalls.length === 0) {
+      return msg.content || 'No response generated';
+    }
+
+    // Add assistant message containing tool calls
+    messages.push({
+      role: 'assistant',
+      content: msg.content ?? '',
+      tool_calls: toolCalls,
+    });
+
+    // Execute each tool and append tool results
+    for (const call of toolCalls) {
+      const toolCallId = call.id;
+      const functionName = call.function?.name;
+      const rawArgs = call.function?.arguments;
+
+      let args: any = {};
+      try {
+        args = rawArgs ? JSON.parse(rawArgs) : {};
+      } catch {
+        args = {};
+      }
+
+      const result = await executeAIFunction(functionName, args, userId);
+      messages.push({
+        role: 'tool',
+        tool_call_id: toolCallId,
+        content: JSON.stringify(result ?? { error: 'No response' }),
+      });
+    }
+  }
+
+  // If the model keeps calling tools, return a safe fallback.
+  return 'I gathered the requested data, but could not finalize the response. Please try again with a narrower date range.';
 }
