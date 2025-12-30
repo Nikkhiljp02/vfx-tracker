@@ -705,10 +705,13 @@ function DepartmentBreakdownWidget({ title }: { title: string }) {
               </Pie>
               <Tooltip 
                 contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                formatter={(value: number, name: string, props: any) => [
-                  `${value} tasks (${props.payload.percentage}%)`,
-                  props.payload.name
-                ]}
+                formatter={(value, name, props: any) => {
+                  const safeValue = Number(value ?? 0);
+                  const percentage = props?.payload?.percentage ?? 0;
+                  const label = String(props?.payload?.name ?? name ?? '');
+
+                  return [`${safeValue} tasks (${percentage}%)`, label];
+                }}
               />
             </RechartsPieChart>
           </ResponsiveContainer>
